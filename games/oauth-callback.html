@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>授权完成 · GAMES</title>
+<style>
+  :root { --bg:#0a0e14; --card:#10151d; --border:#1f2733; --text:#d7e2ea; --dim:#6b7a8c; --green:#3fd07a; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif;
+         display:grid; place-items:center; height:100vh; }
+  .box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px 34px; text-align:center; max-width:420px; }
+  h1 { font-size:18px; margin:0 0 8px; }
+  p { color:var(--dim); font-size:13.5px; line-height:1.7; margin:0; }
+  code { color:var(--green); font-family:Consolas,monospace; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1 id="t">正在完成授权…</h1>
+  <p id="m">这一步只是把授权码转交给游戏大厅，本页不会保存任何东西。</p>
+</div>
+<script>
+/* OAuth 回调页（GitHub / 微软共用）
+   - 只做一件事：把 ?code / ?state 转交给打开它的窗口（window.opener），然后自己关掉。
+   - 用 state 前缀区分是谁的授权（github:xxx / microsoft:xxx），所以不用在 redirect_uri 里塞自定义参数
+     （那样会跟 OAuth 应用里登记的地址对不上）。
+   - 同时用 BroadcastChannel 广播一份：万一浏览器不给 opener（跨域/被拦），另一条路也能收到。 */
+(function () {
+  var q = new URLSearchParams(location.search);
+  var code = q.get('code');
+  var state = q.get('state') || '';
+  var err = q.get('error');
+  var errDesc = q.get('error_description') || '';
+  var provider = state.split(':')[0] || '';
+  var T = document.getElementById('t'), M = document.getElementById('m');
+
+  function done(text, sub, ok) {
+    T.textContent = text;
+    M.textContent = sub;
+    T.style.color = ok ? '#3fd07a' : '#e0736a';
+  }
+  if (err) {
+    done('授权没有完成', err + (errDesc ? '：' + errDesc : ''), false);
+  } else if (!code) {
+    done('没拿到授权码', '如果你是直接打开这个页面的，属正常——它只在授权跳转时使用。', false);
+  } else {
+    var payload = { type: 'dsh-oauth', provider: provider, code: code, state: state };
+    try { if (window.opener && !window.opener.closed) window.opener.postMessage(payload, location.origin); } catch (e) { /* ignore */ }
+    try {
+      var bc = new BroadcastChannel('dsh-oauth');
+      bc.postMessage(payload);
+    } catch (e) { /* ignore */ }
+    done('授权完成', '正在返回游戏大厅……如果窗口没有自动关闭，直接关掉本页即可。', true);
+    setTimeout(function () { try { window.close(); } catch (e) { /* ignore */ } }, 900);
+  }
+})();
+</script>
+</body>
+</html>
