@@ -2,6 +2,11 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<!-- CSP：本页不加载任何第三方脚本；script/style 需要 'unsafe-inline' 是因为部分脚本是内联的（单文件产物同样如此）。
+     connect-src 只放行自己的 Worker + api.github.com + 本地联调用的 127.0.0.1:5199，别的外联一律拒绝。
+     ⚠️ 换 Worker 地址时，这里和 auth-config.js 的 api 要一起改。
+     （frame-ancestors 只能由 HTTP 响应头提供，写在 meta 里会被忽略，所以没写。） -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://api.github.com https://dsh-oauth-relay.bobby-minecraft.workers.dev http://127.0.0.1:5199; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GAMES · Bobbychina</title>
 <meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。">
