@@ -116,12 +116,13 @@
   </div>
 
   <div class="note">
-    <b>关于账号与隐私：</b>注册/登录完全跑在浏览器里（口令用 WebCrypto PBKDF2 加盐哈希），<b>本站不收集任何数据</b>——没有后端、没有数据库、没有统计。
-    绑定 GitHub 后存档同步到你自己账号下的<b>私有 Gist</b>（申请的权限只有 <code>gist</code> 与只读个人资料两项，
-    <a href="#" onclick="privacy();return false">点这里看逐条说明</a> /
-    <a href="https://github.com/Bobbychina/zombie-survival/blob/main/PRIVACY.md" target="_blank">PRIVACY.md</a>，
-    随时可在 GitHub 设置里撤销）；不想绑也没关系——「导出存档文件 / 从文件导入」就能把进度搬到另一台电脑。
-    （微软登录暂不提供：要求在 Azure 注册应用，个人账号注册时会被要求绑信用卡。）
+    <b>关于账号与隐私：</b>账号有两种模式——<b>☁️ 云账号</b>（存在本站自己的 Cloudflare Worker + KV 里：用户名、盐、
+    <code>SHA256(pepper+派生值)</code>、会话哈希、你上传的存档；口令本身永远不上传，浏览器用 PBKDF2 21 万轮先派生），
+    或 <b>💻 本机账号</b>（只存在你的浏览器，不联网）。绑定 GitHub 的话存档也可以放你自己的私有 Gist。
+    <b>没有任何第三方统计、广告或 Cookie 跟踪</b>；面板里的「注销账号」会连服务端数据一起删。
+    细节见 <a href="#" onclick="privacy();return false">权限说明</a> /
+    <a href="https://github.com/Bobbychina/zombie-survival/blob/main/PRIVACY.md" target="_blank">PRIVACY.md</a>；
+    不想连任何账号就用「导出存档文件 / 从文件导入」。
   </div>
 </div>
 
@@ -257,7 +258,7 @@
       '<div class="sect">② Personal user data — 只读</div>' +
       '<div class="hint">只在绑定那一刻读一次用户名与头像用于显示，之后同步存档不再调用。</div>' +
       '<div class="sect">令牌存在哪</div>' +
-      '<div class="hint">只存在<b>你这台设备的浏览器 localStorage</b>——本页没有后端，也没有任何服务器保存你的数据；' +
+      '<div class="hint">只存在<b>你这台设备的浏览器 localStorage</b>（外加云账号下你自己的 Cloudflare KV）；' +
       '除了 api.github.com 之外没有别的请求。所以别在公用电脑上绑定。</div>' +
       '<div class="sect">怎么收回</div>' +
       '<div class="hint">撤销授权：<a href="https://github.com/settings/applications" target="_blank">github.com/settings/applications</a> → ' +
@@ -267,7 +268,8 @@
   }
   window.privacy = function () {
     open_('🔒 隐私与权限说明',
-      '<p>本站与游戏<b>不收集任何数据</b>：没有后端、没有数据库、没有统计埋点。账号与存档只在你自己的浏览器和你自己的 GitHub 账号里。</p>' +
+      '<p>账号有两种模式：<b>云账号</b>（存在本站自己的 Cloudflare Worker + KV 里：用户名、盐、口令派生值的哈希、会话哈希、你的存档；' +
+      '口令本身永远不上传）与<b>本机账号</b>（只存在你的浏览器，不联网）。<b>没有第三方统计、广告或 Cookie 跟踪</b>。</p>' +
       consentHtml() +
       '<div class="sect">完整版</div>' +
       '<div class="hint"><a href="https://github.com/Bobbychina/zombie-survival/blob/main/PRIVACY.md" target="_blank">PRIVACY.md（逐条对照代码，可自查）</a></div>',

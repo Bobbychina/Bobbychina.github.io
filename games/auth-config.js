@@ -21,6 +21,10 @@
       哪天你有企业/学校租户，填上 clientId 就立刻可用）。
 */
 window.DSH_AUTH_CONFIG = {
+  /* 云账号后端：同一个 Cloudflare Worker 既做 GitHub 中继，也做账号/云存档 API。
+     换成你自己的 Worker 地址即可；留空 '' = 退回纯本机账号（不联网）。 */
+  api: 'https://dsh-oauth-relay.bobby-minecraft.workers.dev',
+
   // 回调页：一定要和上面登记的地址逐字一致
   redirect: 'https://bobbychina.github.io/games/oauth-callback.html',
 
