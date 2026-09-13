@@ -1,3 +1,4 @@
 # 自检脚本的截图与产物（本地看，不进库）
 .probe/
 node_modules/
+_*.log
