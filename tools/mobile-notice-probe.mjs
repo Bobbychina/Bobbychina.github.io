@@ -42,7 +42,7 @@ for (const url of pages) {
   const name = url.replace(base, '')
   // 手机（iPhone UA + 390 宽）
   const mob = JSON.parse(await visit(url, 390, 844, true))
-  ok('[手机 ' + name + '] 弹出"暂未适配"提醒', mob.has && mob.count === 1 && /暂未做适配/.test(mob.text), mob.text.slice(0, 60))
+  ok('[手机 ' + name + '] 弹出适配提醒', mob.has && mob.count === 1 && /适配/.test(mob.text), mob.text.slice(0, 60))
   ok('[手机 ' + name + '] BETA 条仍在、无横向滚动', mob.beta && mob.hScroll === false, 'beta=' + mob.beta + ' hScroll=' + mob.hScroll)
   const shot = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 390, height: 260, scale: 1 } })
   const file = 'E:/Files/artifacts/mobile-' + name.replace(/[\/\.]/g, '_') + '.png'

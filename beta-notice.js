@@ -60,8 +60,8 @@
     var bar = document.createElement('div');
     bar.id = 'mobile-warn';
     bar.setAttribute('role', 'alert');
-    bar.innerHTML = '<span>📱 <b>手机端暂未做适配</b>：排版和操作会很难受（尤其是游戏里的键盘/鼠标操作）。'
-      + '建议用电脑打开，体验会好很多。</span>';
+    bar.innerHTML = '<span>📱 <b>手机端只做了基础适配</b>：能看能点，但排版和操作仍以电脑为准，'
+      + '体验会明显差一些。</span>';
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = '知道了';
