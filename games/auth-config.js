@@ -32,12 +32,12 @@ window.DSH_AUTH_CONFIG = {
     clientId: 'Ov23liPzQ7xNDx0FdUdh',   // bobbychina's games（2026-09-12 注册，Device Flow 已开）
     scope: 'gist read:user',      // gist = 云存档用的私有 Gist；read:user = 显示头像/用户名
     /* 可选：GitHub 的换 token 接口不给浏览器跨域头，静态站拿不到响应时用中继兜底。
-       部署一个 Cloudflare Worker（免费、不要卡）：
-         npx wrangler login
-         npx wrangler deploy tools/oauth-relay-worker.js --name dsh-oauth-relay
-       然后把 https://dsh-oauth-relay.<你的子域>.workers.dev 填到这里，一键授权就通了。
+       M23.2：中继现在部署在 **Cloudflare Pages** 上（functions/[[path]].js，源码在本仓库根目录）——
+       因为 `*.workers.dev` 在部分网络（校园网/运营商）被整段 DNS 黑洞，"设备码"必然失败；
+       `*.pages.dev` 实测能正常解析。重新部署：`node tools/deploy-relay.mjs bobbychina-games`。
        留空 = 只走直连（客户端会先试 form 简单请求、再试 JSON，两条都失败才报错）。 */
-    relay: 'https://dsh-oauth-relay.bobby-minecraft.workers.dev',
+    relay: 'https://bobbychina-games.pages.dev',
+    // 旧的 Worker 版（同账号，留个地址备查；在黑洞网络里不可达）：https://dsh-oauth-relay.bobby-minecraft.workers.dev
   },
 
   microsoft: {
