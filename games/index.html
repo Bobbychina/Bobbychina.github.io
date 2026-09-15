@@ -54,6 +54,15 @@
   .note { background:#0d131a; border:1px solid var(--border); border-left:3px solid var(--blue); border-radius:10px;
           padding:12px 16px; color:var(--dim); font-size:13px; margin-top:26px; }
   .note b { color:var(--text); }
+  /* 特别鸣谢：与主页 .card 同族但更轻——名字用 mono，贡献用 tag */
+  .thanks { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; }
+  .thx { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; transition:.18s; }
+  .thx:hover { border-color:var(--green); transform:translateY(-2px); }
+  .thx .who { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+  .thx .who b { font-family:var(--mono); font-size:16px; color:var(--text); font-weight:600; }
+  .thx .who a { font-size:12px; color:var(--dim); }
+  .thx .roles { display:flex; gap:7px; flex-wrap:wrap; margin-top:11px; }
+  .thx p { color:var(--dim); font-size:13px; margin:10px 0 0; }
   /* 弹窗 */
   .ov { position:fixed; inset:0; background:rgba(4,7,11,.72); display:none; place-items:center; padding:20px; z-index:50; }
   .ov.show { display:grid; }
@@ -84,6 +93,7 @@
   <nav>
     <a href="/">← 回主页</a>
     <span class="sp"></span>
+    <a href="#thanks">鸣谢</a>
     <a href="https://github.com/Bobbychina" target="_blank">GitHub</a>
   </nav>
 
@@ -131,6 +141,12 @@
     <a href="https://github.com/Bobbychina/zombie-survival/blob/main/PRIVACY.md" target="_blank">PRIVACY.md</a>；
     不想连任何账号也能玩：进度<b>加密</b>存在这台设备的浏览器里（M29 起不再提供"导出明文存档"）。
   </div>
+
+  <section id="thanks">
+    <h2>// special thanks</h2>
+    <!-- 加人只改这一处：往 THANKS 里 push 一条 {name, roles, link?, note?} 即可，卡片自动渲染 -->
+    <div class="thanks" id="thanks-list"></div>
+  </section>
 </div>
 
 <!-- 账号弹窗 -->
@@ -404,6 +420,24 @@
   A.onChange(refresh);
   /* 弹窗里的返回键复用同一个面板函数 */
   window.panel = panel;
+})();
+</script>
+<script>
+/* 特别鸣谢名单——加人只往这里 push 一条：
+   { name:'称呼', roles:['贡献类型', …], link:'https://…（可省）', note:'一句话（可省）' } */
+const THANKS = [
+  { name: 'manbaou', roles: ['Bug 提交者', 'Beta 测试者'], note: '在测试版里逮到的问题，基本都被修掉了。' },
+];
+(function renderThanks() {
+  var box = document.getElementById('thanks-list');
+  if (!box) return;
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[<>&"]/g, function (c) { return { '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c]; }); };
+  box.innerHTML = THANKS.map(function (p) {
+    return '<div class="thx"><div class="who"><b>' + esc(p.name) + '</b>' +
+      (p.link ? '<a href="' + esc(p.link) + '" target="_blank" rel="noopener">' + esc(p.link.replace(/^https?:\/\//, '')) + '</a>' : '') +
+      '</div><div class="roles">' + (p.roles || []).map(function (r) { return '<span class="badge g">' + esc(r) + '</span>'; }).join('') + '</div>' +
+      (p.note ? '<p>' + esc(p.note) + '</p>' : '') + '</div>';
+  }).join('');
 })();
 </script>
 </body>
