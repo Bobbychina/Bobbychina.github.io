@@ -129,7 +129,7 @@
     <b>没有任何第三方统计、广告或 Cookie 跟踪</b>；面板里的「注销账号」会连服务端数据一起删。
     细节见 <a href="#" onclick="privacy();return false">权限说明</a> /
     <a href="https://github.com/Bobbychina/zombie-survival/blob/main/PRIVACY.md" target="_blank">PRIVACY.md</a>；
-    不想连任何账号就用「导出存档文件 / 从文件导入」。
+    不想连任何账号也能玩：进度<b>加密</b>存在这台设备的浏览器里（M29 起不再提供"导出明文存档"）。
   </div>
 </div>
 
@@ -226,10 +226,9 @@
       '<div class="sect">云端存档</div><div id="saves">正在读取…</div>' +
       '<div class="sect">账号操作</div>' +
       '<div class="row"><button class="btn" onclick="changePass()">🔑 改密码</button>' +
-      '<button class="btn" onclick="exportFile()">💾 导出存档文件</button>' +
-      '<button class="btn" onclick="importFile()">📂 从文件导入</button>' +
-      '<button class="btn ghost" onclick="exportAll()">⬆️ 导出文本</button>' +
+      '<button class="btn" onclick="exportRemoved()">🔒 导出存档（已下线）</button>' +
       '<button class="btn" onclick="A.logout();closeAcct()">🚪 退出登录</button></div>' +
+      '<div class="hint">M29 起存档<b>全部加密</b>：本机与云上都是密文，不再提供"导出明文文件"。</div>' +
       '<div class="msg"></div>';
     open_('👤 账号与云存档', body, '<button class="btn" onclick="closeAcct()">关闭</button>');
     loadSaves();
@@ -271,7 +270,7 @@
       '<div class="hint">撤销授权：<a href="https://github.com/settings/applications" target="_blank">github.com/settings/applications</a> → ' +
       'Authorized OAuth Apps → bobbychina\'s games → Revoke（本地存档不受影响）；删云端存档：下面的「删除」或直接删掉那个 Gist；' +
       '清本机一切：退出登录后清空本站浏览器数据。</div>' +
-      '<div class="hint" style="color:var(--yellow)">⚠️ 不想给这些权限？关掉本窗口，用「💾 导出存档文件 / 📂 从文件导入」也能换设备，不需要任何第三方账号。</div>';
+      '<div class="hint" style="color:var(--yellow)">⚠️ 不想给这些权限？关掉本窗口也能玩：进度加密存在本机（只是没法跨设备）。</div>';
   }
   window.privacy = function () {
     open_('🔒 隐私与权限说明',
@@ -390,52 +389,15 @@
     if (!r.ok) return msg(r.err, true);
     closeAcct(); panel();
   };
-  window.exportAll = function () {
-    var r = A.exportAll();
-    if (!r.ok) return msg(r.err, true);
-    open_('⬆️ 导出全部存档（文本）', '<p>抄走下面这段就是离线备份（换设备时用「从文件导入」或「导入文本」还原）。</p>' +
-      '<textarea rows="8" readonly>' + esc(r.json) + '</textarea>', '<button class="btn" onclick="panel()">返回</button>');
-  };
-  /* 文件版：不依赖任何第三方账号，换设备最省事 */
-  window.exportFile = function () {
-    var r = A.exportAll();
-    if (!r.ok) return msg(r.err, true);
-    var blob = new Blob([String(r.json)], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'games-saves-' + new Date().toISOString().slice(0, 10) + '.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
-    msg('已下载存档文件（' + Math.round(String(r.json).length / 1024) + ' KB）', false);
-  };
-  window.importFile = function () {
-    open_('📂 从文件导入存档',
-      '<p>选之前导出的 <code>games-saves-日期.json</code>，按槽位覆盖本机存档。</p>' +
-      '<input type="file" id="i-file" accept=".json,application/json" style="margin-top:10px">' +
-      '<div class="msg"></div>',
-      '<button class="btn ok" onclick="doImportFile()">导入</button><button class="btn" onclick="panel()">返回</button>');
-  };
-  window.doImportFile = function () {
-    var input = document.getElementById('i-file');
-    var f = input && input.files && input.files[0];
-    if (!f) return msg('先选一个文件', true);
-    var fr = new FileReader();
-    fr.onload = function () {
-      var r = A.importAll(String(fr.result || ''));
-      if (!r.ok) return msg(r.err, true);
-      closeAcct(); panel();
-    };
-    fr.onerror = function () { msg('读文件失败', true); };
-    fr.readAsText(f);
-  };
-  window.importPanel = function () {
-    open_('⬇️ 导入存档', '<p>粘贴之前导出的文本（按槽位覆盖本机存档）。</p><textarea id="i-imp" rows="8"></textarea><div class="msg"></div>',
-      '<button class="btn ok" onclick="doImport()">导入</button><button class="btn" onclick="panel()">返回</button>');
-  };
-  window.doImport = function () {
-    var r = A.importAll(val('#i-imp'));
-    if (!r.ok) return msg(r.err, true);
-    closeAcct(); panel();
+  /* M29：这里原来有「导出全部存档（文本）/ 导出存档文件 / 从文件导入 / 导入文本」四个入口，
+     连同它们调用的 A.exportAll()/A.importAll() 一起下线了 —— 那两个函数会把**明文存档**
+     整包吐给任何能执行 JS 的人（控制台一行 exportAll() 就够），与"存档全链路加密"直接冲突。
+     现在换设备只有一条正路：登录同一个账号 → 上传/读取（本机与云上都是密文）。 */
+  window.exportRemoved = function () {
+    open_('🔒 导出已下线',
+      '<p>M29 起存档<b>全部加密</b>（AES-GCM-256，密钥只在本机 worker 里），不再提供"导出明文存档"。</p>' +
+      '<p>换设备/多端同步请用上面登录同一个账号（GitHub）后的<b>上传存档 / 读取存档</b>：上传的那份也是密文。</p>',
+      '<button class="btn" onclick="panel()">返回</button>');
   };
 
   refresh();
