@@ -39,35 +39,45 @@
     f.appendChild(s);
   }
 
+  /* 取词：词典缺这条（或页面没引 i18n.js）就回退到内置中文，本脚本可独立工作 */
+  function T(key, fallback) {
+    var v = window.I18N ? I18N.t(key) : '';
+    return (!v || v === key) ? fallback : v;
+  }
+  function panelHtml() {
+    return '<h3>' + T('egg.title', '[串扰] 频道 7.3 · 不明信号') + '<span class="ok" id="egg-ok" hidden></span></h3>' +
+      '<p>' + T('egg.p1', '<b>SITE-Ψ 外联线</b>：一段收容影像的残页掉进了本站附件区（编号 Ψ12-A01），值班监听员没跟进——他说他已经被广播里的解说吵到申请调岗三次。') + '</p>' +
+      '<p>' + T('egg.p2', '终端还开着。广播里的人说，等你先动手。') + '</p>' +
+      '<div class="egg-acts">' +
+      '<a class="primary" href="/secret/">' + T('egg.act1', '接入监听终端 03 →') + '</a>' +
+      '<a href="/secret/wall.png" download>' + T('egg.act2', '取走残页 Ψ12-A01') + '</a>' +
+      '</div>';
+  }
+  function fill(p) {
+    p.setAttribute('aria-label', T('egg.label', 'SITE-Ψ 串扰信号'));
+    p.innerHTML = panelHtml();
+    var ok = p.querySelector('#egg-ok'), l = lvl();
+    if (l === 2) { ok.hidden = false; ok.textContent = '✓ CLEARANCE T2'; }
+    else if (l === 1) { ok.hidden = false; ok.textContent = '✓ CLEARANCE T1'; }
+  }
+
   function build() {
     var s = document.createElement('style');
     s.textContent = CSS;
     document.head.appendChild(s);
 
-    var l = lvl();
     var p = document.createElement('section');
     p.id = 'egg';
     p.hidden = true;
-    p.setAttribute('aria-label', 'SITE-Ψ 串扰信号');
-    p.innerHTML =
-      '<h3>[串扰] 频道 7.3 · 不明信号<span class="ok" id="egg-ok" hidden></span></h3>' +
-      '<p><b>SITE-Ψ 外联线</b>：一段收容影像的残页掉进了本站附件区（编号 Ψ12-A01），值班监听员没跟进——' +
-      '他说他已经被广播里的解说吵到申请调岗三次。</p>' +
-      '<p>终端还开着。广播里的人说，等你先动手。</p>' +
-      '<div class="egg-acts">' +
-      '<a class="primary" href="/secret/">接入监听终端 03 →</a>' +
-      '<a href="/secret/wall.png" download>取走残页 Ψ12-A01</a>' +
-      '</div>';
+    fill(p);
 
     var footer = document.querySelector('footer');
     if (footer && footer.parentNode) footer.parentNode.insertBefore(p, footer);
     else document.body.appendChild(p);
-
-    var ok = p.querySelector('#egg-ok');
-    if (l === 2) { ok.hidden = false; ok.textContent = '✓ CLEARANCE T2'; }
-    else if (l === 1) { ok.hidden = false; ok.textContent = '✓ CLEARANCE T1'; }
     return p;
   }
+  /* 语言切换后已展开的面板要换文案（面板是运行时插入的，i18n 的 DOM 扫描覆盖不到） */
+  document.addEventListener('i18n:change', function () { if (panel) fill(panel); });
 
   var panel = null;
   function reveal() {

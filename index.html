@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bobbychina · 独立开发者 · AI 爱好者</title>
-<meta name="description" content="Bobbychina 的个人主页：独立开发者、AI 爱好者。做游戏、写开发者工具、折腾前端，附在线可玩的游戏厅与开源项目列表。">
+<title data-i18n="meta.title">Bobbychina · 独立开发者 · AI 爱好者</title>
+<meta name="description" content="Bobbychina 的个人主页：独立开发者、AI 爱好者。做游戏、写开发者工具、折腾前端，附在线可玩的游戏厅与开源项目列表。" data-i18n-attr="content:meta.desc">
 <meta name="theme-color" content="#0a0e14">
+<!-- i18n 引擎：必须在解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入 -->
+<script src="/i18n/i18n.js"></script>
 <meta property="og:type" content="website">
-<meta property="og:title" content="Bobbychina · 独立开发者 · AI 爱好者">
-<meta property="og:description" content="独立开发者、AI 爱好者。做游戏、写开发者工具、折腾前端：游戏厅在线可玩，项目全部开源。">
+<meta property="og:title" content="Bobbychina · 独立开发者 · AI 爱好者" data-i18n-attr="content:meta.title">
+<meta property="og:description" content="独立开发者、AI 爱好者。做游戏、写开发者工具、折腾前端：游戏厅在线可玩，项目全部开源。" data-i18n-attr="content:meta.ogdesc">
 <meta property="og:url" content="https://bobbychina.github.io/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0e14'/><path d='M8 22V10h5a4 4 0 0 1 0 8H8' stroke='%233fd07a' stroke-width='2.5' fill='none'/><circle cx='23' cy='20' r='2.5' fill='%235cc8ff'/></svg>">
 <style>
@@ -126,22 +128,23 @@
   <header class="top">
     <div class="brand">bobbychina<span>.github.io</span></div>
     <nav>
-      <a href="#projects">项目</a>
-      <a href="/games/">游戏厅</a>
-      <a href="#about">关于</a>
+      <a href="#projects" data-i18n="nav.projects">项目</a>
+      <a href="/games/" data-i18n="nav.games">游戏厅</a>
+      <a href="#about" data-i18n="nav.about">关于</a>
       <a href="https://github.com/Bobbychina" target="_blank" rel="noopener">GitHub</a>
+      <span data-i18n-switch></span>
     </nav>
   </header>
 
   <div class="hero">
     <div>
-      <h1>我做<em>游戏</em>，也做让人少干活的<em>工具</em>。</h1>
-      <p class="role">我是 <b>Bobbychina</b>，独立开发者、<b>AI 爱好者</b>。喜欢把想法做成能点开就玩、能双击就跑的东西——
+      <h1 data-i18n-html="home.h1">我做<em>游戏</em>，也做让人少干活的<em>工具</em>。</h1>
+      <p class="role" data-i18n-html="home.role">我是 <b>Bobbychina</b>，独立开发者、<b>AI 爱好者</b>。喜欢把想法做成能点开就玩、能双击就跑的东西——
         浏览器里跑的游戏、开发者工具，以及一些把重复劳动吃掉的小插件。</p>
-      <p class="en">Indie developer &amp; AI enthusiast. Browser games, dev tools, and small things that remove busywork.</p>
+      <p class="en" data-i18n="home.en">Indie developer &amp; AI enthusiast. Browser games, dev tools, and small things that remove busywork.</p>
       <div class="cta">
-        <a class="btn primary" href="/games/">🎮 进游戏厅玩</a>
-        <a class="btn" href="#projects">看项目</a>
+        <a class="btn primary" href="/games/" data-i18n="home.cta.play">🎮 进游戏厅玩</a>
+        <a class="btn" href="#projects" data-i18n="home.cta.projects">看项目</a>
         <a class="btn" href="https://github.com/Bobbychina" target="_blank" rel="noopener">GitHub</a>
       </div>
     </div>
@@ -159,50 +162,50 @@
 
       <article class="card">
         <h3><a href="https://github.com/Bobbychina/zombie-survival" target="_blank" rel="noopener">zombie-survival</a></h3>
-        <p class="why">单机丧尸末日生存：<b>24×24 区块的大世界</b>、宝可梦式回合制战斗、季节/天气/体温、种菜、钓鱼、接水净化、伐木。
+        <p class="why" data-i18n-html="home.card.zombie.why">单机丧尸末日生存：<b>24×24 区块的大世界</b>、宝可梦式回合制战斗、季节/天气/体温、种菜、钓鱼、接水净化、伐木。
           构建产物是<b>一个自包含 HTML</b>，双击就能玩，不联网也行。</p>
-        <div class="meta"><span class="tag g">在线可玩</span><span class="tag">TypeScript</span><span class="tag">Vite</span><span class="tag">单文件</span></div>
+        <div class="meta"><span class="tag g" data-i18n="home.card.zombie.tag1">在线可玩</span><span class="tag">TypeScript</span><span class="tag">Vite</span><span class="tag" data-i18n="home.card.zombie.tag3">单文件</span></div>
         <div class="acts">
-          <a href="/games/zombie-survival/">▶ 直接玩</a>
-          <a href="https://github.com/Bobbychina/zombie-survival" target="_blank" rel="noopener">源码</a>
+          <a href="/games/zombie-survival/" data-i18n="home.card.zombie.play">▶ 直接玩</a>
+          <a href="https://github.com/Bobbychina/zombie-survival" target="_blank" rel="noopener" data-i18n="home.card.zombie.src">源码</a>
         </div>
       </article>
 
       <article class="card">
         <h3><a href="https://github.com/bobbychina32747/StockGameOnlinePro" target="_blank" rel="noopener">StockGameOnlinePro</a></h3>
-        <p class="why">A 股模拟炒股：撮合引擎、涨跌停、分红、基金与风控，前后端全栈。
+        <p class="why" data-i18n="home.card.stock.why">A 股模拟炒股：撮合引擎、涨跌停、分红、基金与风控，前后端全栈。
           虚拟盘，亏了不心疼。</p>
         <div class="meta"><span class="tag">TypeScript</span><span class="tag">NestJS</span><span class="tag">React</span></div>
-        <div class="acts"><a href="https://github.com/bobbychina32747/StockGameOnlinePro" target="_blank" rel="noopener">源码</a></div>
+        <div class="acts"><a href="https://github.com/bobbychina32747/StockGameOnlinePro" target="_blank" rel="noopener" data-i18n="home.card.zombie.src">源码</a></div>
       </article>
 
       <article class="card">
         <h3><a href="https://github.com/Bobbychina/dsh-newline-enter" target="_blank" rel="noopener">dsh-newline-enter</a></h3>
-        <p class="why">输入增强插件：<b>Ctrl/Cmd+Enter 换行不误发</b>，外加一个全屏 Markdown 提示词编辑器（工具栏、实时预览、快捷键）。</p>
-        <div class="meta"><span class="tag">JavaScript</span><span class="tag b">插件</span></div>
-        <div class="acts"><a href="https://github.com/Bobbychina/dsh-newline-enter" target="_blank" rel="noopener">源码</a></div>
+        <p class="why" data-i18n-html="home.card.dsh.why">输入增强插件：<b>Ctrl/Cmd+Enter 换行不误发</b>，外加一个全屏 Markdown 提示词编辑器（工具栏、实时预览、快捷键）。</p>
+        <div class="meta"><span class="tag">JavaScript</span><span class="tag b" data-i18n="home.card.dsh.tag2">插件</span></div>
+        <div class="acts"><a href="https://github.com/Bobbychina/dsh-newline-enter" target="_blank" rel="noopener" data-i18n="home.card.zombie.src">源码</a></div>
       </article>
 
       <article class="card">
         <h3><a href="https://github.com/bobbychina32747/dsh-peak-price-guard" target="_blank" rel="noopener">dsh-peak-price-guard</a></h3>
-        <p class="why">按价格峰谷调度：把不紧急的请求挪到低谷时段执行，避开高峰溢价。省下来的都是真金白银。</p>
-        <div class="meta"><span class="tag">JavaScript</span><span class="tag b">插件</span></div>
-        <div class="acts"><a href="https://github.com/bobbychina32747/dsh-peak-price-guard" target="_blank" rel="noopener">源码</a></div>
+        <p class="why" data-i18n="home.card.ppg.why">按价格峰谷调度：把不紧急的请求挪到低谷时段执行，避开高峰溢价。省下来的都是真金白银。</p>
+        <div class="meta"><span class="tag">JavaScript</span><span class="tag b" data-i18n="home.card.dsh.tag2">插件</span></div>
+        <div class="acts"><a href="https://github.com/bobbychina32747/dsh-peak-price-guard" target="_blank" rel="noopener" data-i18n="home.card.zombie.src">源码</a></div>
       </article>
 
       <article class="card">
         <h3><a href="https://github.com/bobbychina32747/token-miser" target="_blank" rel="noopener">token-miser</a></h3>
-        <p class="why">一组"让 AI 少废话"的规则集：先说结果、不复述需求、能一行说清就不写一段。写给所有按量计费的场合。</p>
-        <div class="meta"><span class="tag">规则集</span><span class="tag">Prompt</span></div>
-        <div class="acts"><a href="https://github.com/bobbychina32747/token-miser" target="_blank" rel="noopener">源码</a></div>
+        <p class="why" data-i18n="home.card.tok.why">一组"让 AI 少废话"的规则集：先说结果、不复述需求、能一行说清就不写一段。写给所有按量计费的场合。</p>
+        <div class="meta"><span class="tag" data-i18n="home.card.tok.tag1">规则集</span><span class="tag">Prompt</span></div>
+        <div class="acts"><a href="https://github.com/bobbychina32747/token-miser" target="_blank" rel="noopener" data-i18n="home.card.zombie.src">源码</a></div>
       </article>
 
       <article class="card">
         <h3><a href="https://github.com/Bobbychina/Bobbychina.github.io" target="_blank" rel="noopener">bobbychina.github.io</a></h3>
-        <p class="why">你正在看的这个站点：<b>零依赖静态单页</b>，外加 <a href="/games/">/games/</a> 游戏厅——
+        <p class="why" data-i18n-html="home.card.site.why">你正在看的这个站点：<b>零依赖静态单页</b>，外加 <a href="/games/">/games/</a> 游戏厅——
           那里有一套纯前端账号系统，可把存档同步进你自己的私有 Gist。</p>
-        <div class="meta"><span class="tag">HTML</span><span class="tag">零依赖</span></div>
-        <div class="acts"><a href="https://github.com/Bobbychina/Bobbychina.github.io" target="_blank" rel="noopener">源码</a></div>
+        <div class="meta"><span class="tag">HTML</span><span class="tag" data-i18n="home.card.site.tag2">零依赖</span></div>
+        <div class="acts"><a href="https://github.com/Bobbychina/Bobbychina.github.io" target="_blank" rel="noopener" data-i18n="home.card.zombie.src">源码</a></div>
       </article>
 
     </div>
@@ -212,14 +215,14 @@
     <h2>Games</h2>
     <div class="banner">
       <div class="txt">
-        <h3>🎮 游戏厅 · /games/</h3>
-        <p>自己做的网页游戏都放在这里，点开就能玩，不用装任何东西。</p>
+        <h3 data-i18n="home.games.h3">🎮 游戏厅 · /games/</h3>
+        <p data-i18n="home.games.p">自己做的网页游戏都放在这里，点开就能玩，不用装任何东西。</p>
         <ul>
-          <li>丧尸末日生存 —— 大世界、回合制战斗、种田、水与木料都要自己搞</li>
-          <li>账号可选：注册后存档跟着账号走（可绑定 GitHub，存进你自己的私有 Gist）</li>
-          <li>不登录也能玩——浏览器本地存档（密文，密钥不出本机）；跨设备登录后走云存档</li>
+          <li data-i18n="home.games.li1">丧尸末日生存 —— 大世界、回合制战斗、种田、水与木料都要自己搞</li>
+          <li data-i18n="home.games.li2">账号可选：注册后存档跟着账号走（可绑定 GitHub，存进你自己的私有 Gist）</li>
+          <li data-i18n="home.games.li3">不登录也能玩——浏览器本地存档（密文，密钥不出本机）；跨设备登录后走云存档</li>
         </ul>
-        <div class="cta"><a class="btn primary" href="/games/">进入游戏厅</a></div>
+        <div class="cta"><a class="btn primary" href="/games/" data-i18n="home.games.cta">进入游戏厅</a></div>
       </div>
     </div>
   </section>
@@ -228,48 +231,51 @@
     <h2>About</h2>
     <div class="about">
       <div>
-        <p>我在做的东西基本都围绕一个念头：<b>把想法变成能立刻跑起来的东西</b>。所以偏好多做"单文件、零依赖、双击就能用"的形态，
+        <p data-i18n-html="home.about.p1">我在做的东西基本都围绕一个念头：<b>把想法变成能立刻跑起来的东西</b>。所以偏好多做"单文件、零依赖、双击就能用"的形态，
           也愿意花时间在那些看不见但决定手感的地方——寻路花费、资源产出、一个数值改动会不会让整局失衡。</p>
-        <p>写代码时我喜欢把逻辑与参数分开：数值单独成表，配单测和长时间模拟跑一遍，确认不会把游戏玩坏再交付。
+        <p data-i18n-html="home.about.p2">写代码时我喜欢把逻辑与参数分开：数值单独成表，配单测和长时间模拟跑一遍，确认不会把游戏玩坏再交付。
           这套习惯来自做交易系统时的教训——数字错了，界面再好看也没用。</p>
-        <p>我对 AI 工具链本身也很感兴趣——从插件、提示词工程，到“怎么让 agent 稳定地把活干完”的工作流。
+        <p data-i18n="home.about.p3">我对 AI 工具链本身也很感兴趣——从插件、提示词工程，到“怎么让 agent 稳定地把活干完”的工作流。
           这个站点和上面的项目大多就是这么长出来的；代码、测试与验收记录都在仓库里，欢迎直接看、直接提 issue。</p>
       </div>
       <dl>
-        <dt>主账号</dt><dd><a href="https://github.com/Bobbychina" target="_blank" rel="noopener">github.com/Bobbychina</a></dd>
-        <dt>旧账号</dt><dd><a href="https://github.com/bobbychina32747" target="_blank" rel="noopener">github.com/bobbychina32747</a></dd>
-        <dt>常用</dt><dd>TypeScript · React · Vite · Node.js · Python</dd>
-        <dt>在玩</dt><dd>游戏逻辑与数值设计、静态站点工程化、AI 工具链</dd>
-        <dt>本站</dt><dd>纯静态单页：无 Cookie、无第三方脚本；访问计数走自己的 Worker（匿名，不存 IP）</dd>
+        <dt data-i18n="home.about.dt1">主账号</dt><dd><a href="https://github.com/Bobbychina" target="_blank" rel="noopener">github.com/Bobbychina</a></dd>
+        <dt data-i18n="home.about.dt2">旧账号</dt><dd><a href="https://github.com/bobbychina32747" target="_blank" rel="noopener">github.com/bobbychina32747</a></dd>
+        <dt data-i18n="home.about.dt3">常用</dt><dd>TypeScript · React · Vite · Node.js · Python</dd>
+        <dt data-i18n="home.about.dt4">在玩</dt><dd data-i18n="home.about.dd4">游戏逻辑与数值设计、静态站点工程化、AI 工具链</dd>
+        <dt data-i18n="home.about.dt5">本站</dt><dd data-i18n="home.about.dd5">纯静态单页：无 Cookie、无第三方脚本；访问计数走自己的 Worker（匿名，不存 IP）</dd>
       </dl>
     </div>
   </section>
 
   <footer>
     <span>© 2026 Bobbychina</span>
-    <span>静态单页 · 无 Cookie · 匿名计数</span>
-    <span><a href="https://github.com/Bobbychina/Bobbychina.github.io" target="_blank" rel="noopener">本站源码</a></span>
-    <span><a href="https://github.com/Bobbychina/Bobbychina.github.io/issues" target="_blank" rel="noopener">问题反馈</a></span>
-    <span><a href="/games/">游戏厅</a></span>
+    <span data-i18n="site.footer.tag">静态单页 · 无 Cookie · 匿名计数</span>
+    <span><a href="https://github.com/Bobbychina/Bobbychina.github.io" target="_blank" rel="noopener" data-i18n="site.footer.src">本站源码</a></span>
+    <span><a href="https://github.com/Bobbychina/Bobbychina.github.io/issues" target="_blank" rel="noopener" data-i18n="site.footer.issues">问题反馈</a></span>
+    <span><a href="/games/" data-i18n="site.footer.games">游戏厅</a></span>
   </footer>
 </div>
 
 <script>
-/* 终端演示：几句真实的自述，不再有任何角色扮演台词。 */
-const LINES = [
-  ['cmd', 'whoami'],
-  ['out', 'Bobbychina —— 独立开发者 · AI 爱好者'],
-  ['cmd', 'ls ~/projects'],
-  ['out', 'zombie-survival/  StockGameOnlinePro/  dsh-newline-enter/  token-miser/'],
-  ['cmd', 'cat stack.txt'],
-  ['out', 'TypeScript · React · Vite · Node.js · Python · AI 工具链'],
-  ['cmd', 'git log --oneline -1'],
-  ['out', '把想法做成能点开就玩的东西'],
-  ['cmd', ''],
-];
+/* 终端演示：几句真实的自述，不再有任何角色扮演台词。
+   文案走 i18n 词典；切语言时整段重播——必须先取消上一轮 pending 的定时器，否则两轮动画会互相打架。 */
+function lines() {
+  return [
+    ['cmd', 'whoami'],
+    ['out', I18N.t('home.term.whoami')],
+    ['cmd', 'ls ~/projects'],
+    ['out', 'zombie-survival/  StockGameOnlinePro/  dsh-newline-enter/  token-miser/'],
+    ['cmd', 'cat stack.txt'],
+    ['out', I18N.t('home.term.stack')],
+    ['cmd', 'git log --oneline -1'],
+    ['out', I18N.t('home.term.log')],
+    ['cmd', ''],
+  ];
+}
 const term = document.getElementById('term');
 const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-let li = 0, ci = 0;
+let li = 0, ci = 0, timer = null;
 function addLine(cls, html) {
   const el = document.createElement('div');
   el.className = 'ln ' + cls;
@@ -278,19 +284,27 @@ function addLine(cls, html) {
   return el;
 }
 function typeLine() {
+  const LINES = lines();
   if (li >= LINES.length) return;
   const [cls, text] = LINES[li];
-  if (cls === 'out') { addLine(cls, text); li++; setTimeout(typeLine, 260); return; }
+  if (cls === 'out') { addLine(cls, text); li++; timer = setTimeout(typeLine, 260); return; }
   if (text === '') { addLine('cmd', '<span class="caret"></span>'); li++; return; }
   if (ci === 0) addLine('cmd', '');
   const el = term.lastElementChild;
   ci++;
   el.innerHTML = text.slice(0, ci) + '<span class="caret"></span>';
-  if (ci >= text.length) { ci = 0; li++; setTimeout(typeLine, 200); }
-  else setTimeout(typeLine, 34 + Math.random() * 30);
+  if (ci >= text.length) { ci = 0; li++; timer = setTimeout(typeLine, 200); }
+  else timer = setTimeout(typeLine, 34 + Math.random() * 30);
 }
-if (reduce) { LINES.forEach(([cls, text]) => { if (text) addLine(cls, text); }); }
-else setTimeout(typeLine, 400);
+function play() {
+  clearTimeout(timer); timer = null;
+  term.innerHTML = '';
+  li = 0; ci = 0;
+  if (reduce) { lines().forEach(([cls, text]) => { if (text) addLine(cls, text); }); return; }
+  timer = setTimeout(typeLine, 400);
+}
+play();
+I18N.onChange(play);
 </script>
   <!-- 值班记录：​‌‌‌​‌​​​‌‌‌‌​​‌​‌‌‌​​​​​‌‌​​‌​‌​​‌​​​​​​‌‌​​​‌​​‌‌​‌‌‌‌​‌‌​​​‌​​‌‌​​​‌​​‌‌‌‌​​‌ -->
 </body>

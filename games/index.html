@@ -8,8 +8,10 @@
      （frame-ancestors 只能由 HTTP 响应头提供，写在 meta 里会被忽略，所以没写。） -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://api.github.com https://dsh-oauth-relay.bobby-minecraft.workers.dev http://127.0.0.1:5199; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行 -->
+<script src="/i18n/i18n.js"></script>
 <title>GAMES · Bobbychina</title>
-<meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。">
+<meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。" data-i18n-attr="content:games.meta.desc">
 <!-- 标签页图标：和主页 favicon 同一套（深底 #0a0e14 + 绿 #3fd07a 主色），
      这里换成终端提示符 >_ —— 呼应本页 h1 的 "GAMES //" 与那颗闪烁光标。
      内联 data:URI：不占请求、不会 404，CSP 的 img-src 已经放行 data:。 -->
@@ -95,48 +97,49 @@
 <body>
 <div class="wrap">
   <nav>
-    <a href="/">← 回主页</a>
+    <a href="/" data-i18n="games.nav.back">← 回主页</a>
     <span class="sp"></span>
-    <a href="#thanks">鸣谢</a>
+    <a href="#thanks" data-i18n="games.nav.thanks">鸣谢</a>
     <a href="https://github.com/Bobbychina" target="_blank">GitHub</a>
+    <span data-i18n-switch></span>
   </nav>
 
   <h1>🎮 GAMES<span class="cur">_</span></h1>
-  <p class="sub">我自己做、自己玩的网页游戏。都在浏览器里跑，不用装东西；登录账号后存档会跟着你走（可绑定 GitHub 或微软账号）。</p>
+  <p class="sub" data-i18n="games.sub">我自己做、自己玩的网页游戏。都在浏览器里跑，不用装东西；登录账号后存档会跟着你走（可绑定 GitHub 或微软账号）。</p>
 
   <!-- 账号条 -->
   <div class="acct" id="acct">
-    <span class="who" id="acct-who">正在读账号状态…</span>
+    <span class="who" id="acct-who" data-i18n="games.acct.loading">正在读账号状态…</span>
     <span class="sp"></span>
     <span id="acct-prov"></span>
-    <button class="btn ok" id="btn-acct">注册 / 登录</button>
+    <button class="btn ok" id="btn-acct" data-i18n="games.acct.btn">注册 / 登录</button>
   </div>
 
-  <h2>// 在线游戏</h2>
+  <h2 data-i18n="games.h2.online">// 在线游戏</h2>
   <div class="grid">
     <div class="game">
-      <h3>🧟 丧尸末日生存 v4.0 · 余烬</h3>
-      <p class="desc">24×24 区块的大世界、宝可梦式回合制战斗、营地/农业/季节/天气/水体。木头要自己砍、水要自己去接——活到第 100 天等救援。</p>
-      <div class="meta"><span class="badge g">可玩</span><span class="badge b">TypeScript</span><span class="badge">单文件</span><span class="badge y">非商业许可</span></div>
+      <h3 data-i18n="games.zombie.title">🧟 丧尸末日生存 v4.0 · 余烬</h3>
+      <p class="desc" data-i18n="games.zombie.desc">24×24 区块的大世界、宝可梦式回合制战斗、营地/农业/季节/天气/水体。木头要自己砍、水要自己去接——活到第 100 天等救援。</p>
+      <div class="meta"><span class="badge g" data-i18n="games.zombie.badge1">可玩</span><span class="badge b">TypeScript</span><span class="badge" data-i18n="games.zombie.badge3">单文件</span><span class="badge y" data-i18n="games.zombie.badge4">非商业许可</span></div>
       <div class="acts">
-        <button class="btn ok" onclick="location.href='/games/zombie-survival/'">▶ 开始游戏</button>
-        <a class="btn" href="https://github.com/Bobbychina/zombie-survival" target="_blank">源码</a>
-        <a class="btn" href="https://github.com/Bobbychina/zombie-survival/issues" target="_blank" rel="noopener">反馈 / 报 bug</a>
+        <button class="btn ok" onclick="location.href='/games/zombie-survival/'" data-i18n="games.zombie.start">▶ 开始游戏</button>
+        <a class="btn" href="https://github.com/Bobbychina/zombie-survival" target="_blank" data-i18n="games.src">源码</a>
+        <a class="btn" href="https://github.com/Bobbychina/zombie-survival/issues" target="_blank" rel="noopener" data-i18n="games.zombie.bug">反馈 / 报 bug</a>
       </div>
     </div>
     <div class="game soon">
       <h3>📈 StockGameOnlinePro</h3>
-      <p class="desc">A 股模拟炒股：撮合、分红、涨跌停、基金与风控。部署好之后卡片会变成可玩。</p>
-      <div class="meta"><span class="badge">待部署</span><span class="badge b">全栈</span></div>
+      <p class="desc" data-i18n="games.stock.desc">A 股模拟炒股：撮合、分红、涨跌停、基金与风控。部署好之后卡片会变成可玩。</p>
+      <div class="meta"><span class="badge" data-i18n="games.stock.badge1">待部署</span><span class="badge b" data-i18n="games.stock.badge2">全栈</span></div>
     </div>
     <div class="game soon">
-      <h3>＋ 下一个坑</h3>
-      <p class="desc">位置留好了。这个游戏厅和账号系统是通用的——新游戏只要接上 <code>DSHAccount</code> 就能共用登录与云存档。</p>
-      <div class="meta"><span class="badge">Coming soon</span></div>
+      <h3 data-i18n="games.next.title">＋ 下一个坑</h3>
+      <p class="desc" data-i18n-html="games.next.desc">位置留好了。这个游戏厅和账号系统是通用的——新游戏只要接上 <code>DSHAccount</code> 就能共用登录与云存档。</p>
+      <div class="meta"><span class="badge" data-i18n="games.next.badge">Coming soon</span></div>
     </div>
   </div>
 
-  <div class="note">
+  <div class="note" data-i18n-html="games.note">
     <b>关于账号与隐私：</b>账号有两种模式——<b>☁️ 云账号</b>（存在本站自己的 Cloudflare Worker + KV 里：用户名、盐、
     <code>SHA256(pepper+派生值)</code>、会话哈希、你上传的存档；口令本身永远不上传，浏览器用 PBKDF2 21 万轮先派生），
     或 <b>💻 本机账号</b>（只存在你的浏览器，不联网）。绑定 GitHub 的话存档也可以放你自己的私有 Gist。
@@ -147,8 +150,9 @@
   </div>
 
   <section id="thanks">
-    <h2>// special thanks</h2>
-    <!-- 加人只改这一处：往 THANKS 里 push 一条 {name, roles, link?, note?} 即可，卡片自动渲染 -->
+    <h2 data-i18n="games.h2.thanks">// special thanks</h2>
+    <!-- 加人只改这一处：往 THANKS 里 push 一条 {name, roles, link?, note?} 即可，卡片自动渲染。
+         roles / note 写词典 key（如 'thanks.role.bug'）就会跟着语言走；直接写中文则原样显示。 -->
     <div class="thanks" id="thanks-list"></div>
   </section>
 </div>
@@ -156,7 +160,7 @@
 <!-- 账号弹窗 -->
 <div class="ov" id="ov">
   <div class="modal">
-    <header><h4 id="mo-title">👤 账号</h4><button class="btn ghost" onclick="closeAcct()">✕</button></header>
+    <header><h4 id="mo-title" data-i18n="games.modal.title">👤 账号</h4><button class="btn ghost" onclick="closeAcct()">✕</button></header>
     <div class="bd" id="mo-bd"></div>
     <footer id="mo-ft"></footer>
   </div>
@@ -170,10 +174,12 @@
   var GAME = 'zombie-survival';
   var ov = document.getElementById('ov'), bd = document.getElementById('mo-bd'), ft = document.getElementById('mo-ft'),
       ti = document.getElementById('mo-title');
+  var T = function (k, v) { return I18N.t(k, v); };   /* 面板是运行时拼的 HTML，i18n 的 DOM 扫描覆盖不到，所以全部走 T() */
 
   function esc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, function (c) { return { '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c]; }); }
   function open_(title, body, footer) {
-    ti.textContent = title; bd.innerHTML = body; ft.innerHTML = footer || '<button class="btn" onclick="closeAcct()">关闭</button>';
+    ti.textContent = title; bd.innerHTML = body;
+    ft.innerHTML = footer || '<button class="btn" onclick="closeAcct()">' + T('games.modal.close') + '</button>';
     ov.classList.add('show');
   }
   window.closeAcct = function () { ov.classList.remove('show'); refresh(); };
@@ -189,28 +195,30 @@
     var box = document.getElementById('acct');
     if (u) {
       box.classList.add('on');
-      who.innerHTML = '已登录 <b>' + esc(u.name) + '</b>' + (u.email ? '（' + esc(u.email) + '）' : '');
+      who.innerHTML = u.email ? T('games.acct.loggedMail', { name: esc(u.name), mail: esc(u.email) })
+                              : T('games.acct.logged', { name: esc(u.name) });
       prov.innerHTML = u.providers.github ? '<span class="badge g">GitHub @' + esc(u.providers.github.login) + '</span> '
-        : (u.providers.microsoft ? '<span class="badge b">微软 ' + esc(u.providers.microsoft.name) + '</span> ' : '<span class="badge y">未绑定云账号</span> ');
-      btn.textContent = '账号与云存档';
+        : (u.providers.microsoft ? '<span class="badge b">' + T('games.acct.ms', { name: esc(u.providers.microsoft.name) }) + '</span> '
+        : '<span class="badge y">' + T('games.acct.noCloud') + '</span> ');
+      btn.textContent = T('games.acct.btn2');
     } else {
       box.classList.remove('on');
-      who.textContent = '未登录 —— 存档只在这台设备上';
-      prov.innerHTML = '<span class="badge">登录后可绑定 GitHub / 微软账号</span>';
-      btn.textContent = '注册 / 登录';
+      who.textContent = T('games.acct.anon');
+      prov.innerHTML = '<span class="badge">' + T('games.acct.hint') + '</span>';
+      btn.textContent = T('games.acct.btn');
     }
   }
   document.getElementById('btn-acct').onclick = function () { A.current() ? panel() : loginPanel(); };
 
   /* ---- 登录 / 注册 ---- */
   function loginPanel() {
-    open_('👤 注册 / 登录',
-      '<p>账号只为了两件事：<b>让存档跟着你走</b>、<b>换设备接着玩</b>。邮箱选填、不做验证。</p>' +
-      '<div class="sect">用户名</div><input id="i-name" placeholder="2~24 个字符" autocomplete="username">' +
-      '<div class="sect">密码</div><input id="i-pass" type="password" placeholder="至少 6 位" autocomplete="current-password">' +
-      '<div class="sect">邮箱（选填）</div><input id="i-mail" placeholder="只用来认账号" autocomplete="email">' +
+    open_(T('games.login.title'),
+      '<p>' + T('games.login.p') + '</p>' +
+      '<div class="sect">' + T('games.login.user') + '</div><input id="i-name" placeholder="' + T('games.login.user.ph') + '" autocomplete="username">' +
+      '<div class="sect">' + T('games.login.pass') + '</div><input id="i-pass" type="password" placeholder="' + T('games.login.pass.ph') + '" autocomplete="current-password">' +
+      '<div class="sect">' + T('games.login.mail') + '</div><input id="i-mail" placeholder="' + T('games.login.mail.ph') + '" autocomplete="email">' +
       '<div class="msg"></div>',
-      '<button class="btn" onclick="doLogin()">登录</button><button class="btn ok" onclick="doRegister()">注册并登录</button>');
+      '<button class="btn" onclick="doLogin()">' + T('games.login.do') + '</button><button class="btn ok" onclick="doRegister()">' + T('games.login.reg') + '</button>');
     setTimeout(function () { var e = document.getElementById('i-name'); if (e) e.focus(); }, 60);
   }
   window.doLogin = async function () {
@@ -229,180 +237,167 @@
     var u = A.current();
     if (!u) return loginPanel();
     var g = u.providers.github, m = u.providers.microsoft;
-    var body = '<p>已登录 <b>' + esc(u.name) + '</b> · 注册于 ' + esc(u.createdAt.slice(0, 10)) + '</p>' +
-      '<div class="sect">云账号绑定（存档同步靠它）</div>' +
+    var body = '<p>' + T('games.panel.joined', { name: esc(u.name), date: esc(u.createdAt.slice(0, 10)) }) + '</p>' +
+      '<div class="sect">' + T('games.panel.bindSect') + '</div>' +
       '<div class="row">' +
-      (g ? '<button class="btn ok" onclick="unbind(\'github\')">GitHub @' + esc(g.login) + ' · 解绑</button>'
-         : '<button class="btn" onclick="bindGitHub()">🐙 绑定 GitHub 账号</button>') +
+      (g ? '<button class="btn ok" onclick="unbind(\'github\')">' + T('games.panel.unbindGh', { login: esc(g.login) }) + '</button>'
+         : '<button class="btn" onclick="bindGitHub()">' + T('games.panel.bindGh') + '</button>') +
       (A.config().microsoft.clientId
-        ? (m ? '<button class="btn ok" onclick="unbind(\'microsoft\')">微软 ' + esc(m.name) + ' · 解绑</button>'
-             : '<button class="btn" onclick="bindMicrosoft()">🪟 绑定微软账号</button>')
+        ? (m ? '<button class="btn ok" onclick="unbind(\'microsoft\')">' + T('games.panel.unbindMs', { name: esc(m.name) }) + '</button>'
+             : '<button class="btn" onclick="bindMicrosoft()">' + T('games.panel.bindMs') + '</button>')
         : '') +
       '</div>' +
-      '<div class="hint">GitHub → 你自己账号下的私有 Gist，不经过我的服务器。' +
-      '<a href="#" onclick="privacy();return false">🔒 这次授权要什么权限？先看这里</a></div>' +
+      '<div class="hint">' + T('games.panel.ghHint') + '</div>' +
       (A.config().microsoft.clientId ? '' :
-        '<div class="hint">微软登录暂不提供：它要求在 Azure 注册应用，而个人微软账号走注册流程会被要求绑信用卡。GitHub 一条就能跨设备。</div>') +
-      '<div class="sect">云端存档</div><div id="saves">正在读取…</div>' +
-      '<div class="sect">账号操作</div>' +
-      '<div class="row"><button class="btn" onclick="changePass()">🔑 改密码</button>' +
-      '<button class="btn" onclick="exportRemoved()">🔒 导出存档（已下线）</button>' +
-      '<button class="btn" onclick="A.logout();closeAcct()">🚪 退出登录</button></div>' +
-      '<div class="hint">M29 起存档<b>全部加密</b>：本机与云上都是密文，不再提供"导出明文文件"。</div>' +
+        '<div class="hint">' + T('games.panel.msOff') + '</div>') +
+      '<div class="sect">' + T('games.panel.saves') + '</div><div id="saves">' + T('games.panel.savesLoading') + '</div>' +
+      '<div class="sect">' + T('games.panel.ops') + '</div>' +
+      '<div class="row"><button class="btn" onclick="changePass()">' + T('games.panel.chpass') + '</button>' +
+      '<button class="btn" onclick="exportRemoved()">' + T('games.panel.export') + '</button>' +
+      '<button class="btn" onclick="A.logout();closeAcct()">' + T('games.panel.logout') + '</button></div>' +
+      '<div class="hint">' + T('games.panel.encHint') + '</div>' +
       '<div class="msg"></div>';
-    open_('👤 账号与云存档', body, '<button class="btn" onclick="closeAcct()">关闭</button>');
+    open_(T('games.panel.title'), body, '<button class="btn" onclick="closeAcct()">' + T('games.modal.close') + '</button>');
     loadSaves();
   }
 
   async function loadSaves() {
     var box = document.getElementById('saves'); if (!box) return;
     var u = A.current();
-    if (!u.providers.github && !u.providers.microsoft) { box.innerHTML = '<div class="hint">还没绑定云账号。绑好之后这里会列出云端存档。</div>'; return; }
+    if (!u.providers.github && !u.providers.microsoft) { box.innerHTML = '<div class="hint">' + T('games.saves.none') + '</div>'; return; }
     var r = await A.cloudSummary(GAME);
-    if (!r.ok) { box.innerHTML = '<div class="hint">读云端失败：' + esc(r.err) + '</div>'; return; }
+    if (!r.ok) { box.innerHTML = '<div class="hint">' + T('games.saves.err', { err: esc(r.err) }) + '</div>'; return; }
     var rows = (r.remote || []).map(function (s) {
       return '<tr><td><code>' + esc(s.slot) + '</code></td><td>' + esc(String(s.updatedAt).slice(0, 16).replace('T', ' ')) +
-        '</td><td><button class="btn danger" onclick="delCloud(\'' + esc(s.slot) + '\')">删除</button></td></tr>';
+        '</td><td><button class="btn danger" onclick="delCloud(\'' + esc(s.slot) + '\')">' + T('games.saves.del') + '</button></td></tr>';
     }).join('');
-    box.innerHTML = (rows ? '<table><tr><th>槽位</th><th>更新时间</th><th></th></tr>' + rows + '</table>'
-      : '<div class="hint">云端还没有这个游戏的存档——去游戏里点「上传存档」。</div>') +
-      '<div class="hint">云盘：' + (r.provider === 'github' ? 'GitHub Gist' : 'OneDrive 应用文件夹') + '</div>';
+    box.innerHTML = (rows ? '<table><tr><th>' + T('games.saves.slot') + '</th><th>' + T('games.saves.time') + '</th><th></th></tr>' + rows + '</table>'
+      : '<div class="hint">' + T('games.saves.empty') + '</div>') +
+      '<div class="hint">' + T('games.saves.disk', { p: r.provider === 'github' ? T('games.saves.diskGh') : T('games.saves.diskMs') }) + '</div>';
   }
   window.delCloud = async function (slot) {
     var r = await A.cloudDelete(GAME, slot);
-    if (!r.ok) return msg('删除失败：' + (r.err || '未知错误'), true);
+    if (!r.ok) return msg(T('games.saves.delErr', { err: r.err || T('games.err.unknown') }), true);
     loadSaves();
   };
 
   /* ---- 绑定 ---- */
   function consentHtml() {
-    return '<p>绑定 GitHub 只为了把存档放进<b>你自己账号下的私有 Gist</b>。授权页上会看到两项：</p>' +
-      '<div class="sect">① Gists — 读写</div>' +
-      '<div class="hint">用来创建/读写那一个私有 Gist（描述写着 bobbychina.github.io/games 云存档）。' +
-      '<b>GitHub 没有「只授权一个 Gist」的粒度</b>，所以这个权限理论上能读写你账号下所有 Gist——' +
-      '但碰不到你的仓库、issue、Actions 与代码。</div>' +
-      '<div class="sect">② Personal user data — 只读</div>' +
-      '<div class="hint">只在绑定那一刻读一次用户名与头像用于显示，之后同步存档不再调用。</div>' +
-      '<div class="sect">令牌存在哪</div>' +
-      '<div class="hint">只存在<b>你这台设备的浏览器 localStorage</b>（外加云账号下你自己的 Cloudflare KV）；' +
-      '除了 api.github.com 之外没有别的请求。所以别在公用电脑上绑定。</div>' +
-      '<div class="sect">怎么收回</div>' +
-      '<div class="hint">撤销授权：<a href="https://github.com/settings/applications" target="_blank">github.com/settings/applications</a> → ' +
-      'Authorized OAuth Apps → bobbychina\'s games → Revoke（本地存档不受影响）；删云端存档：下面的「删除」或直接删掉那个 Gist；' +
-      '清本机一切：退出登录后清空本站浏览器数据。</div>' +
-      '<div class="hint" style="color:var(--yellow)">⚠️ 不想给这些权限？关掉本窗口也能玩：进度加密存在本机（只是没法跨设备）。</div>';
+    return '<p>' + T('games.consent.p') + '</p>' +
+      '<div class="sect">' + T('games.consent.s1') + '</div>' +
+      '<div class="hint">' + T('games.consent.h1') + '</div>' +
+      '<div class="sect">' + T('games.consent.s2') + '</div>' +
+      '<div class="hint">' + T('games.consent.h2') + '</div>' +
+      '<div class="sect">' + T('games.consent.s3') + '</div>' +
+      '<div class="hint">' + T('games.consent.h3') + '</div>' +
+      '<div class="sect">' + T('games.consent.s4') + '</div>' +
+      '<div class="hint">' + T('games.consent.h4') + '</div>' +
+      '<div class="hint" style="color:var(--yellow)">' + T('games.consent.warn') + '</div>';
   }
   window.privacy = function () {
-    open_('🔒 隐私与权限说明',
-      '<p>账号有两种模式：<b>云账号</b>（存在本站自己的 Cloudflare Worker + KV 里：用户名、盐、口令派生值的哈希、会话哈希、你的存档；' +
-      '口令本身永远不上传）与<b>本机账号</b>（只存在你的浏览器，不联网）。<b>没有第三方统计、广告或 Cookie 跟踪</b>。</p>' +
+    open_(T('games.privacy.title'),
+      '<p>' + T('games.privacy.p') + '</p>' +
       consentHtml() +
-      '<div class="sect">完整版</div>' +
-      '<div class="hint"><a href="https://github.com/Bobbychina/zombie-survival/blob/main/PRIVACY.md" target="_blank">PRIVACY.md（逐条对照代码，可自查）</a></div>',
-      '<button class="btn" onclick="closeAcct()">关闭</button>');
+      '<div class="sect">' + T('games.privacy.full') + '</div>' +
+      '<div class="hint">' + T('games.privacy.link') + '</div>',
+      '<button class="btn" onclick="closeAcct()">' + T('games.modal.close') + '</button>');
   };
   window.bindGitHub = function () {
     var c = A.config();
     if (!c.github.clientId) {
-      open_('🐙 绑定 GitHub',
-        '<p>一键授权还没启用（没填 client_id）。现在可以直接用<b>令牌绑定</b>，两次点击：</p>' +
-        '<div class="hint">1. 点下面按钮 → GitHub 打开「新建令牌」页，权限已勾好 <code>gist</code>；<br>' +
-        '2. 点 Generate token → 复制 → 粘到下面的框里。</div>' +
-        '<div class="hint" style="color:var(--yellow)">⚠️ <code>gist</code> 是全量授权：拿到令牌的人能读写你账号下所有 Gist（碰不到仓库与代码）；' +
-        '令牌只存在本机浏览器，随时可在 GitHub 设置里撤销。</div>' +
-        '<div class="row"><button class="btn" onclick="window.open(\'https://github.com/settings/tokens/new?scopes=gist&description=bobbychina.github.io%2Fgames\',\'_blank\')">🔗 打开 GitHub 令牌页</button></div>' +
-        '<input id="i-tok" placeholder="粘贴令牌（ghp_… / github_pat_…）" style="margin-top:10px">' +
+      open_(T('games.token.title'),
+        '<p>' + T('games.token.p') + '</p>' +
+        '<div class="hint">' + T('games.token.hint') + '</div>' +
+        '<div class="hint" style="color:var(--yellow)">' + T('games.token.warn') + '</div>' +
+        '<div class="row"><button class="btn" onclick="window.open(\'https://github.com/settings/tokens/new?scopes=gist&description=bobbychina.github.io%2Fgames\',\'_blank\')">' + T('games.token.open') + '</button></div>' +
+        '<input id="i-tok" placeholder="' + T('games.token.ph') + '" style="margin-top:10px">' +
         '<div class="msg"></div>',
-        '<button class="btn ok" onclick="bindTok()">绑定</button>' +
-        '<button class="btn ghost" onclick="bindDev()">用设备码绑定</button>' +
-        '<button class="btn" onclick="panel()">返回</button>');
+        '<button class="btn ok" onclick="bindTok()">' + T('games.token.bind') + '</button>' +
+        '<button class="btn ghost" onclick="bindDev()">' + T('games.token.dev') + '</button>' +
+        '<button class="btn" onclick="panel()">' + T('games.token.back') + '</button>');
       return;
     }
     /* 两步走：先看清"这次授权要什么"，确认后才跳 GitHub */
-    open_('🔒 绑定前确认：这次要什么权限', consentHtml(),
-      '<button class="btn ok" onclick="doGitHubOAuth()">我明白，继续授权</button><button class="btn" onclick="panel()">取消</button>');
+    open_(T('games.oauth.confirm'), consentHtml(),
+      '<button class="btn ok" onclick="doGitHubOAuth()">' + T('games.oauth.go') + '</button><button class="btn" onclick="panel()">' + T('games.oauth.cancel') + '</button>');
   };
   window.doGitHubOAuth = function () {
-    msg('正在打开 GitHub 授权页…');
+    msg(T('games.oauth.opening'));
     A.bindGitHubOAuth().then(async function (r) {
       if (r.ok) return panel();
       if (/incorrect_client_credentials/.test(String(r.err))) {
         /* 中继通了但没配 client_secret：自动改用设备码，不让用户再点一次 */
-        open_('🔢 在 GitHub 输入这 9 位',
-          '<p>已自动打开 GitHub 的授权页；把下面这串输进去并点 <b>Authorize</b>，这边会自动完成绑定。</p>' +
-          '<div id="devcode" style="font-size:30px;letter-spacing:5px;text-align:center;color:var(--green);margin:16px 0">正在申请…</div>' +
+        open_(T('games.dev.title'),
+          '<p>' + T('games.dev.p') + '</p>' +
+          '<div id="devcode" style="font-size:30px;letter-spacing:5px;text-align:center;color:var(--green);margin:16px 0">' + T('games.dev.pending') + '</div>' +
           '<div class="hint" id="devhint"></div><div class="msg"></div>',
-          '<button class="btn" onclick="closeAcct()">关闭</button>');
+          '<button class="btn" onclick="closeAcct()">' + T('games.modal.close') + '</button>');
         const d = await A.bindGitHubDevice(function (i) {
           const c = document.getElementById('devcode');
           if (c) c.textContent = i.user_code;
           const h = document.getElementById('devhint');
-          if (h) h.innerHTML = '授权页：<a href="' + esc(i.verification_uri) + '" target="_blank">' + esc(i.verification_uri) + '</a>（已自动打开）';
+          if (h) h.innerHTML = T('games.dev.uri', { u: esc(i.verification_uri) });
           try { window.open(i.verification_uri, '_blank'); } catch (e) { /* ignore */ }
         });
-        if (d.ok) { closeAcct(); panel(); } else { msg(d.err || '设备码绑定失败', true); }
+        if (d.ok) { closeAcct(); panel(); } else { msg(d.err || T('games.dev.fail'), true); }
         return;
       }
-      open_('🐙 一键授权被 GitHub 挡住了',
-        '<p>原因：GitHub 的换 token 接口 <code>login/oauth/access_token</code> 不给浏览器跨域头，纯静态站读不到响应——' +
-        '这是 GitHub 的限制，跟你的操作无关。刚才那一步<b>没有拿到任何令牌</b>，你可以在 GitHub 设置里撤销那次授权。</p>' +
-        '<div class="hint">原始错误：' + esc(r.err || '') + '</div>' +
+      open_(T('games.oauth.blocked'),
+        '<p>' + T('games.oauth.blockedP') + '</p>' +
+        '<div class="hint">' + T('games.oauth.rawErr', { err: esc(r.err || '') }) + '</div>' +
         (/incorrect_client_credentials/.test(String(r.err))
-          ? '<div class="hint" style="color:var(--yellow)">这条错误说明中继已连通，但中继里还没配 <code>client_secret</code>' +
-            '（GitHub 的 code 换 token 强制要它）。给 Worker 加一个名为 <code>GH_CLIENT_SECRET</code> 的 Secret 变量就启用真一键；' +
-            '不加也行——用下面的「设备码」照样能绑。</div>'
+          ? '<div class="hint" style="color:var(--yellow)">' + T('games.oauth.secretHint') + '</div>'
           : '') +
-        '<div class="sect">方式一：设备码（点一下出码，浏览器里输 9 位）</div>' +
-        '<div class="hint">点「用设备码试试」→ 会给出 <code>XXXX-XXXX</code> 并自动打开 GitHub 授权页 → 输入码 → 完成。这条通道已实测可用。</div>' +
-        '<div class="sect">方式二：令牌绑定（2 步，任何时候都能用）</div>' +
-        '<div class="hint">1. 点下面按钮 → GitHub 打开「新建令牌」页，权限已勾好 <code>gist</code> → 点 Generate token → 复制；<br>' +
-        '2. 粘到下面的框里点「绑定」。</div>' +
-        '<div class="row"><button class="btn" onclick="window.open(\'https://github.com/settings/tokens/new?scopes=gist&description=bobbychina.github.io%2Fgames\',\'_blank\')">🔗 打开 GitHub 令牌页</button></div>' +
-        '<input id="i-tok" placeholder="粘贴令牌（ghp_… / github_pat_…）" style="margin-top:10px">' +
-        '<div class="sect">查清楚到底被什么挡住（可选）</div>' +
-        '<div class="hint">点一下会空跑四种请求（用假 code，不会产生任何令牌），把结果贴给作者就能定位。</div>' +
+        '<div class="sect">' + T('games.oauth.m1') + '</div>' +
+        '<div class="hint">' + T('games.oauth.m1hint') + '</div>' +
+        '<div class="sect">' + T('games.oauth.m2') + '</div>' +
+        '<div class="hint">' + T('games.oauth.m2hint') + '</div>' +
+        '<div class="row"><button class="btn" onclick="window.open(\'https://github.com/settings/tokens/new?scopes=gist&description=bobbychina.github.io%2Fgames\',\'_blank\')">' + T('games.token.open') + '</button></div>' +
+        '<input id="i-tok" placeholder="' + T('games.token.ph') + '" style="margin-top:10px">' +
+        '<div class="sect">' + T('games.oauth.diagSect') + '</div>' +
+        '<div class="hint">' + T('games.oauth.diagHint') + '</div>' +
         '<div id="diag"></div>' +
         '<div class="msg"></div>',
-        '<button class="btn ok" onclick="bindTok()">绑定</button>' +
-        '<button class="btn' + (/incorrect_client_credentials/.test(String(r.err)) ? ' ok' : ' ghost') + '" onclick="bindDev()">用设备码试试</button>' +
-        '<button class="btn ghost" onclick="diagHub()">🔍 诊断连接</button>' +
-        '<button class="btn" onclick="panel()">返回</button>');
+        '<button class="btn ok" onclick="bindTok()">' + T('games.token.bind') + '</button>' +
+        '<button class="btn' + (/incorrect_client_credentials/.test(String(r.err)) ? ' ok' : ' ghost') + '" onclick="bindDev()">' + T('games.oauth.devTry') + '</button>' +
+        '<button class="btn ghost" onclick="diagHub()">' + T('games.oauth.diagBtn') + '</button>' +
+        '<button class="btn" onclick="panel()">' + T('games.token.back') + '</button>');
     });
   };
   window.diagHub = async function () {
     var box = document.getElementById('diag');
-    if (box) box.innerHTML = '<div class="hint">正在空跑四种请求…（约几秒）</div>';
+    if (box) box.innerHTML = '<div class="hint">' + T('games.diag.running') + '</div>';
     var rows = await A.diagnoseGitHub();
     if (box) box.innerHTML = '<div class="hint" style="white-space:pre-wrap;line-height:1.7">' +
       rows.map(function (r) { return (r.ok ? '✅ ' : '⛔ ') + esc(r.name) + ' → ' + (r.ok ? 'HTTP ' + r.status + ' ' + esc(r.body) : esc(r.body)); }).join('\n') +
-      '</div><div class="hint">把上面几行发给作者即可（不含任何令牌）。</div>';
+      '</div><div class="hint">' + T('games.diag.send') + '</div>';
     console.log('[games] diagnose', rows);
   };
   window.bindTok = async function () {
-    var t = val('#i-tok'); if (!t) return msg('先粘令牌', true);
-    msg('校验中…');
+    var t = val('#i-tok'); if (!t) return msg(T('games.token.need'), true);
+    msg(T('games.token.checking'));
     var r = await A.bindGitHubToken(t);
     if (!r.ok) return msg(r.err, true);
     panel();
   };
   window.bindDev = async function () {
-    msg('正在申请设备码…');
-    var r = await A.bindGitHubDevice(function (i) { msg('打开的新页面里输入：' + i.user_code); window.open(i.verification_uri, '_blank'); });
+    msg(T('games.dev.requesting'));
+    var r = await A.bindGitHubDevice(function (i) { msg(T('games.dev.entered', { code: i.user_code })); window.open(i.verification_uri, '_blank'); });
     if (!r.ok) return msg(r.err, true);
     panel();
   };
   window.bindMicrosoft = function () {
     var c = A.config();
-    if (!c.microsoft.clientId) return msg('还没填微软 client_id（见 /games/auth-config.js 顶部说明）', true);
-    msg('正在打开微软登录页…');
+    if (!c.microsoft.clientId) return msg(T('games.ms.nocid'), true);
+    msg(T('games.ms.opening'));
     A.bindMicrosoft().then(function (r) { if (!r.ok) return msg(r.err, true); panel(); });
   };
   window.unbind = function (p) { A.unbind(p); panel(); };
   window.changePass = function () {
-    open_('🔑 改密码',
-      '<div class="sect">原密码</div><input id="i-old" type="password">' +
-      '<div class="sect">新密码（≥6 位）</div><input id="i-new" type="password"><div class="msg"></div>',
-      '<button class="btn ok" onclick="doChangePass()">确认</button><button class="btn" onclick="panel()">返回</button>');
+    open_(T('games.chpass.title'),
+      '<div class="sect">' + T('games.chpass.old') + '</div><input id="i-old" type="password">' +
+      '<div class="sect">' + T('games.chpass.new') + '</div><input id="i-new" type="password"><div class="msg"></div>',
+      '<button class="btn ok" onclick="doChangePass()">' + T('games.chpass.ok') + '</button><button class="btn" onclick="panel()">' + T('games.token.back') + '</button>');
   };
   window.doChangePass = async function () {
     var r = await A.changePassword(val('#i-old'), val('#i-new'));
@@ -414,36 +409,44 @@
      整包吐给任何能执行 JS 的人（控制台一行 exportAll() 就够），与"存档全链路加密"直接冲突。
      现在换设备只有一条正路：登录同一个账号 → 上传/读取（本机与云上都是密文）。 */
   window.exportRemoved = function () {
-    open_('🔒 导出已下线',
-      '<p>M29 起存档<b>全部加密</b>（AES-GCM-256，密钥只在本机 worker 里），不再提供"导出明文存档"。</p>' +
-      '<p>换设备/多端同步请用上面登录同一个账号（GitHub）后的<b>上传存档 / 读取存档</b>：上传的那份也是密文。</p>',
-      '<button class="btn" onclick="panel()">返回</button>');
+    open_(T('games.exp.title'),
+      '<p>' + T('games.exp.p1') + '</p>' +
+      '<p>' + T('games.exp.p2') + '</p>',
+      '<button class="btn" onclick="panel()">' + T('games.token.back') + '</button>');
   };
 
   refresh();
   A.onChange(refresh);
   /* 弹窗里的返回键复用同一个面板函数 */
   window.panel = panel;
+  /* 语言切换：面板内容是按切换前语言拼死的 HTML，关掉重开最省事；账号条文案要跟着换 */
+  document.addEventListener('i18n:change', function () {
+    if (ov.classList.contains('show')) closeAcct(); else refresh();
+  });
 })();
 </script>
 <script>
 /* 特别鸣谢名单——加人只往这里 push 一条：
-   { name:'称呼', roles:['贡献类型', …], link:'https://…（可省）', note:'一句话（可省）' } */
+   { name:'称呼', roles:['贡献类型', …], link:'https://…（可省）', note:'一句话（可省）' }
+   roles / note 写 i18n 词典 key（如 'thanks.role.bug'）就跟着语言切换；直接写中文也原样显示（t() 查不到会返回原串）。 */
 const THANKS = [
-  { name: 'manbaou', roles: ['Bug 提交者', 'Beta 测试者','manbaou没有t'], note: 'manbaou很懒，不知道该说什么' },
-  { name: '汪henry', roles: ['第一个正式玩家', 'Beta 测试者', '神秘人转世'], note: '你知道我在说谁对吧'}
+  { name: 'manbaou', roles: ['thanks.role.bug', 'thanks.role.beta', 'thanks.role.manbaou'], note: 'thanks.manbaou.note' },
+  { name: '汪henry', roles: ['thanks.role.first', 'thanks.role.beta', 'thanks.role.reborn'], note: 'thanks.henry.note' }
 ];
-(function renderThanks() {
+function renderThanks() {
   var box = document.getElementById('thanks-list');
   if (!box) return;
+  var t = function (s) { return I18N.t(s); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[<>&"]/g, function (c) { return { '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c]; }); };
   box.innerHTML = THANKS.map(function (p) {
     return '<div class="thx"><div class="who"><b>' + esc(p.name) + '</b>' +
       (p.link ? '<a href="' + esc(p.link) + '" target="_blank" rel="noopener">' + esc(p.link.replace(/^https?:\/\//, '')) + '</a>' : '') +
-      '</div><div class="roles">' + (p.roles || []).map(function (r) { return '<span class="badge g">' + esc(r) + '</span>'; }).join('') + '</div>' +
-      (p.note ? '<p>' + esc(p.note) + '</p>' : '') + '</div>';
+      '</div><div class="roles">' + (p.roles || []).map(function (r) { return '<span class="badge g">' + esc(t(r)) + '</span>'; }).join('') + '</div>' +
+      (p.note ? '<p>' + esc(t(p.note)) + '</p>' : '') + '</div>';
   }).join('');
-})();
+}
+renderThanks();
+I18N.onChange(renderThanks);
 </script>
 </body>
 </html>

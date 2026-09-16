@@ -55,16 +55,40 @@
     try { return sessionStorage.getItem(MOBILE_KEY) === '1'; } catch (e) { return false; }
   }
 
+  /* 取词：词典缺这条（或页面没引 i18n.js）就回退到内置中文，本脚本可独立工作 */
+  function T(key, fallback, vars) {
+    var v = window.I18N ? I18N.t(key, vars) : '';
+    return (!v || v === key) ? fallback : v;
+  }
+  function barHtml() {
+    return '<span class="tag">BETA</span>'
+      + '<span>' + T('beta.version', '当前版本 {v}', { v: '<i class="ver">' + PAGE_VERSION + '</i>' }) + '</span>'
+      + '<span class="sep">·</span>'
+      + '<span>' + T('beta.notice', '本版本仍在开发中，<b class="warn">不代表最终品质</b>') + '</span>';
+  }
+  function mobileHtml() {
+    return T('mobile.warn', '📱 <b>手机端只做了基础适配</b>：能看能点，但排版和操作仍以电脑为准，体验会明显差一些。');
+  }
+  /* 语言切换后重建这两条的文案（它们是自己插进 DOM 的，i18n 的 DOM 扫描覆盖不到） */
+  document.addEventListener('i18n:change', function () {
+    var b = document.getElementById('beta-notice');
+    if (b) b.innerHTML = barHtml();
+    var w = document.getElementById('mobile-warn');
+    if (w) {
+      var s = w.querySelector('span'); if (s) s.innerHTML = mobileHtml();
+      var t = w.querySelector('button'); if (t) t.textContent = T('mobile.dismiss', '知道了');
+    }
+  });
+
   function installMobileWarn() {
     if (!isMobile() || dismissed()) return;
     var bar = document.createElement('div');
     bar.id = 'mobile-warn';
     bar.setAttribute('role', 'alert');
-    bar.innerHTML = '<span>📱 <b>手机端只做了基础适配</b>：能看能点，但排版和操作仍以电脑为准，'
-      + '体验会明显差一些。</span>';
+    bar.innerHTML = '<span>' + mobileHtml() + '</span>';
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = '知道了';
+    btn.textContent = T('mobile.dismiss', '知道了');
     btn.onclick = function () {
       try { sessionStorage.setItem(MOBILE_KEY, '1'); } catch (e) { /* 无痕模式忽略 */ }
       bar.parentNode && bar.parentNode.removeChild(bar);
@@ -104,10 +128,7 @@
     var bar = document.createElement('div');
     bar.id = 'beta-notice';
     bar.setAttribute('role', 'status');
-    bar.innerHTML = '<span class="tag">BETA</span>'
-      + '<span>当前版本 <i class="ver">' + PAGE_VERSION + '</i></span>'
-      + '<span class="sep">·</span>'
-      + '<span>本版本仍在开发中，<b class="warn">不代表最终品质</b></span>';
+    bar.innerHTML = barHtml();
     document.body.insertBefore(bar, document.body.firstChild);
     /* 兜底：个别页面用 flex/grid 把内容居中（如 OAuth 回调页），sticky 会被摆到画面中间 */
     requestAnimationFrame(function () {
