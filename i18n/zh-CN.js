@@ -225,7 +225,7 @@ I18N.define('zh-CN', {
   'thanks.role.first': '第一个正式玩家',
   'thanks.role.reborn': '神秘人转世',
   'thanks.henry.note': '你知道我在说谁对吧',
-  /* 共创作品《吸血鬼幸存者》的作者（名字待补进 THANKS） */
+  /* 共创作品《吸血鬼幸存者》的作者 Alan.Liu（站长的朋友） */
   'thanks.role.coop': '共创作品《吸血鬼幸存者》',
-  'thanks.coop.note': '游戏是他做的，本站只负责托管与收录。'
+  'thanks.coop.note': '游戏是 Alan.Liu 做的，本站只负责托管与收录。'
 });

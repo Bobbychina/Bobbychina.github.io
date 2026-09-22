@@ -73,12 +73,15 @@ for (let i = 0; i < 20; i++) {
 ok('① 英文下卡片也跟着切（Co-created / Vampire Survivors）',
   /Vampire Survivors/.test(c1.text) && /Co-created/.test(c1.badges.join(' ')),
   'lang=' + (await langNow()) + ' ' + JSON.stringify(c1.badges))
+/* 鸣谢卡片在英文下也得跟着走（en 词典里 thanks.coop.note 含署名） */
+const thxEn = await j(`(() => { const c = [...document.querySelectorAll('.thx')].map(x => x.textContent.replace(/\\s+/g, ' ')).find(x => /Co-created/.test(x)) || ''; return JSON.stringify({ card: c.slice(0, 120), hasAlan: /Alan\\.Liu/.test(c) }) })()`)
+ok('① 英文下鸣谢卡片也带 Alan.Liu 署名', thxEn.hasAlan, JSON.stringify(thxEn))
 await ev(`(() => { try { I18N.set('zh-CN'); return 1 } catch (e) {} return 1 })()`)
 await sleep(500)
 
-/* 鸣谢区有共创那一张 */
-const thx = await j(`(() => { const t = [...document.querySelectorAll('.thx')].map(x => x.textContent.replace(/\\s+/g, ' ')); return JSON.stringify({ n: t.length, coop: t.some(x => /共创/.test(x)) }) })()`)
-ok('① 鸣谢区有「共创作品《吸血鬼幸存者》」那一张（名字待补）', thx.coop && thx.n >= 3, JSON.stringify(thx))
+/* 鸣谢区有共创那一张，且署名是 Alan.Liu（中文下连注释文案一起核） */
+const thx = await j(`(() => { const t = [...document.querySelectorAll('.thx')].map(x => x.textContent.replace(/\\s+/g, ' ')); const c = t.find(x => /共创/.test(x)) || ''; return JSON.stringify({ n: t.length, coop: !!c, card: c.slice(0, 120) }) })()`)
+ok('① 鸣谢区共创卡片署名 Alan.Liu', thx.coop && /Alan\.Liu/.test(thx.card) && thx.n >= 3, JSON.stringify(thx))
 if (outDir) await shot('hall-games')
 
 /* 卡片点进去是能玩的（同一标签页导航） */

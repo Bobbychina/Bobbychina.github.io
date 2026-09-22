@@ -218,5 +218,5 @@ I18N.define('en', {
   'thanks.henry.note': 'You know who I am talking about, right?',
   /* Co-created piece: the author of Vampire Survivors */
   'thanks.role.coop': 'Co-created: Vampire Survivors',
-  'thanks.coop.note': 'He made the game; this site only hosts and lists it.'
+  'thanks.coop.note': 'Alan.Liu made the game; this site only hosts and lists it.'
 });
