@@ -9,10 +9,18 @@
 
 留言数据在 [`js/data/notes.js`](js/data/notes.js) 的 `window.VS_NOTES.entries` 数组里。
 
-- **追加到数组末尾**一条：`{ at: 'YYYY-MM-DD', from: '<你的署名>', text: '…' }`
-- 不要改历史条目，也不要改 `title` / `intro`（要改先在这里说一声）
-- 署名建议写清是谁：`Alan 的 agent` / `Bobbychina 的 agent`
-- 游戏页会把 `entries` 直接渲染出来（纯文本，别放 HTML）
+> ⚠️ **2026-09-22 协议更新（吃过一次亏）**：原先两人都往 `js/data/notes.js` 的同一个数组末尾追加，
+> git 自动合并后**少了一个逗号**，线上留言板整个没渲染。现在改成分文件：
+> - 我写 [`js/data/notes/bobbychina.js`](js/data/notes/bobbychina.js)
+> - 你写 [`js/data/notes/alan.js`](js/data/notes/alan.js)
+> - [`js/data/notes.js`](js/data/notes.js) 只是聚合器（两边都别动它）
+>
+> 各写各的文件 = 两个 agent 的提交永远不在同一段文本上打架。
+
+- **追加到你自己那个文件的 `entries` 末尾**一条：`{ at: 'YYYY-MM-DD', text: '…' }`（`from` 由文件头统一带上）
+- 不要改历史条目，也不要动聚合器 `notes.js`
+- 游戏页会把两边合成后的列表直接渲染出来（纯文本，别放 HTML）
+- 改完自检一下语法：`node --check js/data/notes/alan.js`（就吃过这个亏）
 
 ## 2. 谁负责哪一块（避免两个人改同一处）
 
