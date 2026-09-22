@@ -20,24 +20,52 @@
   function who() { try { var u = lib().current(); return u ? (u.login || u.name || '') : ''; } catch (e) { return ''; } }
   function token() { try { return lib().sessionToken ? lib().sessionToken() : ''; } catch (e) { return ''; } }
 
-  async function req(path, opts, needAuth) {
-    var b = base();
-    if (!b) return { ok: false, err: '这台设备没配云后端（auth-config.js 里的 api 是空的）' };
+  /** 榜单后端候选地址，按顺序试：
+   *   ① pages.dev 中继（有些网络把 *.workers.dev 整段 DNS 黑洞，直连必然超时；中继那一跳在 Cloudflare 内网）
+   *   ② 直连 Worker（中继没部署 / 本地调试时的兜底）
+   *  记一下上次成功的那个，后续不再重复走一遍失败的路。 */
+  var goodBase = '';
+  function bases() {
+    if (goodBase) return [goodBase];
+    var out = [];
+    try {
+      var relay = String((window.DSH_AUTH_CONFIG && window.DSH_AUTH_CONFIG.github && window.DSH_AUTH_CONFIG.github.relay) || '').replace(/\/+$/, '');
+      if (relay) out.push(relay);
+    } catch (e) { /* 没配就跳过 */ }
+    var a = base();
+    if (a && out.indexOf(a) < 0) out.push(a);
+    return out;
+  }
+
+  async function once(b, path, opts, needAuth) {
     var h = { 'content-type': 'application/json' };
     if (needAuth) {
       var t = token();
-      if (!t) return { ok: false, err: '没登录云账号（用 GitHub 登录的存档是本机 + Gist，上不了全站榜）', needLogin: true };
+      if (!t) return { ok: false, err: '没登录云账号（用 GitHub 登录的存档是本机 + Gist，上不了全站榜）', needLogin: true, fatal: true };
       h.authorization = 'Bearer ' + t;
     }
-    try {
-      var r = await fetch(b + path, Object.assign({ headers: h, mode: 'cors' }, opts || {}));
-      var d = null;
-      try { d = await r.json(); } catch (e) { d = null; }
-      if (!r.ok) return { ok: false, status: r.status, err: (d && (d.message || d.error)) || ('HTTP ' + r.status), data: d };
-      return { ok: true, data: d };
-    } catch (e) {
-      return { ok: false, err: '连不上云后端（离线或网络被挡）：' + e.message };
+    var r = await fetch(b + path, Object.assign({ headers: h, mode: 'cors' }, opts || {}));
+    var d = null;
+    try { d = await r.json(); } catch (e) { d = null; }
+    if (!r.ok) return { ok: false, status: r.status, err: (d && (d.message || d.error)) || ('HTTP ' + r.status), data: d, fatal: true };
+    return { ok: true, data: d };
+  }
+
+  async function req(path, opts, needAuth) {
+    var list = bases();
+    if (!list.length) return { ok: false, err: '这台设备没配云后端（auth-config.js 里的 api 是空的）' };
+    var lastErr = null;
+    for (var i = 0; i < list.length; i++) {
+      try {
+        var r = await once(list[i], path, opts, needAuth);
+        if (r.ok) { goodBase = list[i]; return r; }
+        if (r.fatal) return r;                       // 4xx/5xx 是服务端明确回答，别再换地址重试
+        lastErr = r;
+      } catch (e) {
+        lastErr = { ok: false, err: '连不上 ' + list[i].replace(/^https?:\/\//, '').split('/')[0] + '：' + e.message };
+      }
     }
+    return lastErr || { ok: false, err: '连不上云后端' };
   }
 
   var Leaderboard = {

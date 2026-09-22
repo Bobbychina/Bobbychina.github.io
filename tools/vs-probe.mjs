@@ -205,6 +205,8 @@ const lb = await j(`(async () => {
   window.fetch = async (url, opts) => {
     const method = (opts && opts.method) || 'GET'
     calls.push({ url: String(url), method, auth: !!(opts && opts.headers && opts.headers.authorization), body: (opts && opts.body) || '' })
+    /* 第一跳（中继/直连任一）先失败一次，验证「失败自动换下一个地址」这条兜底真的在 */
+    if (calls.length === 1 && window.__lbFailFirst !== false) { throw new TypeError('Failed to fetch') }
     const payload = method === 'POST'
       ? { ok: true, better: true, rank: 1, best: { time: 321, kills: 45, level: 7, wave: 3 }, list: list.concat([{ name: 'stub', time: 321, kills: 45, level: 7, wave: 3 }]) }
       : { ok: true, game: 'vampire-survivors', list: list }
@@ -219,17 +221,25 @@ const lb = await j(`(async () => {
   await VS.LeaderboardUI.submitRun({ time: 321, kills: 45, level: 7, wave: 3 })
   const okMsg = (document.querySelector('.lb-msg') || {}).textContent || ''
   window.fetch = realFetch
-  return JSON.stringify({ rows, canSubmit, guestMsg: guestMsg.slice(0, 60), okMsg: okMsg.slice(0, 60),
-    calls: calls.map(c => c.method + ' ' + c.url.replace(/^https?:\\/\\/[^/]+/, '') + (c.auth ? ' [auth]' : '')), body: calls.length > 1 ? String(calls[1].body) : '' })
+  const hosts = [...new Set(calls.map(c => (c.url.match(/^https?:\\/\\/([^/]+)/) || [])[1]))]
+  const post = calls.filter(c => c.method === 'POST')[0]
+  return JSON.stringify({ rows, canSubmit, guestMsg: guestMsg.slice(0, 60), okMsg: okMsg.slice(0, 60), hosts,
+    calls: calls.map(c => c.method + ' ' + c.url.replace(/^https?:\\/\\/[^/]+/, '') + (c.auth ? ' [auth]' : '')), body: post ? String(post.body) : '' })
 })()`)
 const lbBody = (() => { try { return JSON.parse(String(lb.body || '{}')) } catch (e) { return {} } })()
 ok('⑦ 全站榜：读榜是公开 GET（不带 token），提交是带 Bearer 的 POST，字段与排名回显都对',
   Array.isArray(lb.rows) && lb.rows.length === 2 && /#1/.test(lb.rows[0]) && /alan/.test(lb.rows[0]) &&
-  /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[0] || '') &&
-  /^POST \/api\/score \[auth\]$/.test(lb.calls[1] || '') &&
+  /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[1] || '') &&
+  /^POST \/api\/score \[auth\]$/.test(lb.calls[2] || '') &&
   lbBody.game === 'vampire-survivors' && lbBody.time === 321 && lbBody.kills === 45 && lbBody.level === 7 && lbBody.wave === 3 &&
   lb.canSubmit === true && /第 1 名/.test(lb.okMsg),
   JSON.stringify({ rows: lb.rows, calls: lb.calls, body: lb.body, msg: lb.okMsg }))
+
+/* ⑦′ 中继兜底：第一跳失败（模拟 workers.dev 被黑洞）会自动换下一个地址，且**两个候选都试过** */
+ok('⑦′ 第一个地址失败会自动换中继/直连的下一个地址（workers.dev 被黑洞时的兜底）',
+  Array.isArray(lb.hosts) && lb.hosts.length === 2 && lb.calls.length >= 3 &&
+  /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[0] || '') && /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[1] || ''),
+  JSON.stringify({ hosts: lb.hosts, calls: lb.calls.slice(0, 3) }))
 
 /* ⑥ 共创留言板：两位共创者的 agent 通过 git 在 js/data/notes.js 里留话，游戏里要能看见 */
 const notes = await j(`(() => {
