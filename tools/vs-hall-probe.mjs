@@ -31,10 +31,20 @@ const j = async (x) => JSON.parse(String(await ev(x)))
 const shot = async (name) => { const r = await send('Page.captureScreenshot', { format: 'png' }); if (r.result?.data) await fs.writeFile(`${outDir}/${name}.png`, Buffer.from(r.result.data, 'base64')) }
 const checks = []
 const ok = (n, c, extra = '') => { checks.push([n, !!c]); console.log((c ? 'PASS ' : 'FAIL ') + n + (extra ? '  ' + extra : '')) }
+// 线上每请求 RTT 0.6~1.0s：等 readyState=complete 再断言，别赌固定 sleep
+const waitReady = async (ms = 90000) => {
+  const t = Date.now()
+  while (Date.now() - t < ms) {
+    const raw = String(await ev(`document.readyState`))
+    if (raw === 'complete') return true
+    await sleep(600)
+  }
+  return false
+}
 
 await send('Runtime.enable'); await send('Page.enable')
 await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1200, deviceScaleFactor: 1, mobile: false })
-await send('Page.navigate', { url }); await sleep(2500)
+await send('Page.navigate', { url }); await waitReady(); await sleep(600)
 
 /* 认卡片用**语言无关**的锚点：那颗按钮的 onclick 里有 vampire-survivors 路径（中文/英文标题都能命中） */
 const card = async () => j(`(() => {
@@ -72,7 +82,7 @@ ok('① 鸣谢区有「共创作品《吸血鬼幸存者》」那一张（名字
 if (outDir) await shot('hall-games')
 
 /* 卡片点进去是能玩的（同一标签页导航） */
-await send('Page.navigate', { url: url.replace(/games\/?$/, 'games/vampire-survivors/') }); await sleep(2500)
+await send('Page.navigate', { url: url.replace(/games\/?$/, 'games/vampire-survivors/') }); await waitReady(); await sleep(600)
 const inside = await j(`(() => JSON.stringify({ title: document.title, canvas: !!document.getElementById('game'), bar: !!document.getElementById('site-bar') }))()`)
 ok('② 卡片点开后就是那份游戏（标题 / Canvas / 站点壳都在）',
   /吸血鬼幸存者/.test(inside.title) && inside.canvas && inside.bar, JSON.stringify(inside))

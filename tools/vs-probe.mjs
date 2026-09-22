@@ -36,7 +36,18 @@ const ok = (n, c, extra = '') => { checks.push([n, !!c]); console.log((c ? 'PASS
 await send('Runtime.enable'); await send('Page.enable')
 await send('Network.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true })
 await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false })
-await send('Page.navigate', { url }); await sleep(2500)
+await send('Page.navigate', { url })
+// 线上（GitHub Pages）每请求 RTT 0.6~1.0s，20 个脚本串行可达 15s+：等真正的就绪信号，别用固定 sleep
+const waitReady = async (ms = 90000) => {
+  const t = Date.now()
+  while (Date.now() - t < ms) {
+    const raw = String(await ev(`JSON.stringify({ r: document.readyState, btn: !!document.getElementById('startBtn'), n: document.querySelectorAll('script[src^="js/"]').length })`))
+    try { const o = JSON.parse(raw); if (o.r === 'complete' && o.btn && o.n >= 20) return o } catch {}
+    await sleep(600)
+  }
+  return null
+}
+if (!(await waitReady())) console.log('WARN 等待页面就绪超时（90s），继续按当前 DOM 断言')
 
 /* ① 页面基本结构 + 站点壳 */
 const boot = await j(`(() => JSON.stringify({

@@ -118,27 +118,28 @@
   <div id="boot">正在加载脚本…（若此提示不消失，说明浏览器没有执行本页脚本，或 js 文件未被正确加载）</div>
 </div>
 
-<!-- ======== 模块加载顺序（经典 script + VS 命名空间，file:// 双击即可运行） ======== -->
-<script src="js/core/namespace.js"></script>
-<script src="js/core/utils.js"></script>
-<script src="js/game/config.js"></script>
-<script src="js/game/phases.js"></script>
-<script src="js/core/save.js"></script>
-<script src="js/core/audio.js"></script>
-<script src="js/core/input.js"></script>
-<script src="js/game/world.js"></script>
-<script src="js/game/effects.js"></script>
-<script src="js/game/player.js"></script>
-<script src="js/game/weapons.js"></script>
-<script src="js/game/enemies.js"></script>
-<script src="js/game/pickups.js"></script>
-<script src="js/render/sprites.js"></script>
-<script src="js/render/assets.js"></script>
-<script src="js/render/renderer.js"></script>
-<script src="js/ui/hud.js"></script>
-<script src="js/ui/panels.js"></script>
-<script src="js/game/game.js"></script>
-<script src="js/main.js"></script>
+<!-- ======== 模块加载顺序（经典 script + VS 命名空间，file:// 双击即可运行）=======
+     defer：线上 20 个文件串行下载约 15s（每请求 0.6~1.0s），defer 后并行拉取且仍保证执行顺序 -->
+<script defer src="js/core/namespace.js"></script>
+<script defer src="js/core/utils.js"></script>
+<script defer src="js/game/config.js"></script>
+<script defer src="js/game/phases.js"></script>
+<script defer src="js/core/save.js"></script>
+<script defer src="js/core/audio.js"></script>
+<script defer src="js/core/input.js"></script>
+<script defer src="js/game/world.js"></script>
+<script defer src="js/game/effects.js"></script>
+<script defer src="js/game/player.js"></script>
+<script defer src="js/game/weapons.js"></script>
+<script defer src="js/game/enemies.js"></script>
+<script defer src="js/game/pickups.js"></script>
+<script defer src="js/render/sprites.js"></script>
+<script defer src="js/render/assets.js"></script>
+<script defer src="js/render/renderer.js"></script>
+<script defer src="js/ui/hud.js"></script>
+<script defer src="js/ui/panels.js"></script>
+<script defer src="js/game/game.js"></script>
+<script defer src="js/main.js"></script>
 <!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
 <script src="/beta-notice.js" data-version="v4.0.0-beta" defer></script>
 
