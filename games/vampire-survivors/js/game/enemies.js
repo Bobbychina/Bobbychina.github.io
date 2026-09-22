@@ -147,7 +147,19 @@
   function updateSpawning(state, dt, game) {
     var t = game.time;
 
-    /* 阶段倍率：尸潮阶段间隔缩短、每波数量翻倍；休整阶段反过来 */
+    /*
+     * 两段"完全不刷怪"的时间：
+     *   1) 休整阶段（4:00–5:00）：让玩家专心把地上的经验捡干净
+     *   2) Boss 战期间：直到 Boss 死亡，场上只有它一个
+     * 注意是"停止刷新"，场上已有的怪不会凭空消失，仍然要打掉。
+     */
+    var bossAlive = !!(state.boss && !state.boss.dead);
+    if (VS.Phases.noSpawn(t) || (bossAlive && C.BOSS.PAUSE_SPAWN)) {
+      state.spawnAcc = 0;   // 清掉欠账，恢复刷怪时才不会一次涌出一大批
+      return;
+    }
+
+    /* 阶段倍率：尸潮阶段间隔缩短、每波数量翻倍 */
     var spawnMul = VS.Phases.spawnMul(t);
     var batchMul = VS.Phases.batchMul(t);
 
@@ -452,12 +464,14 @@
 
     update: function (state, dt, game) {
       if (prof.on) {
+        /* Boss 必须先结算：它一登场就要立刻掐掉常规刷怪，
+           否则登场那一帧刷怪逻辑已经跑过了，会漏出一只小怪 */
         var t = nowMs();
-        updateSpawning(state, dt, game); prof.spawn += nowMs() - t;
-
-        t = nowMs();
         updateBoss(state, dt, game);
         prof.move += nowMs() - t;
+
+        t = nowMs();
+        updateSpawning(state, dt, game); prof.spawn += nowMs() - t;
 
         t = nowMs();
         moveAndCollide(state, dt, game);   // 内部会剔除已死亡的怪
@@ -475,8 +489,9 @@
         return;
       }
 
-      updateSpawning(state, dt, game);
+      /* 顺序要紧：先 Boss 再刷怪（见上面注释） */
       updateBoss(state, dt, game);
+      updateSpawning(state, dt, game);
       moveAndCollide(state, dt, game);
       rebuildGrid(state, game);
       separate(state, dt, game);

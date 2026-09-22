@@ -161,29 +161,31 @@
       id: 'normal', name: '正常', short: '正常',
       from: 0, until: 120,
       spawnMul: 1.00, batchMul: 1.00,
-      typeBias: null,
+      typeBias: null, noSpawn: false,
       tip: '', sub: ''
     },
     {
       id: 'horde', name: '尸潮', short: '尸潮',
       from: 120, until: 240,
       spawnMul: 0.40, batchMul: 2.80,
-      typeBias: { zombie: 6, skeleton: 1.8 },
+      typeBias: { zombie: 6, skeleton: 1.8 }, noSpawn: false,
       tip: '尸 潮 来 袭', sub: '僵尸数量暴增，撑住！'
     },
     {
       id: 'rest', name: '休整', short: '休整',
       from: 240, until: 300,
-      spawnMul: 2.20, batchMul: 0.40,
+      spawnMul: 0, batchMul: 0,
       typeBias: null,
-      tip: '短 暂 喘 息', sub: '怪物变少了，抓紧捡经验升级'
+      noSpawn: true,          // 整段完全不刷怪
+      tip: '喘 息 时 刻', sub: '怪物停止刷新 · 把地上的经验捡干净'
     },
     {
       id: 'boss', name: '首领', short: '首领',
       from: 300, until: Infinity,
       spawnMul: 1.05, batchMul: 1.15,
       typeBias: null,
-      tip: '尸 潮 之 王 降 临', sub: '击败它！'
+      noSpawn: false,         // 由 C.BOSS.PAUSE_SPAWN 在 Boss 存活期间停刷
+      tip: '尸 潮 之 王 降 临', sub: '单挑时间 · 小怪不再刷新'
     }
   ];
 
@@ -194,7 +196,8 @@
     REPEAT_DELAY: 90,     // 击杀后隔多久再来一只（越来越强）
     HP_GROWTH: 1.45,      // 每只比上一只强多少倍
     ENTRY_SHAKE: 16,      // 登场时的镜头震动
-    MINION_BATCH: 3       // 登场时额外带几只小怪
+    MINION_BATCH: 0,      // 登场不带小怪（Boss 战期间场上只有 Boss 一个）
+    PAUSE_SPAWN: true     // Boss 存活期间完全停止常规刷怪，直到它死亡
   };
 
   /* ---------------- 掉落 ---------------- */

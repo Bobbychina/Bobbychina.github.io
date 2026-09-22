@@ -74,6 +74,9 @@
     /** 当前阶段每波数量的倍率 */
     batchMul: function (t) { return at(t).batchMul; },
 
+    /** 当前阶段是否完全不刷怪（休整阶段） */
+    noSpawn: function (t) { return !!at(t).noSpawn; },
+
     /** 当前阶段对某类怪的权重加成（1 表示不加成） */
     typeBias: function (t, typeId) {
       var bias = at(t).typeBias;
