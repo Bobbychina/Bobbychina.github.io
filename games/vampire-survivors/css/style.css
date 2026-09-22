@@ -691,3 +691,68 @@ kbd {
 @media (max-width: 620px) {
   .phases { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===================== 云存档（开始面板里的那一行） =====================
+   走站点账号库（/games/account.js）：登录后存档进你自己的私有 Gist。
+   没登录/没装账号库时这一行要么置灰要么不出现，不影响玩。 */
+
+.cloud {
+  margin-top: 16px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(16,22,32,.72), rgba(6,9,13,.72));
+  border: 1px solid var(--edge);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  text-align: left;
+}
+
+.cloud.working { border-color: var(--edge-hi); }
+
+.cloud-head { display: flex; gap: 8px; align-items: center; }
+
+.cloud-ico { font-size: 15px; color: var(--cyan); }
+
+.cloud-status { font-size: 12px; color: var(--dim); letter-spacing: .3px; }
+.cloud-status.s-ok { color: var(--green); }
+.cloud-status.s-guest { color: var(--dim); }
+.cloud-status.s-nocloud { color: #ffb86b; }
+.cloud-status.s-nolib { color: var(--dim2); }
+
+.cloud-btns { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+
+.cbtn {
+  font: 600 11.5px/1 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #1a2231, #10161f);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  transition: filter .12s ease, border-color .12s ease;
+}
+.cbtn:hover { filter: brightness(1.18); border-color: var(--edge-hi); }
+.cbtn:disabled { opacity: .45; cursor: default; filter: none; }
+.cbtn.primary { border-color: rgba(181,140,255,.5); color: #e7ddff; }
+.cbtn.ghost { background: transparent; color: var(--dim); }
+
+.cloud-form { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-top: 9px; }
+
+.cloud-form input {
+  font: 12px/1.4 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  color: var(--text);
+  background: rgba(0,0,0,.35);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 6px 9px;
+  min-width: 220px;
+}
+
+.cloud-link { font-size: 11.5px; color: var(--cyan); text-decoration: underline; text-underline-offset: 2px; }
+
+.cloud-msg { margin: 8px 0 0; font-size: 11.5px; min-height: 15px; color: var(--dim); }
+.cloud-msg.ok { color: var(--green); }
+.cloud-msg.warn { color: #ffb86b; }
+.cloud-msg.bad { color: var(--red); }
+
+.cloud-hint { margin: 6px 0 0; font-size: 11px; line-height: 1.6; color: var(--dim2); }
+

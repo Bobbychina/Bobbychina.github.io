@@ -362,6 +362,13 @@
 
       if (game.deps.audio) game.deps.audio.play('over');
 
+      /* 云存档：登录了就往自己的 Gist 推一份（安静做，失败只更新一下面板提示） */
+      if (VS.Cloud && VS.Cloud.logged()) {
+        VS.Cloud.push(true).then(function (r) {
+          if (r && r.ok && VS.CloudUI) VS.CloudUI.note('本局成绩已同步到云端 Gist', 'ok');
+        });
+      }
+
       /* 死亡爆散 */
       game.shake = 13;
       VS.Effects.burst(game.fx, p.x, p.y, '#e6dcff', 44, { speed: 280, life: 0.95, size: 4 });

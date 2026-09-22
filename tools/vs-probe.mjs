@@ -114,6 +114,48 @@ ok('③ 玩 3 秒：计时器继续走、击杀数被记下（说明主循环与
 
 ok('④ 0 未捕获异常 / 0 控制台错误', errs.length === 0 && consoleErrs.length === 0,
   (errs.slice(0, 2).join(' | ') + ' ' + consoleErrs.slice(0, 2).join(' | ')).trim())
+
+/* ⑤ 云存档那一行：开始面板里得有，未登录时安全降级（按钮置灰） */
+const cloudRow = await j(`(() => {
+  const panel = document.getElementById('panel-start')
+  const box = panel ? panel.querySelector('.cloud') : null
+  return JSON.stringify({ has: !!box, status: box ? box.querySelector('.cloud-status').textContent : '',
+    upDisabled: box ? box.querySelector('.cloud-btns button').disabled : null,
+    btns: box ? [...box.querySelectorAll('.cloud-btns button')].map(b => b.textContent) : [] })
+})()`)
+ok('⑤ 开始面板有「☁ 云存档」一行，未登录时按钮置灰（不影响玩）',
+  cloudRow.has && /未登录/.test(cloudRow.status) && cloudRow.upDisabled === true && cloudRow.btns.length >= 4, JSON.stringify(cloudRow))
+
+/* ⑤′ 用桩替换账号库：点上传/下载，看它是不是真把存档交给 account.js 那套（game/slot 对不对、有没有合并回本机） */
+const wiring = await j(`(async () => {
+  if (!window.VS || !VS.Cloud) return JSON.stringify({ err: 'no VS.Cloud' })
+  window.__calls = []
+  window.DSHAccount = {
+    currentUid: () => 'u-stub',
+    current: () => ({ name: 'stub', login: 'stub' }),
+    backend: () => 'github',
+    saveInfo: () => ({ updatedAt: '2026-09-22T10:00:00.000Z', bytes: 96 }),
+    savePut: (g, s, d) => { window.__calls.push(['savePut', g, s, String(d && d.bestTime)]); return { ok: true } },
+    saveGet: () => ({ bestTime: 999, bestKills: 42, bestLevel: 9, runs: 7, totalKills: 500 }),
+    cloudPush: async (g) => { window.__calls.push(['cloudPush', g]); return { ok: true, provider: 'github', pushed: ['main'] } },
+    cloudPull: async (g) => { window.__calls.push(['cloudPull', g]); return { ok: true, provider: 'github', pulled: ['main'] } },
+    syncNow: async (g) => { window.__calls.push(['syncNow', g]); return { ok: true } }
+  }
+  const st = VS.Cloud.status()
+  VS.CloudUI.refresh()
+  const btns = document.getElementById('panel-start').querySelectorAll('.cloud-btns button')
+  btns[0].click()
+  await new Promise((r) => setTimeout(r, 400))
+  btns[1].click()
+  await new Promise((r) => setTimeout(r, 400))
+  const local = JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}')
+  return JSON.stringify({ state: st.state, calls: window.__calls, best: local.bestTime, runs: local.runs })
+})()`)
+const flat = Array.isArray(wiring.calls) ? wiring.calls.map((c) => c.join('/')).join(' ') : ''
+ok('⑤′ 上传/下载真的走 account.js（game=vampire-survivors slot=main），下载后纪录取长并回本机',
+  wiring.state === 'ok' && /savePut\/vampire-survivors\/main/.test(flat) && /cloudPush\/vampire-survivors/.test(flat) &&
+  /cloudPull\/vampire-survivors/.test(flat) && wiring.best === 999 && wiring.runs === 7,
+  JSON.stringify({ state: wiring.state, calls: wiring.calls, best: wiring.best, runs: wiring.runs }))
 console.log('')
 console.log('VS 探针：' + checks.filter(c => c[1]).length + '/' + checks.length)
 process.exit(checks.every(c => c[1]) ? 0 : 1)

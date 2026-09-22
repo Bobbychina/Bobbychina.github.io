@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<!-- CSP：本站托管的共创作品同样不许外联 —— 这份游戏完全自包含（精灵是 data:image/png;base64、音效走 WebAudio），
-     所以 default-src 'self' 就够；img/media 放行 data: 是因为精灵与粒子图内联在 JS 里。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self'; base-uri 'self'; form-action 'none'">
+<!-- CSP：本站托管的共创作品同样不许外联 —— 游戏本体完全自包含（精灵是 data:image/png;base64、音效走 WebAudio）。
+     connect-src 放行的那几个是**云存档**要用的：api.github.com（你自己的私有 Gist）、
+     中继/云账号后端（auth-config.js 里那台 Cloudflare）。不登录就一个请求都不会发。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev; base-uri 'self'; form-action 'none'">
 <title>吸血鬼幸存者 · Vampire Survivors</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -125,11 +126,15 @@
 
 <!-- ======== 模块加载顺序（经典 script + VS 命名空间，file:// 双击即可运行）=======
      defer：线上 20 个文件串行下载约 15s（每请求 0.6~1.0s），defer 后并行拉取且仍保证执行顺序 -->
+<!-- 云存档：站点既有的账号库（登录 + 私有 Gist 读写都在它里面），没登录时零请求 -->
+<script defer src="/games/auth-config.js"></script>
+<script defer src="/games/account.js"></script>
 <script defer src="js/core/namespace.js"></script>
 <script defer src="js/core/utils.js"></script>
 <script defer src="js/game/config.js"></script>
 <script defer src="js/game/phases.js"></script>
 <script defer src="js/core/save.js"></script>
+<script defer src="js/core/cloud.js"></script>
 <script defer src="js/core/audio.js"></script>
 <script defer src="js/core/input.js"></script>
 <script defer src="js/game/world.js"></script>
@@ -143,6 +148,7 @@
 <script defer src="js/render/renderer.js"></script>
 <script defer src="js/ui/hud.js"></script>
 <script defer src="js/ui/panels.js"></script>
+<script defer src="js/ui/cloud-ui.js"></script>
 <script defer src="js/game/game.js"></script>
 <script defer src="js/main.js"></script>
 
