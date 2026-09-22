@@ -143,19 +143,21 @@ const wiring = await j(`(async () => {
   }
   const st = VS.Cloud.status()
   VS.CloudUI.refresh()
+  /* 先把本机存档设成确定值，否则上一局/上次探针留下的 runs 会让断言飘 */
+  localStorage.setItem('vampire_survivors_save_v1', JSON.stringify({ bestTime: 5, bestKills: 1, bestLevel: 2, runs: 3, totalKills: 4, muted: false }))
   const btns = document.getElementById('panel-start').querySelectorAll('.cloud-btns button')
   btns[0].click()
   await new Promise((r) => setTimeout(r, 400))
   btns[1].click()
   await new Promise((r) => setTimeout(r, 400))
   const local = JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}')
-  return JSON.stringify({ state: st.state, calls: window.__calls, best: local.bestTime, runs: local.runs })
+  return JSON.stringify({ state: st.state, calls: window.__calls, best: local.bestTime, kills: local.bestKills, runs: local.runs })
 })()`)
 const flat = Array.isArray(wiring.calls) ? wiring.calls.map((c) => c.join('/')).join(' ') : ''
 ok('⑤′ 上传/下载真的走 account.js（game=vampire-survivors slot=main），下载后纪录取长并回本机',
   wiring.state === 'ok' && /savePut\/vampire-survivors\/main/.test(flat) && /cloudPush\/vampire-survivors/.test(flat) &&
-  /cloudPull\/vampire-survivors/.test(flat) && wiring.best === 999 && wiring.runs === 7,
-  JSON.stringify({ state: wiring.state, calls: wiring.calls, best: wiring.best, runs: wiring.runs }))
+  /cloudPull\/vampire-survivors/.test(flat) && wiring.best === 999 && wiring.kills === 42 && wiring.runs === 7,
+  JSON.stringify({ state: wiring.state, calls: wiring.calls, best: wiring.best, kills: wiring.kills, runs: wiring.runs }))
 
 /* ⑥ 共创留言板：两位共创者的 agent 通过 git 在 js/data/notes.js 里留话，游戏里要能看见 */
 const notes = await j(`(() => {

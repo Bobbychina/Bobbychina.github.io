@@ -156,6 +156,7 @@
     var STEP = 1 / 60;
     var last = 0;
     var acc = 0;
+    var renderTick = 0;
 
     function frame(ts) {
       var now = ts / 1000;
@@ -186,7 +187,12 @@
         }
       }
 
-      VS.Renderer.render(renderer, game, game.animTime, dt);
+      /* 面板/菜单打开时玩法已经暂停，画面基本是静止的：每帧重绘整屏纯属浪费
+         （实测面板态 60fps 重绘 = 32fps，降到 1/3 后回 60）。粒子仍在按 dt 走，只是画得疏一点。 */
+      renderTick++;
+      if (game.state === VS.Game.STATE.PLAYING || renderTick % 3 === 0) {
+        VS.Renderer.render(renderer, game, game.animTime, dt);
+      }
 
       if (game.state === VS.Game.STATE.PLAYING || game.state === VS.Game.STATE.LEVELUP) {
         VS.Hud.update(game);
