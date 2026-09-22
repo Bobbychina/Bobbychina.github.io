@@ -1,0 +1,390 @@
+/* ===========================================================
+   游戏主控：状态机 + 每帧调度 + 升级选卡 + 结算
+   状态：menu / playing / levelup / paused / gameover
+   调度顺序：玩家 → 怪物 → 武器 → 拾取 → 特效 → 摄像机 → 判定
+   =========================================================== */
+(function (VS) {
+  'use strict';
+
+  var C = VS.Config;
+  var U = VS.Utils;
+
+  var STATE = {
+    MENU: 'menu',
+    PLAYING: 'playing',
+    LEVELUP: 'levelup',
+    PAUSED: 'paused',
+    GAMEOVER: 'gameover'
+  };
+
+  function viewW(game) {
+    var r = game.deps && game.deps.renderer;
+    if (r && r.w) return r.w;
+    return (typeof window !== 'undefined' && window.innerWidth) || 1280;
+  }
+
+  function viewH(game) {
+    var r = game.deps && game.deps.renderer;
+    if (r && r.h) return r.h;
+    return (typeof window !== 'undefined' && window.innerHeight) || 720;
+  }
+
+  function findUpgrade(id) {
+    for (var i = 0; i < C.UPGRADES.length; i++) {
+      if (C.UPGRADES[i].id === id) return C.UPGRADES[i];
+    }
+    return null;
+  }
+
+  /**
+   * 生成三张升级卡：
+   *  - 已拥有且未满级的武器（可升级）
+   *  - 尚未拥有且武器栏没满的新武器
+   *  - 各类增益（未达叠加上限）
+   * 按权重不重复抽取 3 个
+   */
+  function buildChoices(game) {
+    var p = game.player;
+    var pool = [];
+    var weights = [];
+    var i;
+
+    /* --- 武器升级 --- */
+    for (i = 0; i < p.weapons.length; i++) {
+      var w = p.weapons[i];
+      var wdef = C.WEAPONS[w.id];
+      if (!wdef) continue;
+      if (w.level >= wdef.maxLevel) continue;
+
+      pool.push({
+        kind: 'weapon-up',
+        id: w.id,
+        name: wdef.name,
+        icon: wdef.icon,
+        color: wdef.color,
+        desc: wdef.describe(w.level + 1),
+        tag: 'Lv ' + w.level + ' → ' + (w.level + 1)
+      });
+      weights.push(12);
+    }
+
+    /* --- 新武器 --- */
+    if (p.weapons.length < C.MAX_WEAPONS) {
+      for (i = 0; i < C.NEW_WEAPON_POOL.length; i++) {
+        var nid = C.NEW_WEAPON_POOL[i];
+        if (VS.Weapons.has(p, nid)) continue;
+        var ndef = C.WEAPONS[nid];
+
+        pool.push({
+          kind: 'weapon-new',
+          id: nid,
+          name: ndef.name,
+          icon: ndef.icon,
+          color: ndef.color,
+          desc: ndef.desc + '<br>' + ndef.describe(1),
+          tag: '新武器',
+          isNew: true
+        });
+        weights.push(13);
+      }
+    }
+
+    /* --- 增益 --- */
+    for (i = 0; i < C.UPGRADES.length; i++) {
+      var up = C.UPGRADES[i];
+      var lv = VS.Player.upgradeLevel(p, up.id);
+      if (lv >= up.max) continue;
+
+      pool.push({
+        kind: 'buff',
+        id: up.id,
+        name: up.name,
+        icon: up.icon,
+        color: '#b58cff',
+        desc: up.desc,
+        tag: lv > 0 ? ('Lv ' + lv + ' → ' + (lv + 1)) : '新增益'
+      });
+      weights.push(up.weight);
+    }
+
+    var out = [];
+    var guard = 0;
+    while (out.length < 3 && pool.length > 0 && guard++ < 50) {
+      var idx = U.weightedIndex(weights);
+      out.push(pool[idx]);
+      pool.splice(idx, 1);
+      weights.splice(idx, 1);
+    }
+
+    return out;
+  }
+
+  function applyChoice(game, c) {
+    var p = game.player;
+
+    if (c.kind === 'weapon-up') {
+      VS.Weapons.upgrade(p, c.id);
+    } else if (c.kind === 'weapon-new') {
+      VS.Weapons.add(p, c.id);
+    } else {
+      var up = findUpgrade(c.id);
+      if (up) VS.Player.applyUpgrade(p, up);
+    }
+  }
+
+  var Game = {
+
+    STATE: STATE,
+    current: null,
+
+    create: function (deps) {
+      deps = deps || {};
+
+      var game = {
+        state: STATE.MENU,
+        time: 0,
+        kills: 0,
+        shake: 0,
+        textBudget: 14,
+        sparkBudget: 8,
+        pendingLevels: 0,
+        choices: [],
+        animTime: 0,
+        deps: deps,
+        data: deps.data || VS.Save.load(),
+        world: null,
+        fx: null,
+        weapons: null,
+        enemies: null,
+        pickups: null,
+        player: null
+      };
+
+      /* 吃到经验石时由拾取模块回调到这里 */
+      game.onXp = function (amount) {
+        var levels = VS.Player.gainXp(game.player, amount);
+        if (levels > 0) game.pendingLevels += levels;
+      };
+
+      Game.newRun(game);
+      return game;
+    },
+
+    /** 重置一整局（不改变 state，由调用方决定） */
+    newRun: function (game) {
+      game.time = 0;
+      game.kills = 0;
+      game.shake = 0;
+      game.pendingLevels = 0;
+      game.choices = [];
+      game.animTime = 0;
+
+      game.world = VS.World.create();
+      game.fx = VS.Effects.create();
+      game.weapons = VS.Weapons.create();
+      game.enemies = VS.Enemies.create();
+      game.pickups = VS.Pickups.create();
+      game.player = VS.Player.create(game.world);
+
+      VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);
+
+      VS.World.snapCamera(game.world, game.player.x, game.player.y, viewW(game), viewH(game));
+
+      game.phase = VS.Phases.at(0).id;
+
+      return game;
+    },
+
+    /** 阶段切换时的播报（横幅 + 音效） */
+    announcePhase: function (game, ph) {
+      if (!ph || !ph.tip) return;
+
+      if (game.deps.audio) game.deps.audio.play('level');
+      if (game.deps.panels && game.deps.panels.showBanner) {
+        game.deps.panels.showBanner(ph.tip, ph.sub);
+      }
+    },
+
+    /** 开局 */
+    start: function (game) {
+      Game.newRun(game);
+      game.state = STATE.PLAYING;
+
+      if (game.deps.audio) game.deps.audio.unlock();
+      if (game.deps.panels) game.deps.panels.hideAll();
+      if (game.deps.hud) {
+        game.deps.hud.show();
+        game.deps.hud.update(game);
+      }
+      if (game.deps.audio) game.deps.audio.play('click');
+    },
+
+    /** 摄像机跟随（开局立即就位） */
+    snapCamera: function (game) {
+      VS.World.snapCamera(game.world, game.player.x, game.player.y, viewW(game), viewH(game));
+    },
+
+    /* ---------------- 每帧推进（固定步长） ---------------- */
+
+    step: function (game, dt) {
+      if (game.state !== STATE.PLAYING) return;
+
+      var prevTime = game.time;
+      game.time += dt;
+
+      /* --- 阶段推进：跨过时间点就播报一次 --- */
+      var entered = VS.Phases.crossed(prevTime, game.time);
+      if (entered) {
+        game.phase = entered.id;
+        Game.announcePhase(game, entered);
+      }
+
+      var input = game.deps.input || VS.Input;
+      var axis = input && input.getAxis ? input.getAxis() : { x: 0, y: 0 };
+
+      VS.Effects.beginFrame(game.fx);
+      game.textBudget = 14;
+      game.sparkBudget = 8;
+
+      /* --- 逻辑推进 --- */
+      VS.Player.update(game.player, dt, game.world, axis);
+      VS.Enemies.update(game.enemies, dt, game);
+      VS.Weapons.update(game.weapons, dt, game);
+      VS.Pickups.update(game.pickups, dt, game);
+      VS.Effects.update(game.fx, dt);
+
+      /* --- 摄像机 --- */
+      var leadX = game.player.moving ? game.player.facing.x * game.player.speed : 0;
+      var leadY = game.player.moving ? game.player.facing.y * game.player.speed : 0;
+      VS.World.updateCamera(game.world, game.player.x, game.player.y,
+                            viewW(game), viewH(game), dt, leadX, leadY);
+
+      /* --- 屏幕震动衰减 --- */
+      if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 26);
+
+      /* --- 判定：先死亡，再升级 --- */
+      if (!game.player.alive) {
+        Game.endRun(game);
+        return;
+      }
+      if (game.pendingLevels > 0) {
+        Game.openLevelUp(game);
+      }
+    },
+
+    /* ---------------- 升级 ---------------- */
+
+    openLevelUp: function (game) {
+      game.choices = buildChoices(game);
+
+      if (game.choices.length === 0) {
+        game.pendingLevels = 0;
+        return;
+      }
+
+      game.state = STATE.LEVELUP;
+
+      if (game.deps.audio) game.deps.audio.play('level');
+      if (game.deps.hud) game.deps.hud.update(game);
+      if (game.deps.panels) game.deps.panels.showLevelUp(game.choices, game.player.level);
+    },
+
+    choose: function (game, index) {
+      if (game.state !== STATE.LEVELUP) return false;
+
+      var c = game.choices[index];
+      if (!c) return false;
+
+      applyChoice(game, c);
+      game.pendingLevels = Math.max(0, game.pendingLevels - 1);
+
+      if (game.deps.panels) game.deps.panels.hideLevelUp();
+
+      if (game.pendingLevels > 0) {
+        Game.openLevelUp(game);
+      } else {
+        game.state = STATE.PLAYING;
+        VS.Effects.beginFrame(game.fx);
+      }
+      return true;
+    },
+
+    /* ---------------- 暂停 ---------------- */
+
+    pause: function (game) {
+      if (game.state !== STATE.PLAYING) return false;
+      game.state = STATE.PAUSED;
+      if (game.deps.panels) {
+        game.deps.panels.showPause(
+          '存活 ' + U.formatTime(game.time) +
+          ' · 击杀 ' + game.player.kills +
+          ' · 等级 ' + game.player.level
+        );
+      }
+      return true;
+    },
+
+    resume: function (game) {
+      if (game.state !== STATE.PAUSED) return false;
+      game.state = STATE.PLAYING;
+      if (game.deps.panels) game.deps.panels.hideAll();
+      return true;
+    },
+
+    togglePause: function (game) {
+      if (game.state === STATE.PLAYING) return Game.pause(game);
+      if (game.state === STATE.PAUSED) return Game.resume(game);
+      return false;
+    },
+
+    /* ---------------- 结算 ---------------- */
+
+    endRun: function (game) {
+      game.state = STATE.GAMEOVER;
+
+      var wave = VS.Enemies.waveFor(game.time);
+      var p = game.player;
+
+      var isNewBest = VS.Save.submit({
+        time: game.time,
+        kills: p.kills,
+        level: p.level,
+        wave: wave
+      }, game.data);
+
+      if (game.deps.audio) game.deps.audio.play('over');
+
+      /* 死亡爆散 */
+      game.shake = 13;
+      VS.Effects.burst(game.fx, p.x, p.y, '#e6dcff', 44, { speed: 280, life: 0.95, size: 4 });
+      VS.Effects.burst(game.fx, p.x, p.y, '#b58cff', 26, { speed: 180, life: 1.2, size: 5 });
+
+      if (game.deps.hud) game.deps.hud.hide();
+      if (game.deps.panels) {
+        game.deps.panels.showGameOver({
+          time: game.time,
+          best: game.data.bestTime,
+          kills: p.kills,
+          level: p.level,
+          wave: wave,
+          isNewBest: isNewBest
+        });
+      }
+    },
+
+    /** 回到主菜单（当前 UI 用不到，留给扩展） */
+    toMenu: function (game) {
+      Game.newRun(game);
+      game.state = STATE.MENU;
+      if (game.deps.hud) game.deps.hud.hide();
+      if (game.deps.panels) game.deps.panels.showStart(game.data.bestTime);
+    },
+
+    /* 供测试/调试使用的内部函数 */
+    _buildChoices: buildChoices,
+    _applyChoice: applyChoice
+  };
+
+  VS.register('Game', Game);
+
+})(window.VS = window.VS || {});

@@ -127,6 +127,14 @@
         <a class="btn" href="https://github.com/Bobbychina/zombie-survival/issues" target="_blank" rel="noopener" data-i18n="games.zombie.bug">反馈 / 报 bug</a>
       </div>
     </div>
+    <div class="game">
+      <h3 data-i18n="games.vs.title">🧛 吸血鬼幸存者 · Vampire Survivors</h3>
+      <p class="desc" data-i18n-html="games.vs.desc">自动攻击、无尽怪物潮、升级三选一 —— 活多久算多久。这是<b>与朋友共创</b>的作品：游戏由朋友制作，本站负责托管与收录。</p>
+      <div class="meta"><span class="badge g" data-i18n="games.vs.badge1">🤝 共创</span><span class="badge b">HTML + JS</span><span class="badge" data-i18n="games.vs.badge3">无外联 · 自包含</span></div>
+      <div class="acts">
+        <button class="btn ok" onclick="location.href='/games/vampire-survivors/'" data-i18n="games.zombie.start">▶ 开始游戏</button>
+      </div>
+    </div>
     <div class="game soon">
       <h3>📈 StockGameOnlinePro</h3>
       <p class="desc" data-i18n="games.stock.desc">A 股模拟炒股：撮合、分红、涨跌停、基金与风控。部署好之后卡片会变成可玩。</p>
@@ -431,7 +439,9 @@
    roles / note 写 i18n 词典 key（如 'thanks.role.bug'）就跟着语言切换；直接写中文也原样显示（t() 查不到会返回原串）。 */
 const THANKS = [
   { name: 'manbaou', roles: ['thanks.role.bug', 'thanks.role.beta', 'thanks.role.manbaou'], note: 'thanks.manbaou.note' },
-  { name: '汪henry', roles: ['thanks.role.first', 'thanks.role.beta', 'thanks.role.reborn'], note: 'thanks.henry.note' }
+  { name: '汪henry', roles: ['thanks.role.first', 'thanks.role.beta', 'thanks.role.reborn'], note: 'thanks.henry.note' },
+  /* M-VS：《吸血鬼幸存者》的作者（与站长的共创作品）—— 名字待补：填上昵称/主页即可，卡片自动渲染 */
+  { name: '（共创作者）', roles: ['thanks.role.coop'], note: 'thanks.coop.note' }
 ];
 function renderThanks() {
   var box = document.getElementById('thanks-list');

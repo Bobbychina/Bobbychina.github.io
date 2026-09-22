@@ -91,6 +91,11 @@ I18N.define('zh-CN', {
   'games.zombie.badge4': '非商业许可',
   'games.zombie.start': '▶ 开始游戏',
   'games.zombie.bug': '反馈 / 报 bug',
+  /* 吸血鬼幸存者（与朋友共创：游戏由朋友制作，本站托管与收录） */
+  'games.vs.title': '🧛 吸血鬼幸存者 · Vampire Survivors',
+  'games.vs.desc': '自动攻击、无尽怪物潮、升级三选一 —— 活多久算多久。这是<b>与朋友共创</b>的作品：游戏由朋友制作，本站负责托管与收录。',
+  'games.vs.badge1': '🤝 共创',
+  'games.vs.badge3': '无外联 · 自包含',
   'games.stock.desc': 'A 股模拟炒股：撮合、分红、涨跌停、基金与风控。部署好之后卡片会变成可玩。',
   'games.stock.badge1': '待部署',
   'games.stock.badge2': '全栈',
@@ -219,5 +224,8 @@ I18N.define('zh-CN', {
   'thanks.manbaou.note': 'manbaou很懒，不知道该说什么',
   'thanks.role.first': '第一个正式玩家',
   'thanks.role.reborn': '神秘人转世',
-  'thanks.henry.note': '你知道我在说谁对吧'
+  'thanks.henry.note': '你知道我在说谁对吧',
+  /* 共创作品《吸血鬼幸存者》的作者（名字待补进 THANKS） */
+  'thanks.role.coop': '共创作品《吸血鬼幸存者》',
+  'thanks.coop.note': '游戏是他做的，本站只负责托管与收录。'
 });

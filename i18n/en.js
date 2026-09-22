@@ -90,6 +90,11 @@ I18N.define('en', {
   'games.zombie.badge4': 'Noncommercial license',
   'games.zombie.start': '▶ Start game',
   'games.zombie.bug': 'Feedback / bug report',
+  /* Vampire Survivors — a co-created piece: made by a friend, hosted here */
+  'games.vs.title': '🧛 Vampire Survivors',
+  'games.vs.desc': 'Auto-attack, endless monster waves, pick-one-of-three upgrades — survive as long as you can. A <b>co-created</b> piece: the game is made by a friend, this site hosts and lists it.',
+  'games.vs.badge1': '🤝 Co-created',
+  'games.vs.badge3': 'Self-contained, no external calls',
   'games.stock.desc': 'A-share trading simulator: matching, dividends, price limits, funds and risk control. This card turns playable once it is deployed.',
   'games.stock.badge1': 'Pending deploy',
   'games.stock.badge2': 'Full stack',
@@ -210,5 +215,8 @@ I18N.define('en', {
   'thanks.manbaou.note': 'manbaou is lazy and could not think of anything to say',
   'thanks.role.first': 'First real player',
   'thanks.role.reborn': 'Mysterious person, reincarnated',
-  'thanks.henry.note': 'You know who I am talking about, right?'
+  'thanks.henry.note': 'You know who I am talking about, right?',
+  /* Co-created piece: the author of Vampire Survivors */
+  'thanks.role.coop': 'Co-created: Vampire Survivors',
+  'thanks.coop.note': 'He made the game; this site only hosts and lists it.'
 });
