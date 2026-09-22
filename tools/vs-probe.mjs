@@ -136,7 +136,8 @@ const wiring = await j(`(async () => {
     backend: () => 'github',
     saveInfo: () => ({ updatedAt: '2026-09-22T10:00:00.000Z', bytes: 96 }),
     savePut: (g, s, d) => { window.__calls.push(['savePut', g, s, String(d && d.bestTime)]); return { ok: true } },
-    saveGet: () => ({ bestTime: 999, bestKills: 42, bestLevel: 9, runs: 7, totalKills: 500 }),
+    saveGet: () => ({ bestTime: 999, bestKills: 42, bestLevel: 9, runs: 7, totalKills: 500, muted: false,
+      top: [{ time: 800, kills: 30, level: 6, wave: 3, at: '2026-09-20T10:00:00.000Z' }] }),
     cloudPush: async (g) => { window.__calls.push(['cloudPush', g]); return { ok: true, provider: 'github', pushed: ['main'] } },
     cloudPull: async (g) => { window.__calls.push(['cloudPull', g]); return { ok: true, provider: 'github', pulled: ['main'] } },
     syncNow: async (g) => { window.__calls.push(['syncNow', g]); return { ok: true } }
@@ -144,20 +145,53 @@ const wiring = await j(`(async () => {
   const st = VS.Cloud.status()
   VS.CloudUI.refresh()
   /* 先把本机存档设成确定值，否则上一局/上次探针留下的 runs 会让断言飘 */
-  localStorage.setItem('vampire_survivors_save_v1', JSON.stringify({ bestTime: 5, bestKills: 1, bestLevel: 2, runs: 3, totalKills: 4, muted: false }))
+  localStorage.setItem('vampire_survivors_save_v1', JSON.stringify({ bestTime: 5, bestKills: 1, bestLevel: 2, runs: 3, totalKills: 4, muted: false,
+    top: [{ time: 300, kills: 11, level: 4, wave: 2, at: '2026-09-19T10:00:00.000Z' }] }))
   const btns = document.getElementById('panel-start').querySelectorAll('.cloud-btns button')
   btns[0].click()
   await new Promise((r) => setTimeout(r, 400))
   btns[1].click()
   await new Promise((r) => setTimeout(r, 400))
   const local = JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}')
-  return JSON.stringify({ state: st.state, calls: window.__calls, best: local.bestTime, kills: local.bestKills, runs: local.runs })
+  return JSON.stringify({ state: st.state, calls: window.__calls, best: local.bestTime, kills: local.bestKills, runs: local.runs, top: local.top })
 })()`)
 const flat = Array.isArray(wiring.calls) ? wiring.calls.map((c) => c.join('/')).join(' ') : ''
 ok('⑤′ 上传/下载真的走 account.js（game=vampire-survivors slot=main），下载后纪录取长并回本机',
   wiring.state === 'ok' && /savePut\/vampire-survivors\/main/.test(flat) && /cloudPush\/vampire-survivors/.test(flat) &&
   /cloudPull\/vampire-survivors/.test(flat) && wiring.best === 999 && wiring.kills === 42 && wiring.runs === 7,
   JSON.stringify({ state: wiring.state, calls: wiring.calls, best: wiring.best, kills: wiring.kills, runs: wiring.runs }))
+
+/* ⑤″ 个人纪录榜：本机 300s + 云端 800s 合并成两份，按时间降序 */
+const topMerged = Array.isArray(wiring.top) ? wiring.top.map((r) => r.time) : []
+ok('⑤″ 个人榜跨设备合并：本机榜 ∪ 云端榜（去重、按时间降序）',
+  topMerged.length === 2 && topMerged[0] === 800 && topMerged[1] === 300, JSON.stringify(topMerged))
+
+/* ⑤‴ 榜单界面：列表渲染出行数 = 榜上条数，且第一行带 #1 */
+const rankUI = await j(`(() => {
+  if (VS.ScoresUI) VS.ScoresUI.refresh()
+  const box = document.querySelector('.ranks')
+  const rows = box ? [...box.querySelectorAll('.rank-row')] : []
+  return JSON.stringify({ has: !!box, rows: rows.length, first: rows.length ? rows[0].textContent.replace(/\\s+/g, ' ').trim() : '' })
+})()`)
+ok('⑤‴ 开始面板的「🏆 个人纪录」按榜单渲染（行数=条数，首行 #1）',
+  rankUI.has && rankUI.rows === 2 && /#1/.test(rankUI.first) && /13:20|800/.test(rankUI.first.replace('#1', '13:20')),
+  JSON.stringify(rankUI))
+
+/* ⑤⁗ 真打完一局：走 endRun → Scores.add → 结算面板「本局排名」 */
+const gameOver = await j(`(async () => {
+  const g = VS.Game.current
+  const before = (JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}').top || []).length
+  if (g.state !== 'playing') { document.getElementById('startBtn').click(); await new Promise((r) => setTimeout(r, 1200)) }
+  VS.Game.current.player.alive = false        // 直接判死，交给主循环走结算
+  await new Promise((r) => setTimeout(r, 700))
+  const rank = document.getElementById('goRank')
+  const after = (JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}').top || []).length
+  return JSON.stringify({ state: VS.Game.current.state, before: before, after: after,
+    rankHidden: rank ? rank.hidden : null, rankText: rank ? rank.textContent : '', rows: document.querySelectorAll('.ranks .rank-row').length })
+})()`)
+ok('⑤⁗ 一局结束后：榜上多一条、结算面板显示本局排名、开始面板的榜单同步刷新',
+  gameOver.after > gameOver.before && gameOver.rankHidden === false && /第 \d+ 名|第 1 名/.test(gameOver.rankText) &&
+  gameOver.rows === gameOver.after, JSON.stringify(gameOver))
 
 /* ⑥ 共创留言板：两位共创者的 agent 通过 git 在 js/data/notes.js 里留话，游戏里要能看见 */
 const notes = await j(`(() => {

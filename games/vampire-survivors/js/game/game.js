@@ -360,6 +360,13 @@
         wave: wave
       }, game.data);
 
+      /* 个人纪录榜（本机 top5，登录后跟着云存档合并） */
+      var rankInfo = null;
+      if (VS.Scores) {
+        rankInfo = VS.Scores.add({ time: game.time, kills: p.kills, level: p.level, wave: wave });
+        if (VS.ScoresUI) VS.ScoresUI.refresh();
+      }
+
       if (game.deps.audio) game.deps.audio.play('over');
 
       /* 云存档：登录了就往自己的 Gist 推一份（安静做，失败只更新一下面板提示） */
@@ -385,6 +392,7 @@
           isNewBest: isNewBest
         });
       }
+      if (VS.ScoresUI) VS.ScoresUI.showRank(rankInfo);   // 本局排名（没进前 5 就自己藏起来）
     },
 
     /** 回到主菜单（当前 UI 用不到，留给扩展） */

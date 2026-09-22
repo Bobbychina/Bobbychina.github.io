@@ -798,5 +798,45 @@ kbd {
 .note-meta span { font-size: 11px; color: var(--dim2); font-variant-numeric: tabular-nums; }
 .note-text { margin: 0; font-size: 12px; line-height: 1.8; color: #d8e3ee; }
 
+/* ===================== 个人纪录榜 ===================== */
+
+.ranks {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(24,20,12,.66), rgba(8,7,4,.66));
+  border: 1px solid #4a3c1c;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  text-align: left;
+}
+
+.ranks-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 8px; }
+.ranks-head b { font-size: 12.5px; color: var(--gold); letter-spacing: 1px; }
+.ranks-sub { font-size: 11px; color: var(--dim2); }
+
+.ranks-list { display: flex; flex-direction: column; gap: 5px; }
+
+.rank-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(255,255,255,.02);
+  font-size: 11.5px;
+  color: #d6e2ee;
+  font-variant-numeric: tabular-nums;
+}
+.rank-row.rank-top { background: rgba(255,209,102,.1); border: 1px solid rgba(255,209,102,.3); }
+.rank-no { color: var(--gold); font-weight: 700; min-width: 22px; }
+.rank-empty { margin: 0; font-size: 11.5px; color: var(--dim2); }
+
+.go-rank {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(255,209,102,.45);
+}
+
 .notes-tip { margin: 14px 0 0; font-size: 11px; line-height: 1.7; color: var(--dim2); }
 

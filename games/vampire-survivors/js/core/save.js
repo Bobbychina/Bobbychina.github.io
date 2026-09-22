@@ -16,7 +16,8 @@
       bestLevel: 1,
       runs: 0,
       totalKills: 0,
-      muted: false
+      muted: false,
+      top: []              // 个人前 5（见 core/scores.js），跟云存档一起走
     };
   }
 
@@ -59,6 +60,8 @@
       for (var k in def) {
         if (!Object.prototype.hasOwnProperty.call(def, k)) continue;
         if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
+        /* 数组字段（top 榜）：不能走 isFinite 那条判断 —— 两个以上元素的数组 isFinite 为 false，会被整条丢掉 */
+        if (Array.isArray(def[k])) { if (Array.isArray(raw[k])) def[k] = raw[k].slice(0); continue; }
         if (typeof raw[k] === typeof def[k] && isFinite(raw[k])) def[k] = raw[k];
       }
       return def;

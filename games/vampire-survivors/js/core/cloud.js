@@ -45,6 +45,7 @@
       out[k] = Math.max(Number((local || {})[k]) || 0, Number((remote || {})[k]) || 0);
     }
     out.muted = !!(local && local.muted);
+    if (VS.Scores) out.top = VS.Scores.union((local || {}).top, (remote || {}).top);
     return out;
   }
 
