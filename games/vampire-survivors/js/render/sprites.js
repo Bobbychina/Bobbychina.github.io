@@ -42,6 +42,7 @@
     "gem_0": { w: 8, h: 8, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAM0lEQVR42mNgQAJcUir/QZgBGwBJ3P/xH4wxFMEk/Q9/B2MUReiSGIoIKiBoBVGOxOdNAN36Zs02gT5+AAAAAElFTkSuQmCC" },
     "gem_1": { w: 8, h: 8, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAM0lEQVR42mNgQAJcKiL/QZgBGwBJPPv/EowxFMEkw09mgTGKInRJDEUEFRC0gihH4vMmAG77YBk7fis9AAAAAElFTkSuQmCC" },
     "gem_2": { w: 8, h: 8, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAMklEQVR42mNgQAIqUqz/QZgBGwBJ/P9yAYwxFMElT9pAMLIiDEl0RQQVELSCKEfi8yYAN8plXd+/PaoAAAAASUVORK5CYII=" },
+    "orb_gold": { w: 12, h: 12, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAASElEQVR42mNgQANRNgz/kTEDLgBT8P+kDQrGqhFF4bczqBhJI6pidIVYNII1YWhAcxJ+DeiKkTVRRwMxTiI5lMiKB7JimlgAAIJNIxC7qhQiAAAAAElFTkSuQmCC" },
     "heart": { w: 10, h: 10, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAL0lEQVR42mNgIBVoswv8B2FcfLjgf99cMIYpQOZjVYiOyVOISzGGIlxuJcn3tAMAHk1SYxqZYWwAAAAASUVORK5CYII=" },
     "blade": { w: 12, h: 12, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAANUlEQVR42mNgwAKU5SX+gzADMQCk8OWTS2BMlKZBpgHmWWQNODUhK0THeDURbcMgDlZCSQMABtN8jQiCmg4AAAAASUVORK5CYII=" },
     "boom_0": { w: 32, h: 32, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAkUlEQVR42u3UMQoCMRAF0D2LVQrLOUzS6gUEa28hv9tqsbLaO4gnWOYwv4kMbCFi5cLY/AcfkkmRCSQZBhERkR9gvzt+zFt6E17L9ds4a/MTYWOnPwiLjFFLa4Cw1ulzp/c1c+bpL4TdCFveGliiFmsZF7B5LQfCJsKea6aopV9Ewu6Rvz1Hr+Uc0cckIiJbvAAtCVLJLVzB8QAAAABJRU5ErkJggg==" },
@@ -85,6 +86,6 @@
     "deco": ["deco_rock", "deco_bones", "deco_grass", "deco_mushroom", "deco_skull", "deco_grave", "deco_stump", "deco_bush"]
   };
 
-  VS.SpriteInfo = { count: 51, pngBytes: 13074 };
+  VS.SpriteInfo = { count: 52, pngBytes: 13203 };
 
 })(window.VS = window.VS || {});

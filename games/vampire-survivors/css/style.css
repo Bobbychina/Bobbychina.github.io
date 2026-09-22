@@ -648,3 +648,45 @@ kbd {
   .banner-title { font-size: 26px; letter-spacing: 5px; }
   .boss-bar { width: 88vw; }
 }
+
+/* ===================== 开始面板的阶段说明 ===================== */
+
+.phases {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0 0 22px;
+}
+
+.phases > div {
+  padding: 9px 6px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--edge);
+  font-size: 11.5px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.phases b {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  color: var(--dim2);
+}
+
+.phases span { color: #cfe0f0; font-weight: 600; }
+
+.phases .ph-horde { border-color: rgba(255, 120, 60, .45); }
+.phases .ph-horde span { color: #ff9a6c; }
+
+.phases .ph-rest { border-color: rgba(126, 231, 135, .4); }
+.phases .ph-rest span { color: var(--green); }
+
+.phases .ph-boss { border-color: rgba(255, 80, 80, .5); }
+.phases .ph-boss span { color: #ff7a7a; }
+
+@media (max-width: 620px) {
+  .phases { grid-template-columns: repeat(2, 1fr); }
+}

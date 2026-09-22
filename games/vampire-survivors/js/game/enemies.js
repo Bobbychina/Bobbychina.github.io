@@ -342,6 +342,11 @@
     var xp = Math.max(1, Math.round(e.xp * game.player.luck));
     VS.Pickups.spawnXp(game.pickups, e.x, e.y, xp);
 
+    /* 金色经验球：10% 概率掉落，经验量 = 普通经验球的 100 倍 */
+    if (VS.Pickups.rollGold()) {
+      VS.Pickups.spawnGold(game.pickups, e.x, e.y, xp * C.DROP.GOLD_ORB_MULT);
+    }
+
     var heartChance = e.elite ? C.DROP.HEART_ELITE_CHANCE : C.DROP.HEART_CHANCE;
     if (Math.random() < heartChance) {
       VS.Pickups.spawnHeart(game.pickups, e.x, e.y);

@@ -28,6 +28,7 @@
   var PLAYER_SCALE = 2;
   var BOLT_SCALE = 2.2;
   var GEM_SCALE = 2;
+  var GOLD_ORB_SCALE = 2.3;
   var HEART_SCALE = 2.2;
   var DECO_SCALE = 2;
   var DECO_CELL = 108;       // 装饰物按这个网格撒点
@@ -237,7 +238,7 @@
       var view = VS.World.viewRect(game.world, 120);
 
       Renderer.drawDecorations(ctx, game, view);
-      Renderer.drawPickups(ctx, game, view, time);
+      Renderer.drawPickups(ctx, r, game, view, time);
       Renderer.drawAura(ctx, game, time);
       Renderer.drawNovas(ctx, game, time);
       Renderer.drawEnemies(ctx, game, view, time);
@@ -315,6 +316,30 @@
       ctx.fillStyle = pat;
       ctx.fillRect(x0 - ox, y0 - oy, x1 - x0, y1 - y0);
       ctx.restore();
+    },
+
+    /**
+     * 金色经验球的脉动光晕。
+     * 与暗角同样的思路：静态渐变只画一次成小图，之后每帧只贴图 ——
+     * 而不是每个金球每帧都新建一次 radialGradient。
+     */
+    ensureGoldGlow: function (r) {
+      if (r.goldGlow) return r.goldGlow;
+
+      var S = 64;
+      var c = document.createElement('canvas');
+      c.width = S;
+      c.height = S;
+      var g = c.getContext('2d');
+      var grad = g.createRadialGradient(S / 2, S / 2, 1, S / 2, S / 2, S / 2);
+      grad.addColorStop(0, 'rgba(255, 224, 130, 0.55)');
+      grad.addColorStop(0.55, 'rgba(255, 205, 80, 0.22)');
+      grad.addColorStop(1, 'rgba(255, 190, 60, 0)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, S, S);
+
+      r.goldGlow = c;
+      return c;
     },
 
     /**
@@ -400,16 +425,37 @@
 
     /* ---------------- 拾取物 ---------------- */
 
-    drawPickups: function (ctx, game, view, time) {
+    drawPickups: function (ctx, r, game, view, time) {
       var gems = game.pickups.gems;
+      var glow = null;
+
       for (var i = 0; i < gems.length; i++) {
         var g = gems[i];
-        if (!VS.World.isVisible(view, g.x, g.y, 14)) continue;
+        if (!VS.World.isVisible(view, g.x, g.y, 20)) continue;
 
-        var bob = Math.sin(g.phase) * 1.5;
-        var name = g.tier >= 3 ? 'gem_2' : (g.tier === 2 ? 'gem_1' : 'gem_0');
-        if (!blit(ctx, name, g.x, g.y, GEM_SCALE, { dy: bob })) {
-          fallbackCircle(ctx, g.x, g.y, g.radius, '#7ee0ff');
+        if (g.gold) {
+          /* 金色经验球：更大、会浮动、带一圈脉动光晕，一眼就能认出 */
+          var gb = Math.sin(g.phase * 1.6) * 2.4;
+          var pulse = 0.55 + 0.45 * Math.sin(g.phase * 2.2);
+
+          if (!glow) glow = Renderer.ensureGoldGlow(r);
+          if (glow) {
+            var gr = (16 + pulse * 6) * 2;
+            ctx.save();
+            ctx.globalAlpha = pulse;
+            ctx.drawImage(glow, g.x - gr / 2, g.y - gr / 2 + gb, gr, gr);
+            ctx.restore();
+          }
+
+          if (!blit(ctx, 'orb_gold', g.x, g.y, GOLD_ORB_SCALE, { dy: gb })) {
+            fallbackCircle(ctx, g.x, g.y, g.radius, '#ffc93c');
+          }
+        } else {
+          var bob = Math.sin(g.phase) * 1.5;
+          var name = g.tier >= 3 ? 'gem_2' : (g.tier === 2 ? 'gem_1' : 'gem_0');
+          if (!blit(ctx, name, g.x, g.y, GEM_SCALE, { dy: bob })) {
+            fallbackCircle(ctx, g.x, g.y, g.radius, '#7ee0ff');
+          }
         }
       }
 

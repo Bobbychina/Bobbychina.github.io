@@ -204,7 +204,16 @@
     HEART_ELITE_CHANCE: 0.9,  // 精英怪掉红心概率
     HEART_HEAL: 20,
     HEART_RADIUS: 9,
-    GEM_RADIUS: 6
+    GEM_RADIUS: 6,
+
+    /* --- 金色经验球 ---
+       普通白色经验球的经验量就是怪物自身的 xp 值；
+       金色球 = 该值的 GOLD_ORB_MULT 倍，一次顶一百个。
+       掉落率 10%，用来解决 4 分钟之后升级太慢的问题。 */
+    GOLD_ORB_CHANCE: 0.10,    // 每只普通怪 10% 概率额外掉一颗金色经验球
+    GOLD_ORB_MULT: 100,       // 经验量 = 普通经验球的 100 倍
+    GOLD_ORB_RADIUS: 9,       // 比普通球大一圈，更显眼
+    GOLD_MAGNET_MULT: 1.7     // 金色球的吸附范围更大，尽量别让它被漏掉
   };
 
   /* ---------------- 武器 ----------------
