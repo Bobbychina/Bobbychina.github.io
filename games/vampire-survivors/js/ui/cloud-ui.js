@@ -80,7 +80,8 @@
     var sync = el('button', 'cbtn', '⇅ 双向同步');
     var login = el('button', 'cbtn primary', '用 GitHub 登录');
     var tokenToggle = el('button', 'cbtn ghost', '粘贴令牌');
-    [up, down, sync, login, tokenToggle].forEach(function (b) { b.type = 'button'; btns.appendChild(b); });
+    var cloudLogin = el('button', 'cbtn ghost', '云账号登录');
+    [up, down, sync, login, tokenToggle, cloudLogin].forEach(function (b) { b.type = 'button'; btns.appendChild(b); });
 
     var form = el('div', 'cloud-form');
     form.hidden = true;
@@ -99,21 +100,56 @@
     form.appendChild(link);
 
     var msg = el('p', 'cloud-msg', '');
-    var hint = el('p', 'cloud-hint', '云端存的是你自己的私有 Gist（vampire-survivors__main.json）：换设备登录同一个 GitHub 就能接着玩。纪录取两边最高，下载不会冲掉本机成绩。');
+    var hint = el('p', 'cloud-hint', '云端存的是你自己的私有 Gist（vampire-survivors__main.json）：换设备登录同一个 GitHub 就能接着玩。纪录取两边最高，下载不会冲掉本机成绩。想上「全站榜」要另外用云账号登录（GitHub 登录的存档不经过服务端）。');
+
+    /* 云账号登录（名 + 口令）：拿到服务端会话才能在全站榜上榜 */
+    var cform = el('div', 'cloud-form');
+    cform.hidden = true;
+    var cuser = document.createElement('input');
+    cuser.type = 'text';
+    cuser.id = 'cloudUser';
+    cuser.placeholder = '云账号名';
+    var cpass = document.createElement('input');
+    cpass.type = 'password';
+    cpass.id = 'cloudPass';
+    cpass.placeholder = '口令';
+    var cok = el('button', 'cbtn primary', '登录');
+    cok.type = 'button';
+    cform.appendChild(cuser);
+    cform.appendChild(cpass);
+    cform.appendChild(cok);
 
     root.appendChild(head);
     root.appendChild(btns);
     root.appendChild(form);
+    root.appendChild(cform);
     root.appendChild(msg);
     root.appendChild(hint);
     panel.appendChild(root);
 
-    dom = { root: root, ico: ico, status: status, up: up, down: down, sync: sync, login: login, tokenToggle: tokenToggle, form: form, input: input, msg: msg };
+    dom = { root: root, ico: ico, status: status, up: up, down: down, sync: sync, login: login, tokenToggle: tokenToggle, form: form, input: input, msg: msg, cform: cform, cuser: cuser, cpass: cpass };
 
     up.onclick = function () { run(function () { return VS.Cloud.push(); }, '已上传到云端'); };
     down.onclick = function () { run(function () { return VS.Cloud.pull(); }, '已从云端合并回来'); };
     sync.onclick = function () { run(function () { return VS.Cloud.sync(); }, '双向同步完成'); };
     tokenToggle.onclick = function () { dom.form.hidden = !dom.form.hidden; if (!dom.form.hidden) dom.input.focus(); };
+    cloudLogin.onclick = function () { dom.cform.hidden = !dom.cform.hidden; if (!dom.cform.hidden) dom.cuser.focus(); };
+    cok.onclick = async function () {
+      var n = String(dom.cuser.value || '').trim(), p = String(dom.cpass.value || '');
+      if (!n || !p) { note('云账号名与口令都要填', 'warn'); return; }
+      note('正在登录云账号…');
+      var r = await VS.Cloud.loginCloud(n, p);
+      if (r && r.ok) {
+        dom.cpass.value = '';
+        dom.cform.hidden = true;
+        note('云账号已登录：' + (VS.Cloud.who() || n) + '（现在能在全站榜上榜了）', 'ok');
+        if (VS.LeaderboardUI) VS.LeaderboardUI.refresh(true);
+        if (VS.Cloud.backend && VS.Cloud.backend() === 'server') { run(function () { return VS.Cloud.sync(); }, '已和云端对齐'); return; }
+      } else {
+        note((r && r.err) || '登录失败', 'bad');
+      }
+      refresh();
+    };
 
     login.onclick = async function () {
       note('正在向 GitHub 申请设备码…');

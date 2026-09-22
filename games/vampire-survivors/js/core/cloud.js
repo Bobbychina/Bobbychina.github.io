@@ -136,6 +136,18 @@
       } catch (e) { return { ok: false, err: '同步失败：' + e.message }; }
     },
 
+    /** 云账号登录（要服务端会话才能在「全站榜」上榜；GitHub 登录是另一条路，走不到服务端） */
+    loginCloud: async function (name, password) {
+      if (!lib()) return { ok: false, err: '账号库没装' };
+      var r = await lib().login({ name: String(name || '').trim(), password: String(password || '') });
+      if (r && r.ok) {
+        if (lib().unlock) { try { await lib().unlock(String(password || '')); } catch (e) { /* 解不开存档也不挡登录 */ } }
+        emit('login', r);
+        return r;
+      }
+      return { ok: false, err: (r && r.err) || '登录失败' };
+    },
+
     /** 粘贴 GitHub 令牌绑定（与游戏厅同一个入口，令牌只存在本机） */
     bindToken: async function (token) {
       if (!lib()) return { ok: false, err: '账号库没装' };

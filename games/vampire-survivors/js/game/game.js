@@ -393,6 +393,11 @@
         });
       }
       if (VS.ScoresUI) VS.ScoresUI.showRank(rankInfo);   // 本局排名（没进前 5 就自己藏起来）
+
+      /* 全站榜：云账号登录了就提交（GitHub-Gist 模式的账号不经过服务端，跳过） */
+      if (VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
+        VS.LeaderboardUI.submitRun({ time: game.time, kills: p.kills, level: p.level, wave: wave });
+      }
     },
 
     /** 回到主菜单（当前 UI 用不到，留给扩展） */

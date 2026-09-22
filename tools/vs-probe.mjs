@@ -193,6 +193,44 @@ ok('⑤⁗ 一局结束后：榜上多一条、结算面板显示本局排名、
   gameOver.after > gameOver.before && gameOver.rankHidden === false && /第 \d+ 名|第 1 名/.test(gameOver.rankText) &&
   gameOver.rows === gameOver.after, JSON.stringify(gameOver))
 
+/* ⑦ 全站榜：读榜不用登录（fetch 打桩看请求），提交要云账号会话（带 Bearer） */
+const lb = await j(`(async () => {
+  if (!window.VS || !VS.Leaderboard || !VS.LeaderboardUI) return JSON.stringify({ err: 'no leaderboard module' })
+  const calls = []
+  const realFetch = window.fetch
+  const list = [
+    { name: 'alan', time: 640, kills: 88, level: 9, wave: 4 },
+    { name: 'bob', time: 300, kills: 20, level: 5, wave: 2 }
+  ]
+  window.fetch = async (url, opts) => {
+    const method = (opts && opts.method) || 'GET'
+    calls.push({ url: String(url), method, auth: !!(opts && opts.headers && opts.headers.authorization), body: (opts && opts.body) || '' })
+    const payload = method === 'POST'
+      ? { ok: true, better: true, rank: 1, best: { time: 321, kills: 45, level: 7, wave: 3 }, list: list.concat([{ name: 'stub', time: 321, kills: 45, level: 7, wave: 3 }]) }
+      : { ok: true, game: 'vampire-survivors', list: list }
+    return { ok: true, status: 200, json: async () => payload }
+  }
+  await VS.LeaderboardUI.refresh(false)
+  const rows = [...document.querySelectorAll('.lb .lb-row')].map(r => r.textContent.replace(/\\s+/g, ' ').trim())
+  const guestMsg = (document.querySelector('.lb-msg') || {}).textContent || ''
+  /* 换上「云账号已登录」的桩：能提交，且请求要带 Bearer */
+  window.DSHAccount = { currentUid: () => 'u1', current: () => ({ name: 'stub', login: 'stub' }), sessionToken: () => 'tok-1', backend: () => 'server' }
+  const canSubmit = VS.Leaderboard.canSubmit()
+  await VS.LeaderboardUI.submitRun({ time: 321, kills: 45, level: 7, wave: 3 })
+  const okMsg = (document.querySelector('.lb-msg') || {}).textContent || ''
+  window.fetch = realFetch
+  return JSON.stringify({ rows, canSubmit, guestMsg: guestMsg.slice(0, 60), okMsg: okMsg.slice(0, 60),
+    calls: calls.map(c => c.method + ' ' + c.url.replace(/^https?:\\/\\/[^/]+/, '') + (c.auth ? ' [auth]' : '')), body: calls.length > 1 ? String(calls[1].body) : '' })
+})()`)
+const lbBody = (() => { try { return JSON.parse(String(lb.body || '{}')) } catch (e) { return {} } })()
+ok('⑦ 全站榜：读榜是公开 GET（不带 token），提交是带 Bearer 的 POST，字段与排名回显都对',
+  Array.isArray(lb.rows) && lb.rows.length === 2 && /#1/.test(lb.rows[0]) && /alan/.test(lb.rows[0]) &&
+  /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[0] || '') &&
+  /^POST \/api\/score \[auth\]$/.test(lb.calls[1] || '') &&
+  lbBody.game === 'vampire-survivors' && lbBody.time === 321 && lbBody.kills === 45 && lbBody.level === 7 && lbBody.wave === 3 &&
+  lb.canSubmit === true && /第 1 名/.test(lb.okMsg),
+  JSON.stringify({ rows: lb.rows, calls: lb.calls, body: lb.body, msg: lb.okMsg }))
+
 /* ⑥ 共创留言板：两位共创者的 agent 通过 git 在 js/data/notes.js 里留话，游戏里要能看见 */
 const notes = await j(`(() => {
   const panel = document.getElementById('panel-start')
