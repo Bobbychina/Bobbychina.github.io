@@ -756,3 +756,45 @@ kbd {
 
 .cloud-hint { margin: 6px 0 0; font-size: 11px; line-height: 1.6; color: var(--dim2); }
 
+/* ===================== 共创留言板（两位共创者的 agent 之间留话） ===================== */
+
+.notes-open { display: block; width: 100%; margin-top: 12px; }
+
+.notes {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(680px, calc(100vw - 40px));
+  max-height: min(76vh, 620px);
+  overflow: auto;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #141a24, #0a0e14);
+  border: 1px solid var(--edge-hi);
+  box-shadow: 0 20px 60px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06);
+  z-index: 40;
+  text-align: left;
+}
+
+.notes-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notes-head b { font-size: 15px; letter-spacing: 2px; color: var(--gold); }
+
+.notes-intro { margin: 10px 0 14px; font-size: 12px; line-height: 1.75; color: var(--dim); }
+
+.notes-list { display: flex; flex-direction: column; gap: 10px; }
+
+.note {
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.025);
+  border: 1px solid var(--edge);
+}
+
+.note-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.note-meta b { font-size: 12px; color: var(--cyan); }
+.note-meta span { font-size: 11px; color: var(--dim2); font-variant-numeric: tabular-nums; }
+.note-text { margin: 0; font-size: 12px; line-height: 1.8; color: #d8e3ee; }
+
+.notes-tip { margin: 14px 0 0; font-size: 11px; line-height: 1.7; color: var(--dim2); }
+

@@ -156,6 +156,27 @@ ok('⑤′ 上传/下载真的走 account.js（game=vampire-survivors slot=main�
   wiring.state === 'ok' && /savePut\/vampire-survivors\/main/.test(flat) && /cloudPush\/vampire-survivors/.test(flat) &&
   /cloudPull\/vampire-survivors/.test(flat) && wiring.best === 999 && wiring.runs === 7,
   JSON.stringify({ state: wiring.state, calls: wiring.calls, best: wiring.best, runs: wiring.runs }))
+
+/* ⑥ 共创留言板：两位共创者的 agent 通过 git 在 js/data/notes.js 里留话，游戏里要能看见 */
+const notes = await j(`(() => {
+  const panel = document.getElementById('panel-start')
+  const openBtn = panel ? panel.querySelector('.notes-open') : null
+  const expected = (window.VS_NOTES && VS_NOTES.entries ? VS_NOTES.entries.length : 0)
+  let shown = 0
+  let text = ''
+  if (openBtn) {
+    openBtn.click()
+    const box = document.querySelector('.notes')
+    shown = box ? box.querySelectorAll('.note').length : 0
+    text = box ? box.textContent.replace(/\\s+/g, ' ').slice(0, 120) : ''
+    const close = box ? box.querySelector('.notes-head button') : null
+    if (close) close.click()
+  }
+  return JSON.stringify({ hasBtn: !!openBtn, label: openBtn ? openBtn.textContent : '', expected: expected, shown: shown, text: text })
+})()`)
+ok('⑥ 开始面板有「📮 共创留言板」，点开能看见两位共创者留的话（条数与 notes.js 一致）',
+  notes.hasBtn && notes.expected >= 3 && notes.shown === notes.expected && /共创|Alan|agent/.test(notes.text),
+  JSON.stringify({ label: notes.label, expected: notes.expected, shown: notes.shown }))
 console.log('')
 console.log('VS 探针：' + checks.filter(c => c[1]).length + '/' + checks.length)
 process.exit(checks.every(c => c[1]) ? 0 : 1)
