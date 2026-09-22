@@ -127,29 +127,66 @@
      主体
      =========================================================== */
 
+  /* ---------------- 渲染缩放（性能闸门） ----------------
+     宽屏 + 2 倍缩放下画面后备尺寸是 4 倍像素，而每帧至少两次全屏填充（地面 + 暗角）；
+     JS 自身只占 ~2% 时间，剩下全是这堆像素的光栅化：实测 2880x1800 时 p50 = 33ms（31fps），
+     压到 1 倍（1440x900）立刻回 60fps。像素画只需要整数档，非整数缩放会让像素粗细不匀。 */
+  var PX_BUDGET = 2.3e6;      // ≈1920x1200 像素量，再往上堆分辨率换不到观感
+  var DPR_LADDER = [2, 1];
+
+  function pickRenderScale(cssW, cssH) {
+    var want = Math.min(window.devicePixelRatio || 1, 2);
+    for (var i = 0; i < DPR_LADDER.length; i++) {
+      var d = DPR_LADDER[i];
+      if (d <= want && cssW * cssH * d * d <= PX_BUDGET) return d;
+    }
+    return 1;                 // 兜底：至少保证 1 倍（不会比 CSS 像素更糊）
+  }
+
   var Renderer = {
 
     create: function (canvas) {
-      return {
+      var r = {
         canvas: canvas,
         ctx: canvas.getContext('2d'),
         dpr: 1,
         w: 0,
         h: 0,
+        vw: 0,            // 上次同步的窗口尺寸（用来判断要不要重新量画布）
+        vh: 0,
+        needResize: true,
         groundPattern: null,
         groundPatternFor: null,
         walkPhase: 0,
-        dt: 1 / 60
+        dt: 1 / 60,
+        vignette: null,   // 预渲染的暗角/危险红屏（静态图，每帧只贴一次）
+        vigW: 0,
+        vigH: 0
       };
+      /* 尺寸变化靠事件置脏，别在每帧里读 clientWidth（那会强制同步排版） */
+      var mark = function () { r.needResize = true; };
+      window.addEventListener('resize', mark);
+      window.addEventListener('orientationchange', mark);
+      return r;
     },
 
     /** 尺寸自适应（含 devicePixelRatio） */
-    resize: function (r) {
+    resize: function (r, force) {
       var canvas = r.canvas;
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-      var cssW = canvas.clientWidth || window.innerWidth || 1280;
-      var cssH = canvas.clientHeight || window.innerHeight || 720;
+      /* 尺寸没变的绝大多数帧里只比一次窗口尺寸（读 innerWidth 不会触发排版），
+         省掉每帧读 clientWidth 带来的强制同步排版 —— HUD 每帧改 DOM，这一读就是全页重排 */
+      var vw = window.innerWidth || 1280;
+      var vh = window.innerHeight || 720;
+      if (!force && !r.needResize && vw === r.vw && vh === r.vh) return r;
+      r.needResize = false;
+      r.vw = vw;
+      r.vh = vh;
+
+      var cssW = canvas.clientWidth || vw;
+      var cssH = canvas.clientHeight || vh;
+
+      var dpr = pickRenderScale(cssW, cssH);
 
       var pw = Math.max(1, Math.floor(cssW * dpr));
       var ph = Math.max(1, Math.floor(cssH * dpr));
@@ -243,14 +280,18 @@
     drawGround: function (ctx, r, game, camX, camY) {
       var world = game.world;
 
-      ctx.fillStyle = '#05070a';
-      ctx.fillRect(0, 0, r.w, r.h);
-
       /* 世界矩形换算到屏幕坐标后与屏幕求交 */
       var x0 = Math.max(0, -camX);
       var y0 = Math.max(0, -camY);
       var x1 = Math.min(r.w, world.w - camX);
       var y1 = Math.min(r.h, world.h - camY);
+
+      /* 贴图铺满整屏时不必先刷一遍底色（少一次全屏填充）；只在露出地图外的地方补底色 */
+      var covers = x0 <= 0 && y0 <= 0 && x1 >= r.w && y1 >= r.h;
+      if (!covers) {
+        ctx.fillStyle = '#05070a';
+        ctx.fillRect(0, 0, r.w, r.h);
+      }
       if (x1 <= x0 || y1 <= y0) return;
 
       var pat = Renderer.ensureGroundPattern(r);
@@ -274,6 +315,35 @@
       ctx.fillStyle = pat;
       ctx.fillRect(x0 - ox, y0 - oy, x1 - x0, y1 - y0);
       ctx.restore();
+    },
+
+    /**
+     * 暗角 / 低血红屏都是**静态**的：预渲染成 1/4 尺寸小图，每帧只贴一次。
+     * 原来是每帧新建全屏 radialGradient 再铺满整屏 —— 2 倍缩放下等于每帧 5M 像素的渐变光栅化。
+     */
+    ensureVignette: function (r) {
+      var w = Math.max(2, Math.round(r.w / 4));
+      var h = Math.max(2, Math.round(r.h / 4));
+      if (r.vignetteDark && r.vigW === w && r.vigH === h) return;
+
+      var make = function (edge) {
+        var c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        var g = c.getContext('2d');
+        var grad = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42,
+                                          w / 2, h / 2, Math.max(w, h) * 0.72);
+        grad.addColorStop(0, 'rgba(' + edge + ',0)');
+        grad.addColorStop(1, 'rgba(' + edge + ',1)');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, w, h);
+        return c;
+      };
+
+      r.vignetteDark = make('0,0,0');
+      r.vignetteDanger = make('255,0,0');
+      r.vigW = w;
+      r.vigH = h;
     },
 
     /** 地图边界（发光紫线） */
@@ -676,22 +746,22 @@
         ctx.fillRect(0, 0, r.w, r.h);
       }
 
+      Renderer.ensureVignette(r);
+
+      /* 贴预渲染图：暗角是平滑渐变，放大贴回来肉眼看不出差别（要开插值，关掉会出色带） */
+      var smooth = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = true;
+
       if (p && p.alive && p.hp / p.maxHp < 0.3) {
-        var danger = 0.16 + 0.16 * Math.abs(Math.sin(time * 4));
-        var grad = ctx.createRadialGradient(r.w / 2, r.h / 2, Math.min(r.w, r.h) * 0.34,
-                                            r.w / 2, r.h / 2, Math.max(r.w, r.h) * 0.62);
-        grad.addColorStop(0, 'rgba(255,0,0,0)');
-        grad.addColorStop(1, 'rgba(255,0,0,' + danger.toFixed(3) + ')');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, r.w, r.h);
+        ctx.globalAlpha = 0.16 + 0.16 * Math.abs(Math.sin(time * 4));
+        ctx.drawImage(r.vignetteDanger, 0, 0, r.w, r.h);
       }
 
-      var vg = ctx.createRadialGradient(r.w / 2, r.h / 2, Math.min(r.w, r.h) * 0.42,
-                                        r.w / 2, r.h / 2, Math.max(r.w, r.h) * 0.72);
-      vg.addColorStop(0, 'rgba(0,0,0,0)');
-      vg.addColorStop(1, 'rgba(0,0,0,.45)');
-      ctx.fillStyle = vg;
-      ctx.fillRect(0, 0, r.w, r.h);
+      ctx.globalAlpha = 0.45;
+      ctx.drawImage(r.vignetteDark, 0, 0, r.w, r.h);
+      ctx.globalAlpha = 1;
+
+      ctx.imageSmoothingEnabled = smooth;
     },
 
     drawJoystick: function (ctx, r) {
