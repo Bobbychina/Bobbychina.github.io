@@ -55,10 +55,15 @@
     try { return sessionStorage.getItem(MOBILE_KEY) === '1'; } catch (e) { return false; }
   }
 
-  /* 取词：词典缺这条（或页面没引 i18n.js）就回退到内置中文，本脚本可独立工作 */
+  /* 取词：词典缺这条（或页面没引 i18n.js，如游戏页）就回退到内置中文，本脚本可独立工作。
+     回退串也是模板，得自己把 {v} 之类替换掉，否则页面上会直接显示 "当前版本 {v}"。 */
   function T(key, fallback, vars) {
     var v = window.I18N ? I18N.t(key, vars) : '';
-    return (!v || v === key) ? fallback : v;
+    if (!v || v === key) {
+      v = fallback;
+      if (vars) v = v.replace(/\{(\w+)\}/g, function (m, k) { return vars[k] != null ? vars[k] : m; });
+    }
+    return v;
   }
   function barHtml() {
     return '<span class="tag">BETA</span>'
@@ -69,6 +74,19 @@
   function mobileHtml() {
     return T('mobile.warn', '📱 <b>手机端只做了基础适配</b>：能看能点，但排版和操作仍以电脑为准，体验会明显差一些。');
   }
+  /* 把两条的高度写到 :root 的 --beta-h 上 —— 全屏画布类页面（游戏）用它把自己让到条下面。
+     普通文档流页面用不到这个变量，设了也无副作用。 */
+  function syncHeight() {
+    var h = 0;
+    var b = document.getElementById('beta-notice');
+    if (b) h += b.offsetHeight || 0;
+    var w = document.getElementById('mobile-warn');
+    if (w) h += w.offsetHeight || 0;
+    document.documentElement.style.setProperty('--beta-h', h + 'px');
+  }
+  window.addEventListener('resize', syncHeight);
+  window.addEventListener('orientationchange', syncHeight);
+
   /* 语言切换后重建这两条的文案（它们是自己插进 DOM 的，i18n 的 DOM 扫描覆盖不到） */
   document.addEventListener('i18n:change', function () {
     var b = document.getElementById('beta-notice');
@@ -78,6 +96,7 @@
       var s = w.querySelector('span'); if (s) s.innerHTML = mobileHtml();
       var t = w.querySelector('button'); if (t) t.textContent = T('mobile.dismiss', '知道了');
     }
+    syncHeight();
   });
 
   function installMobileWarn() {
@@ -92,6 +111,7 @@
     btn.onclick = function () {
       try { sessionStorage.setItem(MOBILE_KEY, '1'); } catch (e) { /* 无痕模式忽略 */ }
       bar.parentNode && bar.parentNode.removeChild(bar);
+      syncHeight();
     };
     bar.appendChild(btn);
     var anchor = document.getElementById('beta-notice');
@@ -119,7 +139,7 @@
   }
 
   function install() {
-    if (document.getElementById('beta-notice')) { installMobileWarn(); countView(); return; }  // 游戏页自带 BETA 条
+    if (document.getElementById('beta-notice')) { installMobileWarn(); countView(); syncHeight(); requestAnimationFrame(syncHeight); return; }  // 游戏页自带 BETA 条
     var style = document.createElement('style');
     style.id = 'beta-notice-style';
     style.textContent = CSS;
@@ -142,6 +162,10 @@
     });
     installMobileWarn();
     countView();
+    syncHeight();
+    /* 字体/换行会让条的高度变一点，装完再量两次兜底 */
+    requestAnimationFrame(syncHeight);
+    window.setTimeout(syncHeight, 300);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);

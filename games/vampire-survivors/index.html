@@ -11,8 +11,8 @@
 </head>
 <body>
 
-<!-- 站点壳：回游戏厅 + 共创标注（浮在画布上，不参与游戏布局；top 让开站点 BETA 条那一条） -->
-<div id="site-bar" style="position:fixed;left:10px;top:38px;z-index:9999;display:flex;gap:8px;align-items:center;font:12.5px/1.6 'Segoe UI',system-ui,'Microsoft YaHei',sans-serif">
+<!-- 站点壳：回游戏厅 + 共创标注（浮在画布上，不参与游戏布局；top 跟着站点 BETA 条的高度走） -->
+<div id="site-bar" style="position:fixed;left:10px;top:calc(var(--beta-h, 0px) + 8px);z-index:9999;display:flex;gap:8px;align-items:center;font:12.5px/1.6 'Segoe UI',system-ui,'Microsoft YaHei',sans-serif">
   <a href="/games/" style="text-decoration:none;color:#d7e2ea;background:rgba(10,14,20,.72);border:1px solid #1f2733;border-radius:20px;padding:4px 12px">← 回游戏厅</a>
   <span style="color:#3fd07a;background:rgba(10,14,20,.72);border:1px solid #2b5f45;border-radius:20px;padding:4px 12px">🤝 共创</span>
 </div>

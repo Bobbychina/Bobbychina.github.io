@@ -38,7 +38,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-#app { position: fixed; left: 0; top: 0; right: 0; bottom: 0; }
+/* 整屏舞台：top 让开站点 BETA 条（高度由 /beta-notice.js 写到 --beta-h，条没装或没量到时为 0） */
+#app { position: fixed; left: 0; right: 0; bottom: 0; top: var(--beta-h, 0px); }
 
 #game {
   display: block;

@@ -35,7 +35,9 @@ const ok = (n, c, extra = '') => { checks.push([n, !!c]); console.log((c ? 'PASS
 
 await send('Runtime.enable'); await send('Page.enable')
 await send('Network.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true })
-await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false })
+/* 可选窗口尺寸（默认桌面 1440x900）：node tools/vs-probe.mjs <port> <url> <outDir> [w] [h] */
+const VW = Number(process.argv[5] || 1440), VH = Number(process.argv[6] || 900)
+await send('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: 1, mobile: false })
 await send('Page.navigate', { url })
 // 线上（GitHub Pages）每请求 RTT 0.6~1.0s，20 个脚本串行可达 15s+：等真正的就绪信号，别用固定 sleep
 const waitReady = async (ms = 90000) => {
@@ -63,6 +65,24 @@ const boot = await j(`(() => JSON.stringify({
 ok('① 页面跑起来了：标题 / Canvas / VS 命名空间 / 20 个脚本都到位',
   boot.hasCanvas && boot.ns === 'object' && boot.scripts >= 20 && /吸血鬼幸存者/.test(boot.title), JSON.stringify(boot).slice(0, 160))
 ok('① 站点壳在：回游戏厅链接 + 🤝 共创 标注', boot.bar && boot.backHref === '/games/' && /回游戏厅/.test(boot.barText) && /共创/.test(boot.barText) && boot.coop, boot.barText)
+
+/* ①′ 站点 BETA 条不能压住主画面：画布与站点壳都得让到条下面，且画布正好占满剩下高度 */
+const layout = await j(`(() => {
+  const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { top: +b.top.toFixed(1), bottom: +b.bottom.toFixed(1), h: +b.height.toFixed(1) } };
+  const bar = r(document.getElementById('beta-notice'));
+  return JSON.stringify({ bar, canvas: r(document.getElementById('game')), site: r(document.getElementById('site-bar')),
+    innerH: innerHeight, betaH: getComputedStyle(document.documentElement).getPropertyValue('--beta-h').trim() });
+})()`)
+ok('①′ BETA 条不遮挡主画面（画布 top 与站点壳 top 都在条下面）',
+  !!layout.bar && layout.bar.bottom > 4 && layout.canvas.top >= layout.bar.bottom - 1 &&
+  layout.site.top >= layout.bar.bottom - 1 &&
+  Math.abs(layout.canvas.h - (layout.innerH - layout.bar.bottom)) <= 2,
+  JSON.stringify(layout))
+
+/* ①″ 条上的版本号要是真版本号（回退文案没做插值时这里会是 "{v}"） */
+const barText = await j(`(() => { const b = document.getElementById('beta-notice'); return JSON.stringify({ text: b ? b.textContent.replace(/\\s+/g, ' ').trim() : '' }) })()`)
+ok('①″ BETA 条文案已插值（不出现 {v} 这类占位符）',
+  /v\d/.test(barText.text) && !/[{}]/.test(barText.text), barText.text)
 if (outDir) await shot('vs-start')
 
 /* ② 开始游戏 → HUD 出现、时间在走、canvas 真的有像素 */

@@ -168,6 +168,10 @@
       var mark = function () { r.needResize = true; };
       window.addEventListener('resize', mark);
       window.addEventListener('orientationchange', mark);
+      /* 画布 CSS 尺寸也可能被样式改（如站点 BETA 条撑高 --beta-h）：ResizeObserver 兜住这种情况 */
+      if (window.ResizeObserver) {
+        try { new ResizeObserver(mark).observe(canvas); } catch (e) { /* 老浏览器就算了 */ }
+      }
       return r;
     },
 
