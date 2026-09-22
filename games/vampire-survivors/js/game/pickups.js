@@ -108,11 +108,18 @@
 
     /**
      * 按当前掉落配置掷一次金色经验球。
-     * 集中放在这里，方便测试直接验证掉落率。
+     * 集中放在这里，方便测试直接验证"解锁时间"与"掉落率"。
+     * @param {number} t 当前存活时间（秒）
      * @returns {boolean} 这次是否掉落
      */
-    rollGold: function () {
+    rollGold: function (t) {
+      if (t < C.DROP.GOLD_ORB_FROM) return false;   // 3 分钟之前不掉
       return Math.random() < C.DROP.GOLD_ORB_CHANCE;
+    },
+
+    /** 金色经验球是否已解锁（UI 与测试用） */
+    goldUnlocked: function (t) {
+      return t >= C.DROP.GOLD_ORB_FROM;
     },
 
     /** 掉一颗红心 */

@@ -11,7 +11,6 @@
 </head>
 <body>
 
-<!-- 站点壳：回游戏厅 + 共创标注（浮在画布上，不参与游戏布局；top 跟着站点 BETA 条的高度走） -->
 <div id="site-bar" style="position:fixed;left:10px;top:calc(var(--beta-h, 0px) + 8px);z-index:9999;display:flex;gap:8px;align-items:center;font:12.5px/1.6 'Segoe UI',system-ui,'Microsoft YaHei',sans-serif">
   <a href="/games/" style="text-decoration:none;color:#d7e2ea;background:rgba(10,14,20,.72);border:1px solid #1f2733;border-radius:20px;padding:4px 12px">← 回游戏厅</a>
   <span style="color:#3fd07a;background:rgba(10,14,20,.72);border:1px solid #2b5f45;border-radius:20px;padding:4px 12px">🤝 共创</span>
@@ -72,8 +71,7 @@
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键移动</li>
         <li>武器<b>自动攻击</b>，无需手动开火</li>
         <li>拾取经验球升级，从三张卡中选一项增益</li>
-        <li>拾取<b>金色经验球</b>，一次获得 100 倍经验（击杀有 10% 概率掉落）</li>
-        <li>第 2 分钟<b>尸潮</b> · 第 4 分钟<b>休整</b> · 第 5 分钟<b>尸潮之王</b>登场</li>
+        <li>存活满 <b>3 分钟</b>后，击杀有 10% 概率掉落<b>金色经验球</b>，一颗顶 100 颗</li>
         <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
       </ul>
       <div class="phases">
@@ -84,7 +82,6 @@
       </div>
       <button class="btn primary" id="startBtn">开始游戏</button>
       <p class="tip">手机端：在画面上拖动即可移动</p>
-      <p class="tip" style="margin-top:10px;color:#3fd07a">🤝 共创作品：游戏由朋友制作，Bobbychina 的游戏厅负责托管与收录。</p>
     </section>
 
     <section class="panel" id="panel-levelup" hidden>
@@ -148,6 +145,7 @@
 <script defer src="js/ui/panels.js"></script>
 <script defer src="js/game/game.js"></script>
 <script defer src="js/main.js"></script>
+
 <!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
 <script src="/beta-notice.js" data-version="v4.0.0-beta" defer></script>
 

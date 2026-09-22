@@ -342,8 +342,8 @@
     var xp = Math.max(1, Math.round(e.xp * game.player.luck));
     VS.Pickups.spawnXp(game.pickups, e.x, e.y, xp);
 
-    /* 金色经验球：10% 概率掉落，经验量 = 普通经验球的 100 倍 */
-    if (VS.Pickups.rollGold()) {
+    /* 金色经验球：存活满 3 分钟后才开始掉，10% 概率，经验量 = 普通球的 100 倍 */
+    if (VS.Pickups.rollGold(game.time)) {
       VS.Pickups.spawnGold(game.pickups, e.x, e.y, xp * C.DROP.GOLD_ORB_MULT);
     }
 

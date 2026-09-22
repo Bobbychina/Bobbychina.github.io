@@ -239,6 +239,14 @@
         Game.announcePhase(game, entered);
       }
 
+      /* --- 金色经验球解锁（存活满 3 分钟）：单独播报一次 --- */
+      if (prevTime < C.DROP.GOLD_ORB_FROM && game.time >= C.DROP.GOLD_ORB_FROM) {
+        if (game.deps.audio) game.deps.audio.play('level');
+        if (game.deps.panels && game.deps.panels.showBanner) {
+          game.deps.panels.showBanner('金 色 经 验 球 解 锁', '3 分钟后开始掉落 · 一颗顶 100 颗');
+        }
+      }
+
       var input = game.deps.input || VS.Input;
       var axis = input && input.getAxis ? input.getAxis() : { x: 0, y: 0 };
 
