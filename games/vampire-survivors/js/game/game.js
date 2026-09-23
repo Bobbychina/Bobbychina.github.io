@@ -184,9 +184,8 @@
         }
         game.pendingPetSelect = true;
 
-        if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
-          game.deps.panels.showBanner('击 杀 奖 励', '等级 +1 · 选择你的宠物');
-        }
+        /* 这里**故意不弹横幅**：横幅和紧接着出现的宠物面板会叠在一起（实测挡标题），
+           奖励信息已经写在面板副标题里（「击杀尸潮之王的奖励 · 等级 +1」）。 */
       };
 
       Game.newRun(game);

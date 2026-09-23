@@ -66,7 +66,6 @@
         luLevel: el('luLevel'),
         luCards: el('luCards'),
 
-        petReward: el('petReward'),
         petCards: el('petCards'),
 
         pauseInfo: el('pauseInfo'),
@@ -201,8 +200,6 @@
     showPetSelect: function (pets) {
       if (!dom) return;
       currentPets = pets || [];
-
-      if (dom.petReward) dom.petReward.textContent = ' 击杀奖励';
 
       var html = '';
       for (var i = 0; i < currentPets.length; i++) {
