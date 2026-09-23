@@ -106,6 +106,10 @@ const vs = await open('/games/vampire-survivors/', MAC_UA, MAC_META, false)
 if (outDir) await shot('mac-block-vs')
 ok('③ 《吸血鬼幸存者》在 Mac 上被拦（那条注入写在 sync-site 里，同步后不会丢）',
   vs.blocked === true && vs.overlay === true && vs.bodyHidden === true, JSON.stringify({ blocked: vs.blocked, overlay: vs.overlay }))
+const rc = await open('/games/racing3d/', MAC_UA, MAC_META, false)
+if (outDir) await shot('mac-block-racing3d')
+ok('③ 《极速椭圆 · 3D 赛车》在 Mac 上被拦（注入同样写在 racing3d/tools/sync-site.mjs 里）',
+  rc.blocked === true && rc.overlay === true && rc.bodyHidden === true, JSON.stringify({ blocked: rc.blocked, overlay: rc.overlay }))
 
 /* ── ④ iPad 桌面模式不误伤 ── */
 const ipad = await open('/', MAC_UA, MAC_META, true)

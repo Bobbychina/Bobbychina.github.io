@@ -1,4 +1,4 @@
-﻿# ============================================================================
+# ============================================================================
 #  bobbychina.github.io 站点回归：共创游戏页 + 游戏厅 + 帧率体检
 #  ---------------------------------------------------------------------------
 #  用法（在本仓库根目录或任意位置）：
@@ -52,6 +52,7 @@ foreach ($step in @(
     @{ n = '共创游戏页 vs-probe'; f = 'vs-probe.mjs'; u = $vurl; a = @() },
     @{ n = '尸潮之王招式 vs-boss-probe'; f = 'vs-boss-probe.mjs'; u = $vurl; a = @() },
     @{ n = '游戏厅 vs-hall-probe'; f = 'vs-hall-probe.mjs'; u = $hurl; a = @() },
+    @{ n = '赛车页 racing-probe'; f = 'racing-probe.mjs'; u = "$Base/games/racing3d/"; a = @() },
     @{ n = 'macOS 拦截 mac-block-probe'; f = 'mac-block-probe.mjs'; u = $Base; a = @() }
   )) {
   cmd /c "node `"$fresh`" $CdpPort > NUL 2>&1"
