@@ -189,6 +189,16 @@
   #resLb{margin-top:10px;font-size:13.5px;color:#9db8d6;line-height:1.8}
   #resLb b{color:#ffe6a8}
   #lbHud{font-size:12.5px;color:#8fb2d8;margin-top:6px;letter-spacing:.4px}
+  /* AI 难度档 (三选一, 只影响 AI 对手: 走线激进程度/是否漂移/刹车点) */
+  .diffs{display:flex;gap:8px;justify-content:center;margin:7px 0 2px}
+  .dbtn{pointer-events:auto;cursor:pointer;flex:1;max-width:170px;padding:6px 4px;border-radius:9px;
+    border:1px solid rgba(150,200,255,.22);background:rgba(150,200,255,.07);color:#cfe4ff;
+    font-family:inherit;font-size:12.5px;font-weight:700;letter-spacing:.5px;transition:all .16s ease}
+  .dbtn i{display:block;margin-top:2px;font-style:normal;font-size:9.5px;font-weight:600;color:#9fc0e8}
+  .dbtn:hover{background:rgba(150,200,255,.15);transform:translateY(-1px)}
+  .dbtn.on{background:linear-gradient(94deg,rgba(255,120,120,.22),rgba(255,215,106,.16));
+    color:#ffe9c9;border-color:rgba(255,190,120,.45)}
+  .dbtn.on i{color:#ffdca8}
   /* 小窗口(笔记本 768p / 900px 高以下)压缩开场卡片, 保证「开始比赛」不用滚动就能点到 */
   @media (max-height:760px){
     .card{padding:14px 20px 14px}
@@ -201,6 +211,8 @@
     .cars{gap:5px;margin:8px 0 2px}
     .cbtn{padding:5px 3px;font-size:11px}
     .keys{gap:4px 14px;font-size:12px;margin:9px 0 2px}
+    .diffs{gap:5px;margin:6px 0 2px}
+    .dbtn{padding:5px 3px;font-size:11.5px}
     /* 矮窗口直接收起键位表: 屏幕底部那条提示栏已经把常用键列全了,
        这样「开始比赛 / 官方排行榜」两个按钮不用滚动就能点到 */
     .keys{display:none}
@@ -274,6 +286,12 @@
       <button class="cbtn" data-car="hyper">电动超跑<i>超跑</i></button>
     </div>
     <p class="sub" id="carDesc" style="font-size:12px;opacity:.8;margin-top:5px">现实马路上常见的双门轿车造型</p>
+    <p class="sub" id="diffDesc" style="font-size:12px;opacity:.8;margin-top:7px">AI 难度 <b id="diffName">标准</b> · 会走内线也会漂移，正常速度</p>
+    <div class="diffs">
+      <button class="dbtn" data-diff="easy">休 闲<i>慢半拍 · 不漂移</i></button>
+      <button class="dbtn on" data-diff="normal">标 准<i>走线 + 漂移</i></button>
+      <button class="dbtn" data-diff="hard">硬 核<i>更快 · 抢线更凶</i></button>
+    </div>
     <div class="keys">
       <div><kbd>W</kbd><span>加速 (油门)</span></div>
       <div><kbd>S</kbd><span>刹车 / 倒车</span></div>
@@ -401,8 +419,8 @@ const CFG = {
 
     /* ---- 动力与制动 ---- */
     MAX_SPEED: 62,          // 极速 m/s (≈223 km/h)
-    ENGINE_ACCEL: 15.0,     // 满油门低速加速度 m/s²
-    BRAKE_DECEL: 24.0,      // 刹车减速度 m/s²
+    ENGINE_ACCEL: 11.5,     // 满油门低速加速度 m/s² (2026-09-23: 15→11.5, 0-100 从 2.4s 拉到 ~3.3s)
+    BRAKE_DECEL: 12.0,      // 刹车减速度 m/s² (2026-09-23: 24→12, 100-0 从 15m 拉到 ~31m, 刹车才有节奏)
     REVERSE_ACCEL: 7.0,     // 倒车加速度 m/s²
     MAX_REVERSE: 14,        // 最高倒车速度 m/s
     DRAG: 0.00116,          // 空气阻力系数 (与速度平方成正比)
@@ -413,12 +431,17 @@ const CFG = {
     STEER_MAX_LOW: 0.62,    // 低速最大转向角 rad (≈35°, 低速灵活)
     STEER_MAX_HIGH: 0.11,   // 高速最大转向角 rad (≈6°, 高速变"沉")
     STEER_SPEED_REF: 46,    // 达到高速转向角的参考速度 m/s
-    STEER_RATE: 4.8,        // 方向盘响应速度 rad/s
+    STEER_RATE: 6.5,        // 方向盘响应速度 rad/s (低速: 打得快)
+    STEER_RATE_HIGH: 3.0,   // 高速方向盘响应速度 rad/s (2026-09-23 新增: 高速不能瞬间满舵)
     STEER_RETURN: 7.5,      // 松开方向键时回正速度 rad/s
-    YAW_ACCEL: 9.5,         // 横摆角速度响应 rad/s² (越大越灵敏)
+    YAW_ACCEL: 9.0,         // 低速横摆角速度响应 rad/s²
+    YAW_ACCEL_HIGH: 2.6,    // 高速横摆响应 rad/s² (2026-09-23 新增: 高速"建立"转向要时间 => 重量感)
+    YAW_ACCEL_REF: 42,      // 上面两档的过渡参考速度 m/s
     LAT_ACC: 15.5,          // 最大侧向加速度 m/s² (抓地上限, ≈1.6g)
     LAT_ACC_LOW: 12.0,      // 低速时侧向抓地 (略低, 防止原地打转)
     LAT_SNAP: 5.0,          // 速度低于此值时用 LAT_ACC_LOW
+    GRIP_STIFF: 6.0,        // 侧向抓地刚度 1/s: 小滑移角按比例柔和修正(有"轮胎咬地"的过程),
+                            // 到抓地上限才转硬限幅；0 = 旧版"瞬间吸附"(没有重量感)
 
     /* ---- 漂移 (QQ飞车式手感: 丝滑、可控、不向外甩、不掉速) ----
        漂移时不再用"低抓地 + 大横摆"去模拟甩尾(那样必然往外飘),
@@ -437,11 +460,12 @@ const CFG = {
     /* 轻点档: 贴弯/过弯 —— 角度适中、建立快、松键后继续保持滑行 */
     DRIFT_SLIP_LIGHT: 0.26,   // 轻点档漂移角上限 rad(≈15°)
     DRIFT_SLIP_FOLLOW_LIGHT: 6.5, // 轻点档漂移角建立速率(自然频率): 快速"咬住"弯道
-    DRIFT_TURN_MUL_LIGHT: 1.25,   // 轻点档转向能力倍率
+    DRIFT_TURN_MUL_LIGHT: 1.20,   // 轻点档转向能力倍率
     /* 长按档: 过回头弯 —— 车尾大幅外甩、车头少转 => 漂移角很大但"慢慢甩出来" */
     DRIFT_SLIP_MAX: 0.60,     // 长按档漂移角上限 rad(≈34°) 车尾甩得很开
     DRIFT_SLIP_FOLLOW: 3.4,   // 长按档漂移角建立速率(自然频率): 慢 => 车头不猛转
-    DRIFT_TURN_MUL: 1.80,     // 长按档转向能力倍率 (强)
+    DRIFT_TURN_MUL: 1.65,     // 长按档转向能力倍率 (2026-09-23: 1.80→1.65 试过 1.35,
+                              //   实测轨迹曲率收益 1.35 时只剩 +4%(漂移变装饰), 1.65 约 +25~35% 最健康)
 
     /* —— 松开漂移键后的"持续滑行" (QQ飞车: 松手不会立刻回正) —— */
     DRIFT_COAST_TIME: 0.70,   // 松键后继续保持滑行漂移的时间 s
@@ -523,17 +547,29 @@ const CFG = {
   AI_COUNT: 5,              // AI 数量
   AI_NAMES: ['BLAZE', 'VIPER', 'NOVA', 'GHOST', 'TURBO'],
   AI_COLORS: [0x2f7dff, 0x22c55e, 0xf5c518, 0xa855f7, 0xff8a1e],
-  AI_SKILLS: [0.995, 0.960, 0.930, 0.898, 0.866],  // 速度能力倍率(有快慢差距)
+  AI_SKILLS: [0.995, 0.970, 0.945, 0.920, 0.895],  // 速度能力倍率(有快慢差距, 但保证最后一台也能跑完)
   AI_LAT_ACC: 15.0,         // AI 过弯侧向加速度上限 m/s² (略低于玩家 15.5)
+  /* ---- AI 走线 / 节奏 (2026-09-23 大改: 之前 AI 只沿中心线跑, 比简易自动驾驶还慢 1.6~2.8s/圈) ---- */
+  AI_AIM_MARGIN: 4.2,       // 切弯心时离路缘留多少米 (太小会压草/撞墙)
+  AI_LINE_BONUS: 0.06,      // 走线比中心线短 => 等效抓地加成 (0.18 = 弯速 +9%)
+  AI_BRAKE_BONUS: 0.05,     // 刹车点可以再晚一点
+  AI_DRIFT_KAP: 1 / 45,     // 前方曲率大于这个值(半径 < 70m)时, AI 也按漂移键过弯
+  AI_DRIFT_MIN_SPEED: 22,   // 低于这个速度就不用漂移了
+  AI_DIFFICULTY: 'normal',  // 'easy' 休闲 | 'normal' 标准 | 'hard' 硬核 (开场界面可切)
+  AI_TUNE: {
+    easy:   { skill: 0.90, aimMul: 0.40, drift: false, brakeMul: 0.85 },
+    normal: { skill: 1.00, aimMul: 1.00, drift: true,  brakeMul: 1.00 },
+    hard:   { skill: 1.06, aimMul: 1.20, drift: true,  brakeMul: 1.10 }
+  },
   AI_BRAKE: 17.0,           // AI 刹车减速度 m/s²
   AI_VMIN: 15.0,            // AI 最低目标速度 m/s
   AI_LOOKAHEAD_BASE: 6.5,   // 前视距离基础值 m
   AI_LOOKAHEAD_SPEED: 0.42, // 前视距离随速度增加系数
   AI_LOOKAHEAD_MIN: 9.0,
   AI_LOOKAHEAD_MAX: 32.0,
-  AI_STEER_KP: 3.2,         // 巡线转向比例增益
+  AI_STEER_KP: 3.4,         // 巡线转向比例增益
   AI_STEER_KD: 0.40,        // 巡线横摆阻尼增益
-  AI_SIDESTEER: 0.55,       // 侧向偏差补偿
+  AI_SIDESTEER: 0.60,       // 侧向偏差补偿
   AI_LANE_MAX: 4.4,         // 允许偏离中心线的最大横向距离
   AI_AVOID_RANGE: 30.0,     // 避让探测距离 m
   AI_AVOID_SIDE: 2.7,       // 判定"正前方有车"的横向距离
@@ -1432,6 +1468,7 @@ function buildTrackData() {
   TRACK.tx = new Float64Array(N + 1); TRACK.tz = new Float64Array(N + 1);
   TRACK.arc = new Float64Array(N + 1);
   TRACK.kap = new Float64Array(N + 1);
+  TRACK.kapS = new Float64Array(N + 1);      // 带符号曲率(AI 走线用)
   TRACK.cy = new Float64Array(N + 1);
 
   if (def.mode === 'oval') {
@@ -1546,22 +1583,46 @@ function buildCircuitRing(def, N) {
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
     TRACK.kap[i] = Math.abs(d) / ds;
+    TRACK.kapS[i] = d / ds;              // 带符号曲率: AI 走线要判断"往哪边切弯"
   }
   TRACK.kap[N] = TRACK.kap[0];
+  TRACK.kapS[N] = TRACK.kapS[0];
   TRACK.nx[N] = TRACK.nx[0]; TRACK.nz[N] = TRACK.nz[0];
   TRACK.tx[N] = TRACK.tx[0]; TRACK.tz[N] = TRACK.tz[0];
 }
 
-/** AI 目标速度曲线: 由曲率得极限速度, 再由刹车能力向前回推 */
+/** AI 目标速度曲线: 由曲率得极限速度, 再由刹车能力向前回推
+    同时算出 **AI 走线**(TRACK.aim): 每个等弧长点的横向偏移, 提前往弯心靠 —— 
+    这是"AI 太菜"最主要的修法: 沿中心线跑的 AI 在回头弯里要白白多转一大圈。 */
 function buildSpeedProfile(M) {
   const ds = TRACK.ds;
   const vmax = CFG.CAR.MAX_SPEED * 0.995;
   const v = new Float64Array(M);
+  /* 走线的前视曲率: 指数加权看向前方 ~55m, 得到"前面这个弯往哪边转、有多急" */
+  const aim = new Float64Array(M);
+  const kapS = TRACK.kapS, N = TRACK.N;
+  const dsRing = TRACK.len / N;
+  const step = Math.max(1, Math.round(ds / dsRing));
+  const LOOK = Math.max(6, Math.round(55 / ds));
+  for (let i = 0; i < M; i++) {
+    let sum = 0, wsum = 0;
+    for (let j = 0; j < LOOK; j++) {
+      const w = Math.exp(-j * ds / 28);
+      sum += kapS[((i + j) * step) % N] * w;
+      wsum += w;
+    }
+    const kA = sum / Math.max(wsum, 1e-9);
+    const strength = clamp(Math.abs(kA) * 320, 0.0, 1.0);
+    /* 往里切: aim 的正方向是"外法线方向", 所以内侧 = sign(带符号曲率) * 外法线 */
+    aim[i] = sign(kA) * strength * (TRACK.halfW - CFG.AI_AIM_MARGIN);
+  }
+  TRACK.aim = aim;
+  const latBoost = 1 + CFG.AI_LINE_BONUS;          // 走线更短 => 同样抓地能跑更快
   for (let i = 0; i < M; i++) {
     const kk = Math.max(TRACK.pk[i], 1e-6);
-    v[i] = clamp(Math.sqrt(CFG.AI_LAT_ACC / kk), CFG.AI_VMIN, vmax);
+    v[i] = clamp(Math.sqrt(CFG.AI_LAT_ACC * latBoost / kk), CFG.AI_VMIN, vmax);
   }
-  const decel = CFG.AI_BRAKE;
+  const decel = CFG.AI_BRAKE * (1 + CFG.AI_BRAKE_BONUS);
   for (let pass = 0; pass < 3; pass++) {
     for (let n = M - 1; n >= 0; n--) {
       const j = (n + 1) % M;
@@ -3329,7 +3390,7 @@ function createVehicle(o) {
     group: null, chassis: null, wheels: null, wheelSpin: 0, bodyRoll: 0, bodyPitch: 0,
     /* AI */
     skill: o.skill || 1, lane: o.lane || 0, laneTarget: o.lane || 0,
-    stuckTimer: 0, recoverTimer: 0, recoverDir: 0, aiState: 0, aiNoise: 0, aiNoiseT: 0,
+    stuckTimer: 0, recoverTimer: 0, recoverDir: 0, recoverCount: 0, aiState: 0, aiNoise: 0, aiNoiseT: 0,
     /* 调试 */
     dist: 0
   };
@@ -3520,15 +3581,22 @@ function stepVehicle(car, dt) {
     const sf = clamp(spdAbs / C.STEER_SPEED_REF, 0, 1);
     const maxSteer = lerp(C.STEER_MAX_LOW, C.STEER_MAX_HIGH, sf);
     const steerTarget = car.steerInput * maxSteer;
-    const steerRate = (car.steerInput === 0 ? C.STEER_RETURN : C.STEER_RATE) * dt;
+    /* 方向盘转速也随速度变慢（2026-09-23）: 低速打得快(灵活), 高速打不快(沉稳),
+       否则高速一按方向键车头瞬间满舵 => "神经质、没重量" */
+    const rateLow = (car.steerInput === 0 ? C.STEER_RETURN : C.STEER_RATE);
+    const rateHi = (car.steerInput === 0 ? C.STEER_RETURN : C.STEER_RATE_HIGH);
+    const steerRate = lerp(rateLow, rateHi, sf) * dt;
     car.steer = approach(car.steer, steerTarget, steerRate);
 
     /* ---------- 2. 横摆角速度: 几何上限 与 抓地上限 取小 ---------- */
     const latAccGrip = C.LAT_ACC *
       (spdAbs < C.LAT_SNAP ? lerp(C.LAT_ACC_LOW / C.LAT_ACC, 1, spdAbs / C.LAT_SNAP) : 1);
     const yawGeo = (vLong / C.WHEELBASE) * Math.tan(car.steer);
+    /* 横摆"建立速度"同样随速度递减（2026-09-23）: 高速时车身要靠悬挂/轮胎逐步建立转向,
+       需要一个可感知的过渡时间 => 转向有重量、有过程感; 低速仍然干脆利落 */
+    const yawAcc = lerp(C.YAW_ACCEL, C.YAW_ACCEL_HIGH, clamp(spdAbs / C.YAW_ACCEL_REF, 0, 1));
     car.yawRate = approach(car.yawRate, clampMag(yawGeo, C.LAT_ACC / Math.max(speed, 4.5)),
-      C.YAW_ACCEL * dt);
+      yawAcc * dt);
 
     /* ---------- 3. 纵向受力 ---------- */
     let aLong = 0;
@@ -3557,8 +3625,14 @@ function stepVehicle(car, dt) {
     }
     vLong += aLong * dt;
 
-    /* ---------- 4. 侧向抓地: 把横向速度按抓地上限拉回 (滑移 => 惯性感) ---------- */
-    vLat -= clampMag(vLat, latAccGrip * dt);
+    /* ---------- 4. 侧向抓地: 轮胎"先柔后刚"地把横滑拉回来 ----------
+       旧版是 vLat -= clampMag(vLat, latAccGrip*dt)：任何横滑都在一帧内被削掉 →
+       车像被吸在轨道上, 没有重量转移、也感觉不到轮胎在咬地。
+       现在小滑移角按 GRIP_STIFF 比例柔和修正（横滑能"存"住一点点, 车身会真的侧倾着走），
+       只有当需要的侧向力超过抓地上限时才变成硬限幅（此时就是推头/滑出去的临界点）。 */
+    const latNeed = vLat * C.GRIP_STIFF;                 // 按刚度算"需要多少侧向加速度"
+    const latCmd = clampMag(latNeed, latAccGrip);
+    vLat -= latCmd * dt;
 
     /* ---------- 5. 用"旧车头"合成世界速度 => 速度矢量滞后车头 ---------- */
     car.vx = fx * vLong + rx * vLat;
@@ -4086,8 +4160,14 @@ function aiInit(car, index) {
   car.dodge = 0;
 }
 
+/** 当前难度档（开场界面可切；换档只影响之后新发的车与实时参数，不影响已有物理） */
+function aiTune() {
+  return CFG.AI_TUNE[CFG.AI_DIFFICULTY] || CFG.AI_TUNE.normal;
+}
+
 function aiControl(car, cars, dt) {
   const spd = car.speed;
+  const tune = aiTune();
 
   /* ---------------- 0. 脱困 / 倒车 ---------------- */
   if (car.recoverTimer > 0) {
@@ -4106,18 +4186,40 @@ function aiControl(car, cars, dt) {
   const stuck = spd < 2.4 && Math.abs(car.vLong) < 2.4;
   car.stuckTimer = stuck ? car.stuckTimer + dt : 0;
   const needRecover = car.stuckTimer > CFG.AI_STUCK_TIME || Math.abs(headErr) > 2.25;
+  /* 跑起来就把"脱困次数"清零 —— 它只用来判断"反复救不回来" */
+  if (spd > 12 || (Math.abs(headErr) < 0.5 && spd > 6)) car.recoverCount = 0;
   if (needRecover) {
+    car.recoverCount = (car.recoverCount || 0) + 1;
+    /* 连续 3 次都救不回来（典型：顶在护栏上、卡在坡顶）=> 摆回路面中心,
+       否则 AI 会永远在"倒车 1.5 秒 → 再卡住"里循环（实测土坡赛道一台车能刷 60 次）。
+       这是街机式救援, 只在反复失败后触发, 不影响正常名次竞争。 */
+    if (car.recoverCount >= 3) {
+      const pr = projectTrack(car.x, car.z);
+      const g = trackAt(tOfS(pr.s));
+      car.x = g.x; car.z = g.z;
+      car.yaw = Math.atan2(g.tx, g.tz);
+      car.vx = Math.sin(car.yaw) * 9; car.vz = Math.cos(car.yaw) * 9;
+      car.yawRate = 0; car.steer = 0; car.steerSmooth = 0;
+      car.drifting = false; car.driftKey = false; car.driftSlip = 0; car.driftSlipVel = 0;
+      car.recoverTimer = 0; car.stuckTimer = 0; car.recoverCount = 0;
+      car.throttle = 0.6; car.brake = 0;
+      car.steerInput = 0;
+      return;
+    }
     car.recoverTimer = CFG.AI_RECOVER_TIME;
     car.recoverDir = -sign(headErr) || 1;      // 倒车时反向打轮, 让车头回到赛道方向
     car.throttle = 0; car.brake = 1;
     car.steerInput = car.recoverDir;
+    car.driftKey = false;
     return;
   }
 
-  /* ---------------- 1. 目标速度 ---------------- */
+  /* ---------------- 1. 目标速度 ----------------
+     走线让实际半径比中心线大 => profile 里已经含了走线加成(AI_LINE_BONUS) */
   const lookDist = clamp(CFG.AI_LOOKAHEAD_BASE + spd * CFG.AI_LOOKAHEAD_SPEED,
     CFG.AI_LOOKAHEAD_MIN, CFG.AI_LOOKAHEAD_MAX);
-  let vTarget = TRACK.profile[pathIndex(car.prog + lookDist * 0.55)] * car.skill;
+  const idxV = pathIndex(car.prog + lookDist * 0.55);
+  let vTarget = TRACK.profile[idxV] * car.skill * tune.skill;
 
   /* 轻微"人味": 目标速度缓慢波动 */
   car.aiNoiseT -= dt;
@@ -4127,8 +4229,20 @@ function aiControl(car, cars, dt) {
   }
   vTarget *= (1 + car.aiNoise);
 
+  /* ---------------- 1b. 走线 + AI 漂移 ----------------
+     · 走线: 前方 55m 的曲率决定"往哪边切", 提前把车摆到弯心内侧
+     · 漂移: 弯够急且速度够高 => 像玩家一样按漂移键 (轻点档), 弯里转得更快 + 出弯有小喷 */
+  const idxA = pathIndex(car.prog + Math.max(12, spd * 0.55));
+  const aimAhead = (TRACK.aim ? TRACK.aim[idxA] : 0) * (car.aimMul === undefined ? tune.aimMul : car.aimMul);
+  const kAhead = TRACK.pk[idxA];
+  const wantDrift = tune.drift && kAhead > CFG.AI_DRIFT_KAP && spd > CFG.AI_DRIFT_MIN_SPEED;
+  car.driftKey = !!wantDrift && !car.recoverTimer;
+
   /* ---------------- 2. 避让探测 ---------------- */
-  let laneCmd = car.baseLane;
+  /* 走线偏移(baseLane ±3.4) 叠上切弯心偏移(最多 halfW-margin) 会超过半宽,
+     2026-09-23 实测: 三连回头弯里 AI 被自己的走线顶到护栏上卡住 => 统一按"离路缘留 margin"夹紧 */
+  const laneLim = Math.max(1.5, TRACK.halfW - CFG.AI_AIM_MARGIN);
+  let laneCmd = clamp(car.baseLane + aimAhead, -laneLim, laneLim);
   let speedCap = Infinity;
   const wallSafe = TRACK.halfW - 1.6;
   for (let i = 0; i < cars.length; i++) {
@@ -4174,16 +4288,14 @@ function aiControl(car, cars, dt) {
   car.laneTarget = damp(car.laneTarget, laneCmd, 2.6, dt);
   car.lane = car.laneTarget;
 
-  /* ---------------- 4. 油门 / 刹车 ---------------- */
+  /* ---------------- 4. 油门 / 刹车 (不碰 driftKey: 漂移键在第 1b 步按弯道曲率决定) ---------------- */
   const diff = vTarget - spd;
   if (diff >= 0) {
     car.throttle = clamp(diff / 7 + 0.22, 0.22, 1);
     car.brake = 0;
-    car.driftKey = false;
   } else {
     car.throttle = 0;
-    car.brake = clamp(-diff / 4.5, 0.06, 1);
-    car.driftKey = false;
+    car.brake = clamp(-diff / 4.5 * tune.brakeMul, 0.06, 1);
   }
 
   /* ---------------- 5. 纯追踪转向 ---------------- */
@@ -4192,6 +4304,10 @@ function aiControl(car, cars, dt) {
   const tzp = TRACK.pz[idxT] + TRACK.pnz[idxT] * car.laneTarget;
   const desiredYaw = Math.atan2(txp - car.x, tzp - car.z);
   const err = wrapPi(desiredYaw - car.yaw);
+  /* 漂移时物理会给车头额外乘一个转向倍率(轻点1.20/长按1.65) —— AI 若照旧要同样的转向量
+     就会转过头撞内墙(实测发夹弯必卡) => 最后按当前倍率把总需求除回去, 走线不变、只换手法 */
+  const C = CFG.CAR;
+  const turnMul = car.drifting ? lerp(C.DRIFT_TURN_MUL_LIGHT, C.DRIFT_TURN_MUL, car.driftLevel || 0) : 1;
   let steer = err * CFG.AI_STEER_KP - car.yawRate * CFG.AI_STEER_KD;
 
   /* 侧向偏差补偿: 把"目标走线方向"投影到车身右方向, 决定修正力度 */
@@ -4201,7 +4317,7 @@ function aiControl(car, cars, dt) {
   const side = corrX * rvx + corrZ * rvz;
   steer -= clamp(side * CFG.AI_SIDESTEER * 0.085, -0.42, 0.42);
 
-  car.steerInput = clamp(steer, -1, 1);
+  car.steerInput = clamp(steer / turnMul, -1, 1);
 }
 
 /* ===== 60_camera.js ===== */
@@ -4358,7 +4474,8 @@ function uiInit() {
     resPos: id('resPos'), resTotal: id('resTotal'), resBest: id('resBest'),
     resTop: id('resTop'), resBody: id('resBody'),
     trackName: id('trackName'), trackDesc: id('trackDesc'),
-    carName: id('carName'), carDesc: id('carDesc')
+    carName: id('carName'), carDesc: id('carDesc'),
+    diffName: id('diffName'), diffDesc: id('diffDesc')
   };
   /* 读取历史最佳 (file:// 下 localStorage 可能被拒绝, 必须容错) */
   uiLoadBest();
@@ -4993,6 +5110,15 @@ function bindInput() {
       }, false);
     })(cbtns[i]);
   }
+  const dbtns = document.querySelectorAll('.dbtn');
+  for (let i = 0; i < dbtns.length; i++) {
+    (function (el) {
+      el.addEventListener('click', function () {
+        const id = el.getAttribute('data-diff');
+        if (id !== CFG.AI_DIFFICULTY) selectDiff(id); else updateDiffPickUI();
+      }, false);
+    })(dbtns[i]);
+  }
   /* 官方排行榜的按钮/面板（站点模式下才有内容，单文件模式会显示"本地模式"提示） */
   onlineBindUI();
 }
@@ -5075,6 +5201,42 @@ function updateCarPickUI() {
   }
   if (UI.e.carName) UI.e.carName.textContent = carModelById(CAR_CHOICE.now).name;
   if (UI.e.carDesc) UI.e.carDesc.textContent = carModelById(CAR_CHOICE.now).desc;
+}
+
+/* ------------------------------ AI 难度档 ------------------------------
+   三档只改 AI 对手(玩家手感/物理完全不受影响)，对应 CFG.AI_TUNE:
+   休闲=慢半拍不漂移 / 标准=走内线+弯里漂移 / 硬核=更快更晚刹车 */
+const DIFF_DEFS = {
+  easy: { name: '休闲', desc: 'AI 慢半拍 · 不漂移 · 刹车早' },
+  normal: { name: '标准', desc: 'AI 会走内线也会漂移，正常速度' },
+  hard: { name: '硬核', desc: 'AI 更快 · 抢线更凶 · 刹车更晚' }
+};
+const DIFF_KEY = 'racing3d.diff';
+
+function updateDiffPickUI() {
+  const def = DIFF_DEFS[CFG.AI_DIFFICULTY] || DIFF_DEFS.normal;
+  const btns = document.querySelectorAll('.dbtn');
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('on', btns[i].getAttribute('data-diff') === CFG.AI_DIFFICULTY);
+  }
+  if (UI.e.diffName) UI.e.diffName.textContent = def.name;
+  if (UI.e.diffDesc) UI.e.diffDesc.textContent = 'AI 难度 ' + def.name + ' · ' + def.desc;
+}
+
+/** 换档: aiControl() 每帧读 aiTune(), 所以当场生效, 不用重发车 */
+function selectDiff(id) {
+  if (!DIFF_DEFS[id]) return;
+  CFG.AI_DIFFICULTY = id;
+  try { window.localStorage.setItem(DIFF_KEY, id); } catch (err) { /* file:// 下可能被拒绝 */ }
+  updateDiffPickUI();
+  uiFlash('AI 难度: ' + DIFF_DEFS[id].name, DIFF_DEFS[id].desc, '#ffd98a', 1.6);
+}
+
+function uiLoadDiff() {
+  let v = null;
+  try { v = window.localStorage.getItem(DIFF_KEY); } catch (err) { v = null; }
+  if (v && DIFF_DEFS[v]) CFG.AI_DIFFICULTY = v;
+  updateDiffPickUI();
 }
 
 function resetCarRaceState(car) {
@@ -5436,6 +5598,7 @@ function boot() {
 
   uiInit();
   bindInput();
+  uiLoadDiff();          // 上次选的 AI 难度 (在发车前读, 影响首局的 AI)
   setupRace();
   camReset(G.player);
   updateTrackPickUI();
@@ -5453,6 +5616,7 @@ window.RACEGAME = {
   three: function () { return { renderer: renderer, scene: scene, camera: camera, sun: sunLight }; },
   trackAt: trackAt, trackDef: trackDef, selectTrack: selectTrack, TRACK_DEFS: TRACK_DEFS,
   CAR_MODELS: CAR_MODELS, CAR_GEO: CAR_GEO, selectCar: selectCar, CAR_CHOICE: CAR_CHOICE,
+  DIFF_DEFS: DIFF_DEFS, selectDiff: selectDiff, updateDiffPickUI: updateDiffPickUI,
   fxUpdate: fxUpdate, fxStats: fxStats, fxClear: fxClear, syncCarVisual: syncCarVisual,
   projectTrack: projectTrack, ellipseAt: trackAt, trackAt: trackAt, tOfS: tOfS, sOfT: sOfT,
   groundHeightAt: groundHeightAt, GROUND: GROUND, trackHeightAtS: trackHeightAtS,
