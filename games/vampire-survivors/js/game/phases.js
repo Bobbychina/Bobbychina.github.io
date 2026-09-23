@@ -90,8 +90,12 @@
     /** 怪物伤害倍率 */
     dmgMult: function (t) { return curve(C.SPAWN.DMG_CURVE, t); },
 
-    /** 怪物速度倍率（这条仍然是线性，变化很缓） */
-    speedMult: function (t) { return 1 + t * C.SPAWN.SPEED_SCALE_PER_SEC; },
+    /**
+     * 怪物速度倍率。
+     * 走关键帧曲线（见 C.SPAWN.SPEED_CURVE）：0–5:00 与旧的线性公式一致，
+     * 打完第一只 Boss 之后松手并封顶 —— 不然 10 分钟时暗影会比玩家还快。
+     */
+    speedMult: function (t) { return curve(C.SPAWN.SPEED_CURVE, t); },
 
     /** 距离下一个阶段还有多少秒（没有下一阶段返回 null） */
     secondsToNext: function (t) {
