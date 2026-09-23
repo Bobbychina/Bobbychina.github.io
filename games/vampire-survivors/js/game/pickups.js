@@ -170,6 +170,16 @@
           var maxSp = 900;
           if (sp > maxSp) { g.vx = (g.vx / sp) * maxSp; g.vy = (g.vy / sp) * maxSp; }
         } else {
+          /* 平衡（2026-09-23）：还没进入吸附范围时，200px 内的石头**慢慢往玩家飘**。
+             玩家绝大多数时候是"边退边打"，不飘的话杀完就走的那些经验全留在原地 ——
+             测量台实测 60 秒才 Lv1。加速度比吸附小一个数量级，所以手感还是"走过去捡"。 */
+          var drift = C.XP.GEM_DRIFT_RADIUS || 0;
+          if (drift > 0 && d2 <= drift * drift) {
+            var dd = Math.sqrt(d2) || 1;
+            var dacc = (C.XP.GEM_DRIFT_ACC || 200) * (g.gold ? 1.2 : 1);
+            g.vx += (dx / dd) * dacc * dt;
+            g.vy += (dy / dd) * dacc * dt;
+          }
           var damp = Math.exp(-4 * dt);
           g.vx *= damp;
           g.vy *= damp;
