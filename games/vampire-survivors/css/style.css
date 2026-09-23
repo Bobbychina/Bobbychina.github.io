@@ -239,7 +239,10 @@ body {
   position: absolute;
   left: 0; top: 0; right: 0; bottom: 0;
   display: flex;
-  align-items: center;
+  /* 根因修复：原来 align-items:center + overflow:auto，内容比视口高时**顶部那截永远够不到**
+     （开始面板 1117px vs 可用 867px，标题被裁在 -92px）。用 flex-start + .panel{margin:auto}
+     达到同样居中效果，但超高时从顶部开始排、整块都能滚到。 */
+  align-items: flex-start;
   justify-content: center;
   padding: 16px;
   overflow: auto;
@@ -257,6 +260,12 @@ body {
   position: relative;
   width: min(780px, 100%);
   padding: 30px 32px 26px;
+  /* margin:auto 在 flex 容器里做居中（见 #overlays 注释）；max-height + overflow 让超高的面板
+     自己在框内滚动 —— 开始面板有 1100px 内容，不给它滚动的话底部的「全站榜」直接落在首屏外。 */
+  margin: auto;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 14px;
   background:
     linear-gradient(180deg, var(--panel-a), var(--panel-b));
@@ -267,6 +276,18 @@ body {
     inset 0 1px 0 rgba(255,255,255,.07);
   text-align: center;
 }
+
+/* 面板内的滚动条：做得看得见（否则玩家不知道下面还有「云存档 / 共创留言板」） */
+.panel { scrollbar-width: thin; scrollbar-color: rgba(126,224,255,.45) transparent; }
+.panel::-webkit-scrollbar { width: 10px; }
+.panel::-webkit-scrollbar-track { background: transparent; }
+.panel::-webkit-scrollbar-thumb {
+  background: rgba(126,224,255,.3);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 9px;
+}
+.panel::-webkit-scrollbar-thumb:hover { background: rgba(126,224,255,.55); background-clip: padding-box; }
 
 /* 四角金色装饰 */
 .panel::before,
@@ -302,16 +323,19 @@ body {
 .panel h2 .lv { color: var(--gold); }
 
 .panel .sub {
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   font-size: 13.5px;
   color: var(--dim);
   line-height: 1.75;
 }
 
 /* --- 开始面板 --- */
+/* 开始面板要塞下：标题/最高纪录 + 玩法说明 + 阶段表 + 开始按钮 + 两个榜 + 云存档设置（内容 1100px+），
+   而 1440×900 只有 835px。这里把上方固定装饰收紧一点（每处几像素），把「🌍 全站榜」留在首屏内；
+   真放不下的部分由 .panel 自己的滚动条兜底（见 #overlays 注释）。 */
 .best {
   display: inline-block;
-  margin: 4px 0 20px;
+  margin: 4px 0 14px;
   padding: 8px 20px;
   border-radius: 999px;
   font-size: 13.5px;
@@ -328,13 +352,13 @@ body {
 
 .keys {
   list-style: none;
-  margin: 0 0 22px;
-  padding: 18px 20px;
+  margin: 0 0 16px;
+  padding: 14px 18px;
   border-radius: 10px;
   background: rgba(0, 0, 0, .32);
   border: 1px solid rgba(255, 255, 255, .07);
   font-size: 13px;
-  line-height: 2.15;
+  line-height: 1.85;
   color: #a8bccf;
   text-align: left;
 }
@@ -387,7 +411,7 @@ kbd {
 }
 .btn.primary:hover { filter: brightness(1.08); }
 
-.tip { margin: 16px 0 0; font-size: 12px; color: var(--dim2); }
+.tip { margin: 12px 0 0; font-size: 12px; color: var(--dim2); }
 
 /* ===================== 升级卡片 ===================== */
 
@@ -697,11 +721,11 @@ kbd {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
-  margin: 0 0 22px;
+  margin: 0 0 16px;
 }
 
 .phases > div {
-  padding: 9px 6px;
+  padding: 7px 6px;
   border-radius: 9px;
   background: rgba(0, 0, 0, .3);
   border: 1px solid var(--edge);
@@ -788,7 +812,8 @@ kbd {
   min-width: 220px;
 }
 
-.cloud-link { font-size: 11.5px; color: var(--cyan); text-decoration: underline; text-underline-offset: 2px; }
+.cloud-link, .lb-link { font-size: 11.5px; color: var(--cyan); text-decoration: underline; text-underline-offset: 2px; }
+.lb-link { white-space: nowrap; }
 
 .cloud-msg { margin: 8px 0 0; font-size: 11.5px; min-height: 15px; color: var(--dim); }
 .cloud-msg.ok { color: var(--green); }
@@ -876,6 +901,8 @@ kbd {
   color: var(--gold);
   text-shadow: 0 0 14px rgba(255,209,102,.45);
 }
+/* 结算面板上的「全站第 N 名」：用全站榜那套青色，和个人榜（金色）区分开 */
+.go-rank-world { color: var(--cyan); text-shadow: 0 0 14px rgba(126,224,255,.45); }
 
 /* ===================== 全站榜 ===================== */
 
@@ -891,8 +918,13 @@ kbd {
 
 .lb-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .lb-head b { font-size: 12.5px; color: var(--cyan); letter-spacing: 1px; }
+.lb-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
 
-.lb-list { display: flex; flex-direction: column; gap: 5px; }
+.lb-list { display: flex; flex-direction: column; gap: 5px; max-height: 132px; overflow-y: auto; }
+/* 榜满 10 行时列表自己滚（≈5 行可见）：不然榜单越长，开始面板越被顶出首屏 */
+.lb-list::-webkit-scrollbar { width: 8px; }
+.lb-list::-webkit-scrollbar-thumb { background: rgba(126,224,255,.25); border-radius: 8px; }
+.lb-list { scrollbar-width: thin; scrollbar-color: rgba(126,224,255,.35) transparent; }
 
 .lb-row {
   display: flex;

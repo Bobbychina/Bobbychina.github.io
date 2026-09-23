@@ -101,6 +101,13 @@
 
     var msg = el('p', 'cloud-msg', '');
     var hint = el('p', 'cloud-hint', '云端存的是你自己的私有 Gist（vampire-survivors__main.json）：换设备登录同一个 GitHub 就能接着玩。纪录取两边最高，下载不会冲掉本机成绩。想上「全站榜」要另外用云账号登录（GitHub 登录的存档不经过服务端）。');
+    /* 云账号只能注册，不能在这里注册（注册要设恢复码，走游戏厅那套 UI）—— 直接把入口摆出来 */
+    var hubLink = el('a', 'cloud-link', '去游戏厅注册 / 登录云账号 →');
+    hubLink.href = '/games/';
+    hubLink.target = '_blank';
+    hubLink.rel = 'noopener';
+    hint.appendChild(document.createTextNode(' '));
+    hint.appendChild(hubLink);
 
     /* 云账号登录（名 + 口令）：拿到服务端会话才能在全站榜上榜 */
     var cform = el('div', 'cloud-form');

@@ -242,6 +242,57 @@ ok('⑦′ 第一个地址失败会自动换中继/直连的下一个地址（wo
   /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[0] || '') && /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[1] || ''),
   JSON.stringify({ hosts: lb.hosts, calls: lb.calls.slice(0, 3) }))
 
+/* ⑦″ 全站榜**玩家真的看得见**（这条是补的：原来只断言 DOM 里有 .lb，结果它被渲在首屏外 98px，
+   功能全绿但玩家永远看不到 —— 后端/契约绿 ≠ 玩家可用）。同时钉住面板顶部不被裁、可滚动。
+   ⚠️ 这时前面已经打完一局，开始面板是 hidden 的（量出来全是 0 会假绿）——先走游戏自己的回主菜单。 */
+const lbView = await j(`(async () => {
+  VS.Game.toMenu(VS.Game.current)
+  await new Promise((r) => setTimeout(r, 300))
+  const p = document.getElementById('panel-start')
+  const pr = p.getBoundingClientRect()
+  const box = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), h: Math.round(b.height) } }
+  const lb = box('.lb'), h1 = box('#panel-start h1')
+  const order = [...p.children].map(c => c.className || c.tagName)
+  return JSON.stringify({ vh: innerHeight, panelHidden: p.hasAttribute('hidden'),
+    panel: { top: Math.round(pr.top), bottom: Math.round(pr.bottom), h: Math.round(pr.height), scrollable: p.scrollHeight > p.clientHeight + 1 },
+    lb, h1, order,
+    lbFullyVisible: !!lb && lb.top >= pr.top - 1 && lb.bottom <= pr.bottom + 1,
+    lbFirstScreen: !!lb && lb.top >= 0 && lb.bottom <= innerHeight,
+    titleNotClipped: !!h1 && h1.top >= pr.top - 1 })
+})()`)
+ok('⑦″ 全站榜在开始面板首屏可见（不再被渲到视口外），面板标题没被裁',
+  lbView.panelHidden === false && lbView.lbFirstScreen && lbView.lbFullyVisible && lbView.titleNotClipped &&
+  lbView.order.indexOf('lb') < lbView.order.indexOf('cloud'),
+  JSON.stringify(lbView))
+
+/* ⑦‴ 榜满时列表自己滚（不把开始面板越顶越长） */
+const lbCap = await j(`(async () => {
+  const realFetch = window.fetch
+  const many = Array.from({ length: 12 }, (_, i) => ({ name: 'p' + i, time: 600 - i * 10, kills: i, level: 1, wave: 1 }))
+  window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true, game: 'vampire-survivors', list: many }) })
+  if (VS.Leaderboard.resetBase) VS.Leaderboard.resetBase()
+  await VS.LeaderboardUI.refresh(true)
+  const list = document.querySelector('.lb-list')
+  const p = document.getElementById('panel-start')
+  const lbBox = document.querySelector('.lb').getBoundingClientRect()
+  const out = { rows: document.querySelectorAll('.lb-row').length, listClientH: list.clientHeight, listScrollH: list.scrollHeight,
+    lbH: Math.round(lbBox.height), lbBottom: Math.round(lbBox.bottom), panelBottom: Math.round(p.getBoundingClientRect().bottom), vh: innerHeight }
+  window.fetch = realFetch
+  if (VS.Leaderboard.resetBase) VS.Leaderboard.resetBase()
+  return JSON.stringify(out)
+})()`)
+ok('⑦‴ 榜满 10 行（UI 上限）时：列表在框内自己滚，不把榜单顶出首屏',
+  lbCap.rows === 10 && lbCap.listClientH <= 140 && lbCap.listScrollH > lbCap.listClientH && lbCap.lbBottom <= lbCap.panelBottom + 1,
+  JSON.stringify(lbCap))
+
+/* ⑦⁗ 结算面板要出现「全站第 N 名」：上榜这件事得在刚打完那一秒被玩家看见 */
+const goRank = await j(`(async () => {
+  const box = document.getElementById('goLbRank')
+  return JSON.stringify({ has: !!box, hidden: box ? box.hidden : null, text: box ? box.textContent : '' })
+})()`)
+ok('⑦⁗ 一局结束上榜后，结算面板显示「🌍 全站第 N 名」',
+  goRank.has && goRank.hidden === false && /全站第 1 名/.test(goRank.text), JSON.stringify(goRank))
+
 /* ⑥ 共创留言板：两位共创者的 agent 通过 git 在 js/data/notes.js 里留话，游戏里要能看见 */
 const notes = await j(`(() => {
   const panel = document.getElementById('panel-start')

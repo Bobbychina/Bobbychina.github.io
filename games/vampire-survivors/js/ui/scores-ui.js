@@ -63,7 +63,9 @@
     var list = el('div', 'ranks-list');
     root.appendChild(head);
     root.appendChild(list);
-    panel.appendChild(root);
+    /* 个人纪录跟在「全站榜」后面（leaderboard-ui 会插到 .ranks 之前），一起放在云存档设置之前：
+       榜单留在首屏可见，账号/存档那套设置沉到面板底部滚动查看。 */
+    panel.insertBefore(root, panel.querySelector('.cloud') || null);
     dom = { root: root, list: list };
 
     refresh();
