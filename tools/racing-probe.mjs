@@ -112,11 +112,20 @@ const board = await page.evaluate(async () => {
   const r = await R.onlineFetchBoard();
   const rows = document.querySelectorAll('#lbList tr').length;
   const info = (document.getElementById('lbInfo') || {}).textContent || '';
-  return { ok: !!(r && r.ok), state: R.Online.state, count: R.Online.board.length, rows, info: info.slice(0, 120), record: R.Online.recordLap, err: (r && r.err) || '' };
+  /* 没登录时面板必须把「注册云账号」摆在第一位（口径：云账号是主路径，GitHub 只是附带项） */
+  const form = (document.getElementById('lbForm') || {}).textContent || '';
+  return {
+    ok: !!(r && r.ok), state: R.Online.state, count: R.Online.board.length, rows,
+    info: info.slice(0, 120), record: R.Online.recordLap, err: (r && r.err) || '',
+    hasRegBtn: !!document.getElementById('btnLbReg'), formText: form.slice(0, 120),
+  };
 });
 out.board = board;
 ok('面板打开后读到榜单（GET /api/score 公开只读）', board.ok && board.state === 'ok', JSON.stringify(board).slice(0, 180));
 ok('榜单渲染成表格行', board.rows >= 1, 'rows=' + board.rows);
+ok('未登录时面板给的是「注册云账号」入口（云账号=主路径）',
+  board.hasRegBtn || /可以上榜/.test(board.formText),
+  'hasRegBtn=' + board.hasRegBtn + ' form=' + board.formText.replace(/\s+/g, ' ').slice(0, 70));
 await page.screenshot({ path: outDir + '/board.png' });
 
 /* 3. 切一条起伏赛道（雪山盘山）看画面有没有崩 */

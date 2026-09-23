@@ -4636,13 +4636,19 @@ function onlineFmt(ms) {
   return fmtTime(ms / 1000);
 }
 
+/** HTML 转义（账号名来自服务端，插进 innerHTML 前必须转义） */
+function onlineEsc(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 /** 一行榜单项 HTML */
 function onlineRowHTML(row, i, me) {
   const mine = me && row.name === me;
   const sw = mine ? ' style="color:#ffe6a8;font-weight:700"' : '';
   return '<tr' + (mine ? ' class="me"' : '') + '>' +
     '<td class="n">' + (i + 1) + '</td>' +
-    '<td' + sw + '>' + String(row.name || '?').replace(/[<>&]/g, '') + (mine ? '（我）' : '') + '</td>' +
+    '<td' + sw + '>' + onlineEsc(row.name || '?') + (mine ? '（我）' : '') + '</td>' +
     '<td class="n">' + onlineFmt(row.lap) + '</td>' +
     '<td class="n">' + onlineFmt(row.total) + '</td>' +
     '<td class="n">' + Math.round(row.speed || 0) + '</td></tr>';
@@ -4683,32 +4689,89 @@ function onlineRenderPanel() {
   list.innerHTML = html;
 
   if (form) {
-    if (me) {
-      form.innerHTML = '已登录 <b>' + String(me).replace(/[<>&]/g, '') + '</b>' +
-        (onlineCanSubmit() ? ' · 可以上榜' : ' · 这个账号没有服务端会话（GitHub/Gist 模式上不了榜）');
+    if (me && onlineCanSubmit()) {
+      form.innerHTML = '已登录 <b>' + onlineEsc(me) + '</b> · 可以上榜' +
+        '<span class="dim"> · GitHub 绑定只是附带（同步存档用），上榜认的是这个云账号。</span>';
     } else {
-      form.innerHTML = '<span class="dim">上榜需要登录云账号（在 <b>游戏厅</b> 注册的账号）——口令不上传，浏览器先派生。</span>' +
+      /* 官方榜的主路径就是**注册云账号**：
+         · 没登录 → 直接把"注册"摆在第一位
+         · 只绑了 GitHub → 说清楚它只能同步存档、不参与上榜，引导去注册云账号
+         口令不上传，浏览器先做 21 万轮 PBKDF2 派生。 */
+      const why = me
+        ? '<b>' + onlineEsc(me) + '</b> 是 GitHub 登录：它只在你和你的私有 Gist 之间同步存档，' +
+          '<b>不参与上榜</b>（官方榜要防冒名，只认服务端认识的账号）。<br>' +
+          '注册一个云账号就能上榜，本机纪录与存档都不受影响。'
+        : '<b>上榜需要云账号</b>（用户名 + 口令）。看榜不用登录；上榜要服务端认识你，名字才伪造不了。<br>' +
+          'GitHub 绑定是附带项（同步存档用），跟上榜无关。';
+      form.innerHTML = '<span class="dim">' + why + '</span>' +
         '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">' +
-        '<input id="lbName" placeholder="用户名" autocomplete="username" style="flex:1 1 120px">' +
-        '<input id="lbPass" type="password" placeholder="口令" autocomplete="current-password" style="flex:1 1 120px">' +
-        '<button class="btn ghost" id="btnLbLogin" style="flex:0 0 auto;padding:8px 14px">登录</button></div>' +
+        '<input id="lbName" placeholder="用户名（2~24 字）" autocomplete="username" style="flex:1 1 120px">' +
+        '<input id="lbPass" type="password" placeholder="口令（≥6 位）" autocomplete="new-password" style="flex:1 1 120px">' +
+        '<button class="btn" id="btnLbReg" style="flex:0 0 auto;padding:8px 16px;font-size:14px;letter-spacing:1px">注册云账号并上榜</button>' +
+        '</div>' +
+        '<div style="margin-top:6px"><button class="btn ghost" id="btnLbLogin" style="padding:6px 12px;font-size:12.5px;margin-top:0">已有云账号，登录</button>' +
+        '<span class="dim" style="margin-left:8px">登录后会自动把这一局的最好单圈传上去</span></div>' +
         '<div id="lbLoginMsg" class="dim" style="margin-top:6px"></div>';
-      const b = document.getElementById('btnLbLogin');
-      if (b) b.addEventListener('click', onlineDoLogin, false);
+      const b = document.getElementById('btnLbReg');
+      if (b) b.addEventListener('click', function () { onlineDoRegister(); }, false);
+      const b2 = document.getElementById('btnLbLogin');
+      if (b2) b2.addEventListener('click', function () { onlineDoLogin(); }, false);
       const p = document.getElementById('lbPass');
-      if (p) p.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') onlineDoLogin(); }, false);
+      if (p) p.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') onlineDoRegister(); }, false);
     }
   }
 }
 
-async function onlineDoLogin() {
-  const n = document.getElementById('lbName'), p = document.getElementById('lbPass'), m = document.getElementById('lbLoginMsg');
-  if (!n || !p) return;
+/** 刚登录/注册成功后：如果这一局已经有最好单圈，直接传上去（省得再跑一趟） */
+async function onlineCatchUpSubmit() {
+  const p = G.player;
+  if (!p || !(p.bestLap > 0) || !onlineCanSubmit()) return '';
+  const r = await onlineSubmit({ lap: p.bestLap, total: p.finishTime || 0, speed: (p.topSpeed || 0) * 3.6 });
+  if (r.ok && r.data && r.data.ok) return '已把这一局的最好单圈（' + onlineFmt(p.bestLap * 1000) + '）传上去了：第 ' + (r.data.rank || '?') + ' 名';
+  return String(Online.lastSubmit || '');
+}
+
+/** 注册云账号并上榜（主路径）。
+    带参数是为了可测：不传就从面板的输入框读。 */
+async function onlineDoRegister(nameArg, passArg) {
+  const n = nameArg === undefined ? document.getElementById('lbName') : null;
+  const p = passArg === undefined ? document.getElementById('lbPass') : null;
+  const m = document.getElementById('lbLoginMsg');
+  const name = String(nameArg !== undefined ? nameArg : (n && n.value) || '').trim();
+  const pass = String(passArg !== undefined ? passArg : (p && p.value) || '');
+  if (name.length < 2) { if (m) m.textContent = '用户名至少 2 个字符'; return { ok: false, err: '用户名至少 2 个字符' }; }
+  if (pass.length < 6) { if (m) m.textContent = '口令至少 6 位'; return { ok: false, err: '口令至少 6 位' }; }
+  const l = onlineLib();
+  if (!l || !l.register) { if (m) m.textContent = '这个页面没有账号库，注册不了（去游戏厅注册吧）'; return { ok: false, err: 'no_lib' }; }
+  if (m) m.textContent = '注册中…（PBKDF2 派生要几百毫秒）';
+  let r = null;
+  try { r = await l.register({ name: name, password: pass }); } catch (e) { r = { ok: false, err: String(e && e.message || e) }; }
+  if (!r || !r.ok) { if (m) m.textContent = (r && r.err) || '注册失败'; return { ok: false, err: (r && r.err) || '注册失败' }; }
+  /* 注册成功后账号库通常已经建立会话；没有的话再登录一次兜底 */
+  if (!onlineToken()) {
+    const lg = await onlineLogin(name, pass);
+    if (!lg.ok) { if (m) m.textContent = '注册成功但登录失败：' + (lg.err || ''); return { ok: false, err: lg.err }; }
+  }
+  if (m) m.textContent = '注册成功，已登录 ' + onlineWho();
+  onlineRenderPanel();
+  const up = await onlineCatchUpSubmit();
+  if (up && m) m.textContent = up;
+  onlineFetchBoard();
+  return { ok: true, uploaded: up };
+}
+
+async function onlineDoLogin(nameArg, passArg) {
+  const n = nameArg === undefined ? document.getElementById('lbName') : null;
+  const p = passArg === undefined ? document.getElementById('lbPass') : null;
+  const m = document.getElementById('lbLoginMsg');
+  const name = String(nameArg !== undefined ? nameArg : (n && n.value) || '').trim();
+  const pass = String(passArg !== undefined ? passArg : (p && p.value) || '');
   if (m) m.textContent = '登录中…（PBKDF2 派生要几百毫秒）';
-  const r = await onlineLogin(n.value, p.value);
-  if (m) m.textContent = r.ok ? '' : (r.err || '登录失败');
+  const r = await onlineLogin(name, pass);
+  if (m) m.textContent = r.ok ? (await onlineCatchUpSubmit()) : (r.err || '登录失败');
   onlineRenderPanel();
   if (r.ok) onlineFetchBoard();
+  return r;
 }
 
 /** 打开/关闭排行榜面板 */
@@ -4743,8 +4806,13 @@ async function onlineAfterRace() {
     return;
   }
   if (!onlineCanSubmit()) {
-    line.innerHTML = '<span class="dim">还没登录云账号，这局上不了官方榜</span> ' +
-      '<button class="btn ghost" id="btnResLbLogin" style="padding:4px 10px;margin-left:6px">登录 / 看榜</button>';
+    /* 没登录、或只绑了 GitHub（没有服务端会话）——都指向面板里的"注册/登录云账号" */
+    const who = onlineWho();
+    line.innerHTML = '<span class="dim">这一局没上榜：' +
+      (who ? ('<b>' + onlineEsc(who) + '</b> 是 GitHub 登录，官方榜只认云账号（防冒名）')
+           : '还没登录云账号') +
+      ' —— 去面板里注册/登录，注册完会自动把这一局传上去</span> ' +
+      '<button class="btn ghost" id="btnResLbLogin" style="padding:4px 10px;margin-left:6px">注册 / 登录云账号</button>';
     const b = document.getElementById('btnResLbLogin');
     if (b) b.addEventListener('click', function () { onlineTogglePanel(true); }, false);
     return;
@@ -5391,6 +5459,7 @@ window.RACEGAME = {
   Online: Online, onlineFetchBoard: onlineFetchBoard, onlineSubmit: onlineSubmit, onlineLogin: onlineLogin,
   onlineTogglePanel: onlineTogglePanel, onlineRenderPanel: onlineRenderPanel, onlineAvailable: onlineAvailable,
   onlineAfterRace: onlineAfterRace, trackOrder: trackOrder,
+  onlineDoRegister: onlineDoRegister, onlineDoLogin: onlineDoLogin,
   showResults: showResults, finishRace: finishRace,
   startNow: function () { startRace(); G.state = 'racing'; G.raceTime = 0; },
   restart: function () { restartRace(); },
