@@ -111,11 +111,10 @@
 
   function spawnBoss(state, game, entry) {
     /* entry 可以省略：外部工具（vs-boss-probe.mjs 等）一直按 spawnBoss(state, game)
-       调用，默认投时间表里的下一只 —— 别让它们因为多了个参数就炸掉。 */
-    if (!entry) {
-      var sched0 = C.BOSS.SCHEDULE;
-      entry = sched0[Math.min(state.bossIndex || 0, sched0.length - 1)];
-    }
+       调用，默认给时间表里的**第一只**（尸潮之王）。
+       注意别默认成"时间表里的下一只" —— 探针把时钟跳到 5:00 之后，游戏自己会先把
+       尸潮之王投放掉、bossIndex 变成 1，那样默认值就变成柠檬猪了（它没有 bosskit 的 ai）。 */
+    if (!entry) entry = C.BOSS.SCHEDULE[0];
 
     var def = C.ENEMY_TYPES[entry.type];
     if (!def) return null;
