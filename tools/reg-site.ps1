@@ -43,12 +43,16 @@ function Run-Step {
 $results = @()
 $vurl = "$Base/games/vampire-survivors/?v=reg$stamp"
 $hurl = "$Base/games/"
+$root = "$Base/?v=reg$stamp"
 
 Write-Host "站点回归：$Base" -ForegroundColor Cyan
+# ⚠️ 这些探针共用同一个 CDP 标签，**必须串行**：两支探针同时跑会互相把页面导航掉，
+#    表现是 `getElementById(...) is null` 这种假红（一次真实踩坑，查了半天）。
 foreach ($step in @(
     @{ n = '共创游戏页 vs-probe'; f = 'vs-probe.mjs'; u = $vurl; a = @() },
     @{ n = '尸潮之王招式 vs-boss-probe'; f = 'vs-boss-probe.mjs'; u = $vurl; a = @() },
-    @{ n = '游戏厅 vs-hall-probe'; f = 'vs-hall-probe.mjs'; u = $hurl; a = @() }
+    @{ n = '游戏厅 vs-hall-probe'; f = 'vs-hall-probe.mjs'; u = $hurl; a = @() },
+    @{ n = 'macOS 拦截 mac-block-probe'; f = 'mac-block-probe.mjs'; u = $Base; a = @() }
   )) {
   cmd /c "node `"$fresh`" $CdpPort > NUL 2>&1"
   $argv = @((Join-Path $repo ('tools\' + $step.f)), $CdpPort, $step.u, $shots) + $step.a
