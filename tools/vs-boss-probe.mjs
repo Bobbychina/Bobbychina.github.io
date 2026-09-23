@@ -34,6 +34,19 @@ await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, dev
 await send('Page.navigate', { url })
 for (let i = 0; i < 150; i++) { if (String(await ev(`document.readyState`)) === 'complete' && await ev(`!!document.getElementById('startBtn')`)) break; await sleep(600) }
 
+/* 游戏逻辑跑在 requestAnimationFrame 里：标签页被别的页面挡住 / 不在前台时 rAF 会被节流甚至停摆，
+   探头就会看到"前摇计时器不走""弹幕画了 0 个"这类假红（线上连跑时真踩到过 ③④ 两条）。
+   所以开场先把自己推到前台，并且所有跟帧相关的断言都先等帧真的在动。 */
+await send('Page.bringToFront').catch(() => undefined)
+const waitFrames = async (n = 3, tries = 40) => {
+  await ev(`(() => { window.__f = 0; const t = () => { window.__f++; requestAnimationFrame(t) }; requestAnimationFrame(t); return 1 })()`)
+  for (let i = 0; i < tries; i++) {
+    if (Number(await ev(`window.__f || 0`)) >= n) return true
+    await sleep(150)
+  }
+  return false
+}
+
 /* 开局：不死 + 自动选卡（不然升级面板会把游戏冻住，后面的招式测试全失效） */
 await ev(`(() => { document.getElementById('startBtn').click(); return 1 })()`)
 await sleep(1200)
@@ -54,7 +67,7 @@ const setup = await j(`(() => {
   const boss = VS.Enemies.spawnBoss(g.enemies, g)
   return JSON.stringify({ has: !!boss, hp: Math.round(boss.hp), static: VS.Config.ENEMY_TYPES.boss.hp })
 })()`)
-ok('① 投放「尸潮之王」（基础血量 6000 × 难度曲线，5:00 实到 ≈14700）', setup.has === true && setup.hp > 6000 && setup.static === 6000, JSON.stringify(setup))
+ok('① 投放「尸潮之王」（基础血量 5400 × 难度曲线，5:00 实到 ≈13230）', setup.has === true && setup.hp > 5400 && setup.static === 5400, JSON.stringify(setup))
 
 /* 通用工具：把 Boss 拉回"干净"状态（清护盾、满血、暂停出招），每个用例互不污染 */
 const RESET = `(() => {
@@ -109,21 +122,31 @@ ok('② 四档招式池确实在扩（配置表核对 + 实战抽样）',
   JSON.stringify({ seen: moveIds, advanced, pools }))
 
 /* ③ 前摇：telegraph 倒计时必须真的在走 */
-const tele = await j(`(async () => {
-  const g = VS.Game.current, b = g.enemies.boss
-  b.ai.shield = null; b.ai.invuln = 0
-  b.ai.state = 'telegraph'; b.ai.move = 'ring'; b.ai.t = VS.Config.BOSS.MOVES.ring.telegraph
-  const t0 = b.ai.t
-  await new Promise((r) => setTimeout(r, 300))
-  return JSON.stringify({ t0: +t0.toFixed(2), t1: +b.ai.t.toFixed(2), state: b.ai.state })
-})()`)
+/* ③ 前摇倒计时：帧可能被节流，所以先等帧在动；仍旧不动就重试两次，别把"标签页不在前台"报成产品 bug */
+let tele = {}
+for (let attempt = 0; attempt < 3; attempt++) {
+  await waitFrames(2)
+  tele = await j(`(async () => {
+    const g = VS.Game.current, b = g.enemies.boss
+    b.ai.shield = null; b.ai.invuln = 0
+    b.ai.state = 'telegraph'; b.ai.move = 'ring'; b.ai.t = VS.Config.BOSS.MOVES.ring.telegraph
+    const t0 = b.ai.t
+    await new Promise((r) => setTimeout(r, 300))
+    return JSON.stringify({ t0: +t0.toFixed(2), t1: +b.ai.t.toFixed(2), state: b.ai.state, frames: window.__f || 0 })
+  })()`)
+  if (tele.t1 < tele.t0) break
+}
 ok('③ 前摇倒计时在走（玩家有反应时间）', tele.t1 < tele.t0, JSON.stringify(tele))
 await shot('boss-telegraph')
 
-/* ④ 环形弹幕：一次 22 发，且真的画出来 */
+/* ④ 环形弹幕：一次 22 发，且真的画出来。
+   注意"画出来"要弹幕落在相机可视矩形里 —— 线上跑时 Boss 常停在屏幕外，于是 painted=0 假红。
+   做法：发招前把 Boss 挪到玩家身边（这一步不改任何玩法数值，只是让取景框里真有东西）。 */
 const ring = await j(`(async () => {
-  const g = VS.Game.current, b = g.enemies.boss
+  const g = VS.Game.current, b = g.enemies.boss, p = g.player
+  await new Promise((r) => { let n = 0; const t = () => { if (++n > 2) r(); else requestAnimationFrame(t) }; requestAnimationFrame(t) })
   g.bossShots = []
+  b.x = p.x + 40; b.y = p.y
   b.ai.state = 'telegraph'; b.ai.move = 'ring'; b.ai.t = 0.02
   await new Promise((r) => setTimeout(r, 200))
   const r0 = g.deps && g.deps.renderer
