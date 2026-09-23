@@ -110,6 +110,13 @@
   ---------------------------------------- */
 
   function spawnBoss(state, game, entry) {
+    /* entry 可以省略：外部工具（vs-boss-probe.mjs 等）一直按 spawnBoss(state, game)
+       调用，默认投时间表里的下一只 —— 别让它们因为多了个参数就炸掉。 */
+    if (!entry) {
+      var sched0 = C.BOSS.SCHEDULE;
+      entry = sched0[Math.min(state.bossIndex || 0, sched0.length - 1)];
+    }
+
     var def = C.ENEMY_TYPES[entry.type];
     if (!def) return null;
 
