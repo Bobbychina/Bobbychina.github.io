@@ -286,7 +286,7 @@
       <button class="cbtn" data-car="hyper">电动超跑<i>超跑</i></button>
     </div>
     <p class="sub" id="carDesc" style="font-size:12px;opacity:.8;margin-top:5px">现实马路上常见的双门轿车造型</p>
-    <p class="sub" id="diffDesc" style="font-size:12px;opacity:.8;margin-top:7px">AI 难度 <b id="diffName">标准</b> · 会走内线也会漂移，正常速度</p>
+    <p class="sub" style="font-size:12px;opacity:.8;margin-top:7px">AI 难度 <b id="diffName">标准</b> · <span id="diffDesc">会走内线也会漂移，正常速度</span></p>
     <div class="diffs">
       <button class="dbtn" data-diff="easy">休 闲<i>慢半拍 · 不漂移</i></button>
       <button class="dbtn on" data-diff="normal">标 准<i>走线 + 漂移</i></button>
@@ -5219,8 +5219,11 @@ function updateDiffPickUI() {
   for (let i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('on', btns[i].getAttribute('data-diff') === CFG.AI_DIFFICULTY);
   }
+  /* 注意: diffName / diffDesc 必须是**互相独立**的两个元素 ——
+     早期版本把 <b id="diffName"> 嵌在 <p id="diffDesc"> 里, 给 diffDesc 赋 textContent
+     会把里面的 diffName 一起干掉(探针实测: 点完难度档, 标题那行直接空掉) */
   if (UI.e.diffName) UI.e.diffName.textContent = def.name;
-  if (UI.e.diffDesc) UI.e.diffDesc.textContent = 'AI 难度 ' + def.name + ' · ' + def.desc;
+  if (UI.e.diffDesc) UI.e.diffDesc.textContent = def.desc;
 }
 
 /** 换档: aiControl() 每帧读 aiTune(), 所以当场生效, 不用重发车 */
