@@ -80,7 +80,7 @@
       if (!Cloud.available()) return { state: 'nolib', text: '这台设备没有账号库（纯本地存档）' };
       if (!logged()) return { state: 'guest', text: '未登录 · 存档只在这台设备上' };
       var b = backend();
-      if (!b) return { state: 'nocloud', text: '已登录 ' + (who() || '') + ' · 还没绑定 GitHub（云存档不可用）' };
+      if (!b) return { state: 'nocloud', text: '已登录 ' + (who() || '') + ' · 云存档没接上（云后端连不上时就这样）' };
       var info = cloudInfo();
       var t = '已连接 ' + (who() || b) + (b === 'github' ? '（私有 Gist）' : b === 'server' ? '（云账号）' : ('（' + b + '）'));
       if (info && info.updatedAt) t += ' · 上次存档 ' + String(info.updatedAt).replace('T', ' ').slice(0, 16);
@@ -141,7 +141,9 @@
       if (!lib()) return { ok: false, err: '账号库没装' };
       var r = await lib().login({ name: String(name || '').trim(), password: String(password || '') });
       if (r && r.ok) {
-        if (lib().unlock) { try { await lib().unlock(String(password || '')); } catch (e) { /* 解不开存档也不挡登录 */ } }
+        /* 解锁时把本游戏的 id 传进去：账号库会拿**这个游戏**的云端存档试解一次，
+           验证这把钥匙真能开（以前它硬编码探 zombie-survival，等于探了个无关的档） */
+        if (lib().unlock) { try { await lib().unlock(String(password || ''), GAME); } catch (e) { /* 解不开存档也不挡登录 */ } }
         emit('login', r);
         return r;
       }

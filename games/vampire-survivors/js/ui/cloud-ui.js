@@ -37,6 +37,8 @@
     dom.login.hidden = ok;
     dom.tokenToggle.hidden = ok || st.state === 'nolib';
     if (!ok) dom.form.hidden = true;
+    /* 说明跟着"现在这条存档路"走（云账号 / GitHub / 未登录三套说法） */
+    if (dom.refreshHint) dom.refreshHint();
   }
 
   function busy(on, what) {
@@ -100,7 +102,16 @@
     form.appendChild(link);
 
     var msg = el('p', 'cloud-msg', '');
-    var hint = el('p', 'cloud-hint', '云端存的是你自己的私有 Gist（vampire-survivors__main.json）：换设备登录同一个 GitHub 就能接着玩。纪录取两边最高，下载不会冲掉本机成绩。想上「全站榜」要另外用云账号登录（GitHub 登录的存档不经过服务端）。');
+    /* 说明要跟着账号模式走：云账号的存档在本站云端，GitHub 登录才走你自己的 Gist。
+       以前一刀切写"存在你自己的私有 Gist"，云账号的玩家会以为笔记里的地址不对。 */
+    var hint = el('p', 'cloud-hint', '');
+    function hintText() {
+      var b = VS.Cloud.backend && VS.Cloud.backend();
+      if (b === 'server') return '云账号：存档上传到本站云端（Cloudflare KV，密文），换设备登录同一个账号就能接着玩。纪录取两边最高，下载不会冲掉本机成绩。想上「全站榜」就用这个登录状态（每局结束自动上榜）。';
+      if (b === 'github') return 'GitHub 登录：存档放进你自己的私有 Gist（vampire-survivors__main.json），不经过本站服务器。想上「全站榜」要另外用云账号登录（这条路服务端认不出人）。';
+      return '云端存的是你自己的私有 Gist（登录 GitHub）或本站云端（云账号）：换设备登录同一个账号就能接着玩。纪录取两边最高，下载不会冲掉本机成绩。想上「全站榜」需要云账号。';
+    }
+    hint.textContent = hintText();
     /* 云账号只能注册，不能在这里注册（注册要设恢复码，走游戏厅那套 UI）—— 直接把入口摆出来 */
     var hubLink = el('a', 'cloud-link', '去游戏厅注册 / 登录云账号 →');
     hubLink.href = '/games/';
@@ -108,6 +119,8 @@
     hubLink.rel = 'noopener';
     hint.appendChild(document.createTextNode(' '));
     hint.appendChild(hubLink);
+    /* 登录/解绑之后后端会变，说明文字要跟着重画（refresh 里调） */
+    function refreshHint() { hint.firstChild.nodeValue = hintText() + ' '; }
 
     /* 云账号登录（名 + 口令）：拿到服务端会话才能在全站榜上榜 */
     var cform = el('div', 'cloud-form');
@@ -134,7 +147,7 @@
     root.appendChild(hint);
     panel.appendChild(root);
 
-    dom = { root: root, ico: ico, status: status, up: up, down: down, sync: sync, login: login, tokenToggle: tokenToggle, form: form, input: input, msg: msg, cform: cform, cuser: cuser, cpass: cpass };
+    dom = { root: root, ico: ico, status: status, up: up, down: down, sync: sync, login: login, tokenToggle: tokenToggle, form: form, input: input, msg: msg, cform: cform, cuser: cuser, cpass: cpass, hint: hint, refreshHint: refreshHint };
 
     up.onclick = function () { run(function () { return VS.Cloud.push(); }, '已上传到云端'); };
     down.onclick = function () { run(function () { return VS.Cloud.pull(); }, '已从云端合并回来'); };

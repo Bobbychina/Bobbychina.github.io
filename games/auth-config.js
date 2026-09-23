@@ -21,8 +21,12 @@
       哪天你有企业/学校租户，填上 clientId 就立刻可用）。
 */
 window.DSH_AUTH_CONFIG = {
-  /* 云账号后端：同一个 Cloudflare Worker 既做 GitHub 中继，也做账号/云存档 API。
-     换成你自己的 Worker 地址即可；留空 '' = 退回纯本机账号（不联网）。 */
+  /* 云账号后端：同一个 Cloudflare Worker 既做 GitHub 中继，也做账号/云存档/排行榜 API。
+     换成你自己的 Worker 地址即可；留空 '' = 退回纯本机账号（不联网）。
+     ⚠️ 它是 `*.workers.dev`：部分网络（校园网/运营商）把这个域名整段 DNS 黑洞。
+     账号库会把下面的 github.relay 当**第一候选**、这里当兜底（和排行榜同一套策略），
+     所以只要能连上中继，注册/登录/云存档/榜单就都能用；两个都不通时会明确告诉用户
+     "这次只能建本机账号"，不再静默降级。 */
   api: 'https://dsh-oauth-relay.bobby-minecraft.workers.dev',
 
   // 回调页：一定要和上面登记的地址逐字一致
@@ -31,11 +35,11 @@ window.DSH_AUTH_CONFIG = {
   github: {
     clientId: 'Ov23liPzQ7xNDx0FdUdh',   // bobbychina's games（2026-09-12 注册，Device Flow 已开）
     scope: 'gist read:user',      // gist = 云存档用的私有 Gist；read:user = 显示头像/用户名
-    /* 可选：GitHub 的换 token 接口不给浏览器跨域头，静态站拿不到响应时用中继兜底。
-       M23.2：中继现在部署在 **Cloudflare Pages** 上（functions/[[path]].js，源码在本仓库根目录）——
-       因为 `*.workers.dev` 在部分网络（校园网/运营商）被整段 DNS 黑洞，"设备码"必然失败；
-       `*.pages.dev` 实测能正常解析。重新部署：`node tools/deploy-relay.mjs bobbychina-games`。
-       留空 = 只走直连（客户端会先试 form 简单请求、再试 JSON，两条都失败才报错）。 */
+    /* 中继（Cloudflare Pages）：原来只为 OAuth 兜底，现在**整个 /api/* 都从这儿转发**
+       （账号、云存档、全站榜），因为 `*.workers.dev` 在部分网络被整段 DNS 黑洞 ——
+       2026-09-23 之前只转发 /api/score，于是黑洞网络里注册会静默降级成本机账号。
+       源码：本仓库根目录 functions/[[path]].js；部署：`node tools/deploy-relay.mjs bobbychina-games`。
+       留空 = 只走直连（会先试直连，失败再报"连不上云后端"）。 */
     relay: 'https://bobbychina-games.pages.dev',
     // 旧的 Worker 版（同账号，留个地址备查；在黑洞网络里不可达）：https://dsh-oauth-relay.bobby-minecraft.workers.dev
   },

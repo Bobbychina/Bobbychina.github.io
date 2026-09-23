@@ -215,9 +215,11 @@
       box.classList.add('on');
       who.innerHTML = u.email ? T('games.acct.loggedMail', { name: esc(u.name), mail: esc(u.email) })
                               : T('games.acct.logged', { name: esc(u.name) });
+      /* 徽标说清"这个号是什么"：云账号（存档在站里）还是本机账号（只在这台设备）。
+         以前不绑第三方时一律显示"未绑定云账号"，云账号用户看着像没登录。 */
       prov.innerHTML = u.providers.github ? '<span class="badge g">GitHub @' + esc(u.providers.github.login) + '</span> '
         : (u.providers.microsoft ? '<span class="badge b">' + T('games.acct.ms', { name: esc(u.providers.microsoft.name) }) + '</span> '
-        : '<span class="badge y">' + T('games.acct.noCloud') + '</span> ');
+        : '<span class="badge y">' + T(u.server ? 'games.acct.noDiskServer' : 'games.acct.noDiskLocal') + '</span> ');
       btn.textContent = T('games.acct.btn2');
     } else {
       box.classList.remove('on');
@@ -228,6 +230,26 @@
   }
   document.getElementById('btn-acct').onclick = function () { A.current() ? panel() : loginPanel(); };
 
+  /* ---- 一次性的"抄下来"弹窗（恢复码用：只显示这一次） ---- */
+  function codeModal(title, code, noteKey, extraHtml) {
+    open_(title,
+      '<p>' + T(noteKey) + '</p>' +
+      '<div id="rc" style="font:700 19px/1.5 Consolas,monospace;letter-spacing:2px;text-align:center;color:var(--green);word-break:break-all;background:rgba(0,0,0,.35);border:1px solid var(--edge);border-radius:10px;padding:12px;margin:10px 0">' + esc(code) + '</div>' +
+      (extraHtml || '') +
+      '<div class="hint" style="color:var(--yellow)">' + T('games.reg.rcWarn') + '</div>' +
+      '<div class="msg"></div>',
+      '<button class="btn" onclick="copyCode()">' + T('games.reg.copy') + '</button>' +
+      '<button class="btn ok" onclick="closeAcct();panel()">' + T('games.reg.saved') + '</button>');
+  }
+  window.copyCode = function () {
+    var el = document.getElementById('rc');
+    if (!el) return;
+    var text = el.textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(function () { msg(T('games.reg.copied')); })
+      .catch(function () { msg(T('games.reg.copyManual'), true); });
+  };
+
   /* ---- 登录 / 注册 ---- */
   function loginPanel() {
     open_(T('games.login.title'),
@@ -235,17 +257,58 @@
       '<div class="sect">' + T('games.login.user') + '</div><input id="i-name" placeholder="' + T('games.login.user.ph') + '" autocomplete="username">' +
       '<div class="sect">' + T('games.login.pass') + '</div><input id="i-pass" type="password" placeholder="' + T('games.login.pass.ph') + '" autocomplete="current-password">' +
       '<div class="sect">' + T('games.login.mail') + '</div><input id="i-mail" placeholder="' + T('games.login.mail.ph') + '" autocomplete="email">' +
+      '<div id="cloudwarn"></div>' +
       '<div class="msg"></div>',
-      '<button class="btn" onclick="doLogin()">' + T('games.login.do') + '</button><button class="btn ok" onclick="doRegister()">' + T('games.login.reg') + '</button>');
+      '<button class="btn" onclick="doLogin()">' + T('games.login.do') + '</button><button class="btn ok" onclick="doRegister()">' + T('games.login.reg') + '</button>' +
+      '<button class="btn ghost" onclick="forgotPanel()">' + T('games.login.forgot') + '</button>');
     setTimeout(function () { var e = document.getElementById('i-name'); if (e) e.focus(); }, 60);
+    cloudWarn();
+  }
+  /* 云后端连不上时必须先说：不然注册会静默降级成本机账号（这个坑真踩过） */
+  async function cloudWarn() {
+    var box = document.getElementById('cloudwarn');
+    if (!box) return;
+    var info = A.serverInfo();
+    if (!info.enabled) return;                       // 没配云后端 = 纯本机站，不用吓人
+    if (await A.serverAvailable()) return;
+    box.innerHTML = '<div class="hint" style="color:var(--yellow);margin-top:10px">' + T('games.cloudWarn') + '</div>';
   }
   window.doLogin = async function () {
     var r = await A.login({ name: val('#i-name'), password: val('#i-pass') });
     if (!r.ok) return msg(r.err, true);
+    if (r.degraded) {                                 // 云账号离线登录：能用，但这次不会同步
+      closeAcct();
+      open_(T('games.degraded.title'), '<p>' + T('games.degraded.loginP') + '</p>', '<button class="btn ok" onclick="closeAcct();panel()">' + T('games.degraded.ok') + '</button>');
+      return;
+    }
     closeAcct(); panel();
   };
   window.doRegister = async function () {
     var r = await A.register({ name: val('#i-name'), password: val('#i-pass'), email: val('#i-mail') });
+    if (!r.ok) return msg(r.err, true);
+    if (r.degraded) {                                 // 云后端连不上 → 只建了本机账号，必须说清楚
+      closeAcct();
+      open_(T('games.degraded.title'), '<p>' + T('games.degraded.regP') + '</p>',
+        '<button class="btn ok" onclick="closeAcct();panel()">' + T('games.degraded.ok') + '</button>');
+      return;
+    }
+    if (r.recoveryCode) return codeModal(T('games.reg.rcTitle'), r.recoveryCode, 'games.reg.rcP');   // 只出现这一次
+    closeAcct(); panel();
+  };
+  /* 忘记口令：用恢复码把存档密钥换一把新口令（云端密文不动） */
+  window.forgotPanel = function () {
+    open_(T('games.forgot.title'),
+      '<p>' + T('games.forgot.p') + '</p>' +
+      '<div class="sect">' + T('games.login.user') + '</div><input id="i-rname" placeholder="' + T('games.login.user.ph') + '">' +
+      '<div class="sect">' + T('games.forgot.rc') + '</div><input id="i-rcode" placeholder="' + T('games.forgot.rc.ph') + '">' +
+      '<div class="sect">' + T('games.forgot.newpass') + '</div><input id="i-rpass" type="password" placeholder="' + T('games.login.pass.ph') + '">' +
+      '<div class="msg"></div>',
+      '<button class="btn ok" onclick="doRecover()">' + T('games.forgot.do') + '</button>' +
+      '<button class="btn" onclick="loginPanel()">' + T('games.token.back') + '</button>');
+  };
+  window.doRecover = async function () {
+    msg(T('games.forgot.working'));
+    var r = await A.recover({ name: val('#i-rname'), code: val('#i-rcode'), password: val('#i-rpass') });
     if (!r.ok) return msg(r.err, true);
     closeAcct(); panel();
   };
@@ -255,7 +318,11 @@
     var u = A.current();
     if (!u) return loginPanel();
     var g = u.providers.github, m = u.providers.microsoft;
+    var info = A.serverInfo();
+    var server = info.loggedIn;                    // 云账号：存档在本站云端（GitHub 只是授权代持）
+    var rc = info.hasRecovery;                     // true / false / undefined（本机账号没有恢复码这回事）
     var body = '<p>' + T('games.panel.joined', { name: esc(u.name), date: esc(u.createdAt.slice(0, 10)) }) + '</p>' +
+      '<div class="hint">' + T(server ? 'games.panel.modeServer' : 'games.panel.modeLocal') + '</div>' +
       '<div class="sect">' + T('games.panel.bindSect') + '</div>' +
       '<div class="row">' +
       (g ? '<button class="btn ok" onclick="unbind(\'github\')">' + T('games.panel.unbindGh', { login: esc(g.login) }) + '</button>'
@@ -265,13 +332,24 @@
              : '<button class="btn" onclick="bindMicrosoft()">' + T('games.panel.bindMs') + '</button>')
         : '') +
       '</div>' +
-      '<div class="hint">' + T('games.panel.ghHint') + '</div>' +
+      /* 云账号下 GitHub 授权是服务端代持的（令牌存服务端、存档在本站云端），
+         和"本机账号 → 你自己的 Gist"完全是两回事：文案必须分开，不然是骗人 */
+      '<div class="hint">' + T(server ? 'games.panel.ghHintServer' : 'games.panel.ghHint') + '</div>' +
       (A.config().microsoft.clientId ? '' :
         '<div class="hint">' + T('games.panel.msOff') + '</div>') +
       '<div class="sect">' + T('games.panel.saves') + '</div><div id="saves">' + T('games.panel.savesLoading') + '</div>' +
+      (server
+        ? '<div class="sect">' + T('games.panel.rcSect') + '</div>' +
+          (rc === false
+            ? '<div class="hint" style="color:var(--yellow)">' + T('games.panel.rcNone') + '</div>' +
+              '<div class="row"><button class="btn" onclick="makeRecovery()">' + T('games.panel.rcMake') + '</button></div>'
+            : '<div class="row"><button class="btn" onclick="makeRecovery()">' + T('games.panel.rcReset') + '</button></div>' +
+              '<div class="hint">' + T('games.panel.rcHave') + '</div>')
+        : '') +
       '<div class="sect">' + T('games.panel.ops') + '</div>' +
       '<div class="row"><button class="btn" onclick="changePass()">' + T('games.panel.chpass') + '</button>' +
       '<button class="btn" onclick="exportRemoved()">' + T('games.panel.export') + '</button>' +
+      '<button class="btn danger" onclick="deletePanel()">' + T('games.panel.del') + '</button>' +
       '<button class="btn" onclick="A.logout();closeAcct()">' + T('games.panel.logout') + '</button></div>' +
       '<div class="hint">' + T('games.panel.encHint') + '</div>' +
       '<div class="msg"></div>';
@@ -279,19 +357,47 @@
     loadSaves();
   }
 
+  /* 生成/重置恢复码：一把备用钥匙，忘了口令时用它把存档密钥换成新口令（只显示这一次） */
+  window.makeRecovery = async function () {
+    msg(T('games.panel.rcWorking'));
+    var r = await A.setRecovery();
+    if (!r.ok) return msg(r.err, true);
+    codeModal(T('games.reg.rcTitle'), r.code, 'games.reg.rcP');
+  };
+  /* 注销：本机记录 + 本站云端数据一起删（GitHub Gist / OneDrive 里的文件要自己去删） */
+  window.deletePanel = function () {
+    var u = A.current();
+    open_(T('games.del.title'),
+      '<p>' + T(A.serverInfo().loggedIn ? 'games.del.pServer' : 'games.del.pLocal') + '</p>' +
+      '<div class="sect">' + T('games.del.confirm') + '</div><input id="i-del" placeholder="' + esc(u ? u.name : '') + '">' +
+      '<div class="msg"></div>',
+      '<button class="btn danger" onclick="doDelete()">' + T('games.del.ok') + '</button>' +
+      '<button class="btn" onclick="panel()">' + T('games.token.back') + '</button>');
+  };
+  window.doDelete = async function () {
+    msg(T('games.del.working'));
+    var r = await A.deleteAccount(val('#i-del'));
+    if (!r.ok) return msg(r.err, true);
+    closeAcct();
+    open_(T('games.del.title'),
+      '<p>' + T('games.del.done') + '</p>' + (r.note ? '<div class="hint">' + esc(r.note) + '</div>' : ''),
+      '<button class="btn ok" onclick="closeAcct()">' + T('games.degraded.ok') + '</button>');
+  };
+
   async function loadSaves() {
     var box = document.getElementById('saves'); if (!box) return;
-    var u = A.current();
-    if (!u.providers.github && !u.providers.microsoft) { box.innerHTML = '<div class="hint">' + T('games.saves.none') + '</div>'; return; }
+    /* 以前这里"没绑第三方 → 直接显示还没绑定云账号"，于是云账号（存档在本站 KV）的存档列表消失了 */
+    if (!A.backend()) { box.innerHTML = '<div class="hint">' + T('games.saves.none') + '</div>'; return; }
     var r = await A.cloudSummary(GAME);
     if (!r.ok) { box.innerHTML = '<div class="hint">' + T('games.saves.err', { err: esc(r.err) }) + '</div>'; return; }
     var rows = (r.remote || []).map(function (s) {
       return '<tr><td><code>' + esc(s.slot) + '</code></td><td>' + esc(String(s.updatedAt).slice(0, 16).replace('T', ' ')) +
         '</td><td><button class="btn danger" onclick="delCloud(\'' + esc(s.slot) + '\')">' + T('games.saves.del') + '</button></td></tr>';
     }).join('');
+    var where = r.provider === 'github' ? T('games.saves.diskGh') : r.provider === 'microsoft' ? T('games.saves.diskMs') : T('games.saves.diskServer');
     box.innerHTML = (rows ? '<table><tr><th>' + T('games.saves.slot') + '</th><th>' + T('games.saves.time') + '</th><th></th></tr>' + rows + '</table>'
       : '<div class="hint">' + T('games.saves.empty') + '</div>') +
-      '<div class="hint">' + T('games.saves.disk', { p: r.provider === 'github' ? T('games.saves.diskGh') : T('games.saves.diskMs') }) + '</div>';
+      '<div class="hint">' + T('games.saves.disk', { p: where }) + '</div>';
   }
   window.delCloud = async function (slot) {
     var r = await A.cloudDelete(GAME, slot);
@@ -300,14 +406,16 @@
   };
 
   /* ---- 绑定 ---- */
+  /* 授权说明按账号模式分：云账号下令牌是交给服务端的，不能再说"不经过我的服务器" */
   function consentHtml() {
-    return '<p>' + T('games.consent.p') + '</p>' +
+    var server = A.serverInfo().loggedIn;
+    return '<p>' + T(server ? 'games.consent.pServer' : 'games.consent.p') + '</p>' +
       '<div class="sect">' + T('games.consent.s1') + '</div>' +
       '<div class="hint">' + T('games.consent.h1') + '</div>' +
       '<div class="sect">' + T('games.consent.s2') + '</div>' +
       '<div class="hint">' + T('games.consent.h2') + '</div>' +
       '<div class="sect">' + T('games.consent.s3') + '</div>' +
-      '<div class="hint">' + T('games.consent.h3') + '</div>' +
+      '<div class="hint">' + T(server ? 'games.consent.h3Server' : 'games.consent.h3') + '</div>' +
       '<div class="sect">' + T('games.consent.s4') + '</div>' +
       '<div class="hint">' + T('games.consent.h4') + '</div>' +
       '<div class="hint" style="color:var(--yellow)">' + T('games.consent.warn') + '</div>';
