@@ -57,6 +57,15 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const origin = request.headers.get('origin') || '';
   const isScore = url.pathname === '/api/score';
+  const isRelay = !!ALLOW[url.pathname];
+
+  /* 不归中继管的路径 → 交回 Pages 的静态资源。
+     以前这里对一切非 POST 直接 405，结果 bobbychina-games.pages.dev 整站只有中继能通、
+     静态页面（含首页/游戏/彩蛋）全是 405：既没法拿它当镜像站，也就没法在边缘拦 macOS。 */
+  if (!isScore && !isRelay) {
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+    return context.next();
+  }
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: isScore ? SCORE_CORS : CORS });
   if (origin && ALLOW_ORIGINS.indexOf(origin) < 0) return json({ error: 'origin_not_allowed', origin }, 403);
