@@ -14,6 +14,7 @@
 
 | 日期 | 类型 | 内容 |
 |---|---|---|
+| 09-23 | 站点 | **全站拒绝 macOS 访问**（站长决定：实测 Mac 上的浏览器在本站游戏里存在安全隐患 + 兼容问题）：新增 `/mac-block.js`，命中后给 `<html>` 挂 `data-mac-block`、藏掉 `<body>`、盖一层整屏说明页（HTTP 403 风格，中英双语：为什么拦、请换哪个平台、自己的 UA 与判定依据、开 issue 的入口），并置 `window.__MAC_BLOCKED__` 供探针验收。判定用 `navigator.userAgentData.platform` 优先、UA 兜底，**iPad 桌面模式（UA 伪装成 Macintosh，但 `maxTouchPoints>1`）不误伤**。覆盖首页 / 游戏厅 / OAuth 回跳页 / 两个游戏页 / 彩蛋两页，脚本同步且紧跟 `<meta charset>`（游戏页的脚本都是 defer / type=module，所以它一定先跑）。⚠️ 两个工程细节：① 《丧尸末日生存》是构建产物、每次同步都被覆盖，所以那条注入写在游戏仓库 `tools/sync-site.mjs` 里，否则下次同步就把拦截弄丢；② GitHub Pages 没有服务端，这属于**客户端拦截** —— 挡住普通 Mac 用户没问题，刻意伪造 UA 的人挡不住，要硬拦得走 Cloudflare 的 WAF 规则。证据：`tools/mac-block-probe.mjs` **8/8**（Windows 不拦 / Mac 拦（含文案五项）/ 四个入口都拦得住 / iPad 例外 / 0 未捕获异常），截图见会话归档 |
 | 09-12 | 改版 | 主页改成公开版：只留 项目 / 游戏厅 / 关于；AI 日记迁往私有仓库 `bobbychina-diary` |
 | 09-12 | 账号 | 游戏厅账号支持云后端（Cloudflare Worker + KV）；隐私说明如实区分「云账号 / 本机账号」 |
 | 09-14 | 账号 | 账号=GitHub（设备码 + 令牌码，取消注册流程）；同步游戏的 M23 |

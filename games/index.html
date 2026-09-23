@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<script src="/mac-block.js"></script>   <!-- macOS 拦截：同步执行、紧跟 charset（见文件头注释） -->
 <!-- CSP：本页不加载任何第三方脚本；script/style 需要 'unsafe-inline' 是因为部分脚本是内联的（单文件产物同样如此）。
      connect-src 只放行自己的 Worker + api.github.com + 本地联调用的 127.0.0.1:5199，别的外联一律拒绝。
      ⚠️ 换 Worker 地址时，这里和 auth-config.js 的 api 要一起改。
