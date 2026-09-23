@@ -63,11 +63,14 @@
 
   /**
    * @param {object} [opt] { hpMult } —— Boss 用额外的血量倍率
+   *                       { x, y }  —— 指定出生点（Boss 召唤小弟用，见 summonMinions）
    */
   function spawnEnemy(state, type, game, opt) {
     opt = opt || {};
     var p = game.player;
-    var pos = VS.World.ringSpawnPoint(game.world, p.x, p.y, spawnRadius(game), state._pt);
+    var pos = (opt.x !== undefined && opt.y !== undefined)
+      ? { x: opt.x, y: opt.y }
+      : VS.World.ringSpawnPoint(game.world, p.x, p.y, spawnRadius(game), state._pt);
     var sc = scaleFor(game.time);
 
     var hp = type.hp * sc.hp * (opt.hpMult || 1);
@@ -124,6 +127,23 @@
     }
 
     return e;
+  }
+
+  /** Boss 召唤小弟：在 Boss 周围撒一圈，位置不重叠、不越地图边界。
+   *  上限由 BossKit 按 C.BOSS.MINION_MAX 把关（这里只负责生成）。 */
+  function summonMinions(state, n, game, ox, oy) {
+    var made = 0;
+    var world = game.world, pad = world.pad;
+    for (var i = 0; i < n; i++) {
+      if (state.list.length >= C.SPAWN.MAX_ENEMIES) break;
+      var a = (i / Math.max(1, n)) * U.TAU + Math.random() * 0.6;
+      var dist = 54 + Math.random() * 46;
+      var x = U.clamp(ox + Math.cos(a) * dist, pad + 30, world.w - pad - 30);
+      var y = U.clamp(oy + Math.sin(a) * dist, pad + 30, world.h - pad - 30);
+      var e = spawnEnemy(state, pickType(game.time), game, { x: x, y: y });
+      if (e) { made++; VS.Effects.burst(game.fx, x, y, '#ff9a6c', 8, { speed: 150, life: 0.4, size: 2.6 }); }
+    }
+    return made;
   }
 
   /** Boss 计时：没 Boss 时倒计时，到点投放；Boss 死了则排下一只 */
@@ -269,12 +289,16 @@
       if (e.hitFlash > 0) e.hitFlash -= dt;
       if (e.orbitCd > 0) e.orbitCd -= dt;
 
+      /* --- Boss 的移动/招式交给 BossKit（弹幕、召唤、冲撞都在那边） --- */
+      var driven = !!(e.boss && VS.BossKit);
+      if (driven) VS.BossKit.step(e, dt, game);
+
       /* --- 朝玩家移动 --- */
       var dx = p.x - e.x;
       var dy = p.y - e.y;
       var d2 = dx * dx + dy * dy;
 
-      if (d2 > 1e-6) {
+      if (!driven && d2 > 1e-6) {
         var d = Math.sqrt(d2);
         var ux = dx / d, uy = dy / d;
 
@@ -459,6 +483,8 @@
     },
 
     spawn: spawnEnemy,
+    spawnBoss: spawnBoss,
+    summonMinions: summonMinions,
     updateSpawning: updateSpawning,
     kill: kill,
 
@@ -495,6 +521,7 @@
       moveAndCollide(state, dt, game);
       rebuildGrid(state, game);
       separate(state, dt, game);
+      if (VS.BossKit) VS.BossKit.updateShots(game, dt);   // 敌方弹幕：移动、命中、回收
     },
 
     prof: prof,

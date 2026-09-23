@@ -78,6 +78,9 @@
     /** 读榜（不用登录） */
     top: function () { return req('/api/score?game=' + encodeURIComponent(GAME), { method: 'GET' }, false); },
 
+    /** 给探针用：忘掉「上次成功的地址」缓存，好把候选链完整重跑一遍 */
+    resetBase: function () { goodBase = ''; },
+
     /** 提交一局（要云账号会话） */
     submit: function (run) {
       return req('/api/score', {

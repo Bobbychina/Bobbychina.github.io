@@ -245,10 +245,12 @@
       Renderer.drawPickups(ctx, r, game, view, time);
       Renderer.drawAura(ctx, game, time);
       Renderer.drawNovas(ctx, game, time);
+      Renderer.drawBossTelegraph(ctx, game);          // Boss 前摇光环（在它身下，别盖住本体）
       Renderer.drawEnemies(ctx, game, view, time);
       Renderer.drawPlayer(ctx, r, game);
       Renderer.drawOrbit(ctx, game, time);
       Renderer.drawProjectiles(ctx, game, view, time);
+      Renderer.drawBossShots(ctx, r, game, view);     // 敌方弹幕压在玩家弹幕之上
       Renderer.drawParticles(ctx, game, view);
       Renderer.drawSparks(ctx, game, view);
       Renderer.drawBooms(ctx, game, view);
@@ -395,6 +397,76 @@
       ctx.strokeStyle = 'rgba(255,255,255,.10)';
       ctx.lineWidth = 1;
       ctx.strokeRect(x0 + 4, y0 + 4, w - 8, h - 8);
+      ctx.restore();
+    },
+
+    /* ---------------- 敌方弹幕 / Boss 前摇 ---------------- */
+
+    /**
+     * 敌方弹幕的小球：**预渲染一次**（32px 径向渐变贴图），每帧只 drawImage。
+     * 红线之一就是"别在绘制里新建渐变" —— 弹幕最多 260 发，每发新建一次会直接跪。
+     */
+    ensureBossShotSprite: function (r) {
+      if (r.shotSprite) return r.shotSprite;
+      var S = 32;
+      var c = document.createElement('canvas');
+      c.width = S; c.height = S;
+      var g = c.getContext('2d');
+      var grad = g.createRadialGradient(S / 2, S / 2, 1, S / 2, S / 2, S / 2);
+      grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+      grad.addColorStop(0.45, 'rgba(255,255,255,0.55)');
+      grad.addColorStop(1, 'rgba(255,255,255,0.02)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, S, S);
+      r.shotSprite = c;
+      return c;
+    },
+
+    drawBossShots: function (ctx, r, game, view) {
+      var list = game.bossShots;
+      if (!list || !list.length) return 0;
+      var sprite = Renderer.ensureBossShotSprite(r);
+      var lit = 0;
+      for (var i = 0; i < list.length; i++) {
+        var s = list[i];
+        if (!VS.World.isVisible(view, s.x, s.y, s.r + 6)) continue;
+        var size = s.r * 3.2;
+        ctx.globalAlpha = 0.42;
+        ctx.fillStyle = s.tone;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, U.TAU);
+        ctx.fill();
+        ctx.globalAlpha = 0.95;
+        ctx.drawImage(sprite, Math.round(s.x - size / 2), Math.round(s.y - size / 2), size, size);
+        lit++;
+      }
+      ctx.globalAlpha = 1;
+      return lit;
+    },
+
+    /** Boss 前摇光环：招式颜色 + 由内向外扩散的圈（看到就知道要躲哪一招） */
+    drawBossTelegraph: function (ctx, game) {
+      var boss = game.enemies && game.enemies.boss;
+      if (!boss || boss.dead || !boss.ai || boss.ai.state !== 'telegraph') return;
+      var m = VS.Config.BOSS.MOVES[boss.ai.move];
+      if (!m) return;
+      var full = m.telegraph || 0.8;
+      var k = 1 - (Math.max(0, boss.ai.t) / full);        // 0 → 1 走完前摇
+      var rad = boss.radius + 26 + k * 78;
+
+      ctx.save();
+      ctx.globalAlpha = 0.20 + 0.35 * k;
+      ctx.strokeStyle = m.tone;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(boss.x, boss.y, rad, 0, U.TAU);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.28 + 0.5 * k;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(boss.x, boss.y, boss.radius + 8, 0, U.TAU);
+      ctx.stroke();
       ctx.restore();
     },
 

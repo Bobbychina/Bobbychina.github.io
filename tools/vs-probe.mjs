@@ -212,6 +212,7 @@ const lb = await j(`(async () => {
       : { ok: true, game: 'vampire-survivors', list: list }
     return { ok: true, status: 200, json: async () => payload }
   }
+  if (VS.Leaderboard.resetBase) VS.Leaderboard.resetBase()   /* 忘掉「上次成功的地址」缓存，好把候选链整条重跑 */
   await VS.LeaderboardUI.refresh(false)
   const rows = [...document.querySelectorAll('.lb .lb-row')].map(r => r.textContent.replace(/\\s+/g, ' ').trim())
   const guestMsg = (document.querySelector('.lb-msg') || {}).textContent || ''

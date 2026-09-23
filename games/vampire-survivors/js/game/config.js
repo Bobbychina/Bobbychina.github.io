@@ -196,8 +196,34 @@
     REPEAT_DELAY: 90,     // 击杀后隔多久再来一只（越来越强）
     HP_GROWTH: 1.45,      // 每只比上一只强多少倍
     ENTRY_SHAKE: 16,      // 登场时的镜头震动
-    MINION_BATCH: 0,      // 登场不带小怪（Boss 战期间场上只有 Boss 一个）
-    PAUSE_SPAWN: true     // Boss 存活期间完全停止常规刷怪，直到它死亡
+    MINION_BATCH: 0,      // 登场不带小怪（Boss 战期间常规刷怪仍然停）
+    PAUSE_SPAWN: true,    // Boss 存活期间完全停止常规刷怪，直到它死亡
+
+    /* ---------------- 招式（M-VS「尸潮之王」加强） ----------------
+       改前：它只会"走过来撞你"，没有任何招式与机制。
+       改后：血分三档，每档一套招式池；**每一招都有前摇**——前摇期间 Boss 站住不动、
+       身上转一圈对应颜色的光环（ring 绿 / spread 黄 / spiral 紫 / summon 橙 / charge 红），
+       玩家看到光环就知道要躲哪一招。
+
+       三档：
+         压制（100%~66%）：环形弹幕 + 扇形瞄准弹
+         召唤（66%~33%）：多一招招小弟（场上有上限，不会无限堆）
+         暴怒（33%~0%）  ：再解锁螺旋弹幕与冲撞，出手更快、冷却更短 */
+    SHOT_MAX: 260,        // 场上敌方弹幕上限（到顶就不再发射，保性能）
+    MINION_MAX: 14,       // Boss 小弟的同时存在上限
+    PHASES: [
+      { at: 1.00, name: '压制', speedMul: 1.00, cdMul: 1.00, pool: ['ring', 'spread'] },
+      { at: 0.66, name: '召唤', speedMul: 1.06, cdMul: 0.88, pool: ['ring', 'spread', 'summon'] },
+      { at: 0.33, name: '暴怒', speedMul: 1.20, cdMul: 0.70, pool: ['ring', 'spread', 'spiral', 'summon', 'charge'] }
+    ],
+    /* 每招：前摇 telegraph → 施放（busy 为施放时长）→ 冷却 cd（乘当前档的 cdMul） */
+    MOVES: {
+      ring:   { tone: '#7ee787', telegraph: 0.85, busy: 0.35, cd: 4.6, shots: { n: 18, speed: 132, r: 7, dmg: 12, life: 5.0, spin: 0.22 } },
+      spread: { tone: '#ffd166', telegraph: 0.70, busy: 0.30, cd: 5.4, shots: { n: 5, arc: 0.62, speed: 176, r: 6, dmg: 14, life: 4.2 } },
+      spiral: { tone: '#b58cff', telegraph: 0.80, busy: 2.40, cd: 7.4, shots: { every: 0.11, speed: 122, r: 6, dmg: 11, life: 4.0, turn: 2.35 } },
+      summon: { tone: '#ff9a6c', telegraph: 1.00, busy: 0.55, cd: 10.5, minions: 6 },
+      charge: { tone: '#ff6b6b', telegraph: 0.90, busy: 1.05, cd: 8.2, speed: 340, dmg: 34 }
+    }
   };
 
   /* ---------------- 掉落 ---------------- */
