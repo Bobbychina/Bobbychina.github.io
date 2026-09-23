@@ -224,6 +224,15 @@ body {
 .wslot .lv { color: var(--gold); font-weight: 700; }
 .wslot .nm { color: #b9cbdc; }
 
+/* 宠物那一格：左边一道宠物主色的竖条，跟武器区分开 */
+.wslot.pet {
+  border-color: var(--pet-accent, var(--gold));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.45),
+              inset 3px 0 0 -1px var(--pet-accent, var(--gold));
+}
+.wslot.pet .ico { font-size: 13px; line-height: 1; }
+.wslot.pet .nm { color: var(--pet-accent, var(--gold)); font-weight: 700; }
+
 /* ===================== 覆盖层 ===================== */
 
 #overlays {
@@ -451,6 +460,36 @@ kbd {
 
 .card .key { margin-top: 9px; font-size: 10px; color: var(--dim2); letter-spacing: .5px; }
 
+/* ===================== 宠物三选一 =====================
+   复用升级卡片的样式，只把"图标更大、名字更亮"的差别做出来。 */
+
+.pet-cards .card.pet {
+  flex: 1 1 200px;
+  max-width: 240px;
+  background: linear-gradient(180deg, #1b2434, #0d1219);
+}
+
+.pet-cards .card.pet .ico {
+  width: 62px; height: 62px;
+  font-size: 30px;
+  border-radius: 16px;
+  animation: pet-float 2.2s ease-in-out infinite;
+}
+
+.pet-cards .card.pet .nm {
+  font-size: 16px;
+  color: var(--card-accent, var(--gold));
+  text-shadow: 0 0 16px var(--card-accent, var(--gold));
+}
+
+.pet-cards .card.pet .ds { min-height: 60px; }
+
+/* 图标轻轻上下浮动，暗示"这是一只跟班" */
+@keyframes pet-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
 /* ===================== 结算 ===================== */
 
 .result { margin: 10px 0 24px; }
@@ -656,7 +695,7 @@ kbd {
 
 .phases {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   margin: 0 0 22px;
 }

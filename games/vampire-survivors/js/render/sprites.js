@@ -43,6 +43,16 @@
     "gem_1": { w: 8, h: 8, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAM0lEQVR42mNgQAJcKiL/QZgBGwBJPPv/EowxFMEkw09mgTGKInRJDEUEFRC0gihH4vMmAG77YBk7fis9AAAAAElFTkSuQmCC" },
     "gem_2": { w: 8, h: 8, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAMklEQVR42mNgQAIqUqz/QZgBGwBJ/P9yAYwxFMElT9pAMLIiDEl0RQQVELSCKEfi8yYAN8plXd+/PaoAAAAASUVORK5CYII=" },
     "orb_gold": { w: 12, h: 12, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAASElEQVR42mNgQANRNgz/kTEDLgBT8P+kDQrGqhFF4bczqBhJI6pidIVYNII1YWhAcxJ+DeiKkTVRRwMxTiI5lMiKB7JimlgAAIJNIxC7qhQiAAAAAElFTkSuQmCC" },
+    "orb_super": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAZUlEQVR42mNgwAGstBj+I2MGYgFMAzogyiBsGrEZRFBz3QPsGKch2DT/v5iGgvEaAjMAQ/OsBxCMxRC4Aei2Y2jGYgiKK5Btx9AMAzgMoa4BZHuB4kCkSjRSnJCokpSpkpnIyc4AUWNLlxPlmoMAAAAASUVORK5CYII=" },
+    "acid": { w: 8, h: 8, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVR42mNggAIVY9b/yJgBGYAEjn/yQsFwRTDJT/8vgDGGImQFWE3BZjxOa7BKIju0/5AOGGNIonsVWQwAlUptzbpllPYAAAAASUVORK5CYII=" },
+    "pet_faerie_0": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAY0lEQVR42mNgoCXgV5H4D8Jka172fQMYk2wIsmaSDYFpFjJWgmuGsYkyBJvtZLuCZM2wUMdlAN5YAUns//wfjHEZgCyPUzM2Q3DJU88Air1AlUCkWkpENuT/tzNgTFGGIqQZAAXZLzj3PxOhAAAAAElFTkSuQmCC" },
+    "pet_faerie_1": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAZklEQVR42mNgoCXgV5H4D8Jka172fQMYk2wIsmaSDYFpFjJWgmuGsYkyBJvtZLuCJM2wEIdhbAYgYwzN+z//B2NCBiCrw9CMLIEtGrGqpdgAir1AlUCkakpENuT/tzNgTFGGIqQZAA84L/AVS+n0AAAAAElFTkSuQmCC" },
+    "pet_wolf_0": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAYklEQVR42mNgoBYQkVT6D8JkqQMJXHv0DozxGYJTHboEPkzQAGIxbQz4fzHtPz7DQHIgNQTDAJ8BeF2AHlDYDEBWizcMcIU+0YFIsQH0jUZSDcGa3AnFAHrY4M1p2BTgkgMA0k0AzXEzKtUAAAAASUVORK5CYII=" },
+    "pet_wolf_1": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR42mNgoAYQkVT6D8JkqQcxrj16B8bEGIKhHl2AGIxhIbIgsRjFtVQz4P/FtP/4DAPJgdTgdQEhA/C6AD2QsBmArBZvGOAKeaIDkWIDwIEaGwvGtI9GUg3BmuQJxQB62OA0AF+GwqYGAPrtAY/+r4sQAAAAAElFTkSuQmCC" },
+    "pet_pig_0": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAa0lEQVR42mNgoCbQZhf7D8JkyYMk/m85AcbYFBGSx1CADeM0AFmSWIxiCLrp+DThNcCaSwanIdjU4PQCPgMIeoHiMADjD1+wY6ID8cMXiF+x0DC1tHMBWWFAqiF48wOhhIQvs2EYhI6xqQUADRTwIB2a1rsAAAAASUVORK5CYII=" },
+    "pet_pig_1": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAaElEQVR42mNgoBbQZhf7D8JkqQMJ/N9yAozxGYJTHboEPkzQAGIxXhfg04TXAGsuGZyGYFOD0wv4DKB9GIDxhy/YMdGB+OELxK9YaJha2rmArDAg1RCsyR1bcsWmEWemQ5dAzwO41AEAbcX3yod0eaoAAAAASUVORK5CYII=" },
+    "lemonPig_0": { w: 24, h: 24, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAmUlEQVR42mNgGExgxYP4/yBMNQO1VFj/gzC58gQN///QF4yxGUJInmQLsGGyLUDWTCwm2hJyDCfaEkoMJ2gJuuHo4YzPQGx6CUaqtT4D0RagqyVoAc19QJN4wGYBrvSPKz+QHET//z4gCpMVRMgWVGUJYBiKLEaxBTTxAc3jgC65edCVRzQtUWlaJ1Cl2qS64egVO64kTEg/AAkcu0ITnF62AAAAAElFTkSuQmCC" },
+    "lemonPig_1": { w: 24, h: 24, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAnElEQVR42mNgGExgxYP4/yBMNQO1VFj/gzC58gQN///QF4yxGUJInmQLsGGyLUDWTCwm2hJyDCfaEkoMJ2gJuuHo4YzPQGx6CUaqtT4D0RagqyVoAc19QJN4wGYBrvSPKz+QHET//z4gCpMVRMgWVGUJYBiKLEaxBTTxAc3jgC65edCVRzQtUWlaJ1Cl2qS64dgq9+OfvMCYlMoeAMRAtJY8nwn9AAAAAElFTkSuQmCC" },
     "heart": { w: 10, h: 10, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAL0lEQVR42mNgIBVoswv8B2FcfLjgf99cMIYpQOZjVYiOyVOISzGGIlxuJcn3tAMAHk1SYxqZYWwAAAAASUVORK5CYII=" },
     "blade": { w: 12, h: 12, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAYAAABWdVznAAAANUlEQVR42mNgwAKU5SX+gzADMQCk8OWTS2BMlKZBpgHmWWQNODUhK0THeDURbcMgDlZCSQMABtN8jQiCmg4AAAAASUVORK5CYII=" },
     "boom_0": { w: 32, h: 32, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAkUlEQVR42u3UMQoCMRAF0D2LVQrLOUzS6gUEa28hv9tqsbLaO4gnWOYwv4kMbCFi5cLY/AcfkkmRCSQZBhERkR9gvzt+zFt6E17L9ds4a/MTYWOnPwiLjFFLa4Cw1ulzp/c1c+bpL4TdCFveGliiFmsZF7B5LQfCJsKea6aopV9Ewu6Rvz1Hr+Uc0cckIiJbvAAtCVLJLVzB8QAAAABJRU5ErkJggg==" },
@@ -81,11 +91,15 @@
     "ghost": ["ghost_0", "ghost_1"],
     "bolt": ["bolt_0", "bolt_1", "bolt_0", "bolt_1"],
     "gem": ["gem_0", "gem_1", "gem_2"],
+    "pet_faerie": ["pet_faerie_0", "pet_faerie_1"],
+    "pet_wolf": ["pet_wolf_0", "pet_wolf_1"],
+    "pet_pig": ["pet_pig_0", "pet_pig_1"],
+    "lemonPig": ["lemonPig_0", "lemonPig_1"],
     "boom": ["boom_0", "boom_1", "boom_2", "boom_3", "boom_4", "boom_5"],
     "spark": ["spark_0", "spark_1", "spark_2", "spark_3"],
     "deco": ["deco_rock", "deco_bones", "deco_grass", "deco_mushroom", "deco_skull", "deco_grave", "deco_stump", "deco_bush"]
   };
 
-  VS.SpriteInfo = { count: 52, pngBytes: 13203 };
+  VS.SpriteInfo = { count: 62, pngBytes: 14863 };
 
 })(window.VS = window.VS || {});

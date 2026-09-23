@@ -199,6 +199,22 @@
     },
 
     /**
+     * 直接提升一级，不经过经验条。
+     * 超级经验球与"打完 Boss 的奖励"都走这里。
+     * @returns {boolean} 是否成功（已满级返回 false）
+     */
+    grantLevel: function (p) {
+      if (p.level >= C.XP.MAX_LEVEL) return false;
+      p.level++;
+      p.xpNeeded = xpForLevel(p.level);
+      if (p.level >= C.XP.MAX_LEVEL) {
+        p.xp = 0;
+        p.xpNeeded = Infinity;
+      }
+      return true;
+    },
+
+    /**
      * 获得经验，返回本次升了几级
      * （一次吃一大把经验石可能连升多级，升级面板要排队处理）
      */

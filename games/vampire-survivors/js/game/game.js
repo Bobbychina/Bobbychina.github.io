@@ -13,6 +13,7 @@
     MENU: 'menu',
     PLAYING: 'playing',
     LEVELUP: 'levelup',
+    PETSELECT: 'petselect',
     PAUSED: 'paused',
     GAMEOVER: 'gameover'
   };
@@ -157,13 +158,35 @@
         weapons: null,
         enemies: null,
         pickups: null,
-        player: null
+        pets: null,
+        player: null,
+        pendingPetSelect: false,
+        petChoices: []
       };
 
       /* 吃到经验石时由拾取模块回调到这里 */
       game.onXp = function (amount) {
         var levels = VS.Player.gainXp(game.player, amount);
         if (levels > 0) game.pendingLevels += levels;
+      };
+
+      /* 超级经验球：不加经验，等级直接 +1（同样要给一次选卡机会） */
+      game.onInstantLevel = function () {
+        if (VS.Player.grantLevel(game.player)) {
+          game.pendingLevels += 1;
+        }
+      };
+
+      /* 击杀第一只 Boss 的奖励：等级 +1 + 解锁宠物三选一 */
+      game.onFirstBossReward = function () {
+        if (VS.Player.grantLevel(game.player)) {
+          game.pendingLevels += 1;
+        }
+        game.pendingPetSelect = true;
+
+        if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
+          game.deps.panels.showBanner('击 杀 奖 励', '等级 +1 · 选择你的宠物');
+        }
       };
 
       Game.newRun(game);
@@ -184,7 +207,11 @@
       game.weapons = VS.Weapons.create();
       game.enemies = VS.Enemies.create();
       game.pickups = VS.Pickups.create();
+      game.pets = VS.Pets.create();
       game.player = VS.Player.create(game.world);
+
+      game.pendingPetSelect = false;
+      game.petChoices = [];
 
       VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);
 
@@ -247,6 +274,14 @@
         }
       }
 
+      /* --- 超级经验球解锁（存活满 10 分钟）--- */
+      if (prevTime < C.DROP.SUPER_ORB_FROM && game.time >= C.DROP.SUPER_ORB_FROM) {
+        if (game.deps.audio) game.deps.audio.play('level');
+        if (game.deps.panels && game.deps.panels.showBanner) {
+          game.deps.panels.showBanner('超 级 经 验 球', '0.3% 概率掉落 · 拾取直接升一级');
+        }
+      }
+
       var input = game.deps.input || VS.Input;
       var axis = input && input.getAxis ? input.getAxis() : { x: 0, y: 0 };
 
@@ -256,6 +291,7 @@
 
       /* --- 逻辑推进 --- */
       VS.Player.update(game.player, dt, game.world, axis);
+      VS.Pets.update(game.pets, dt, game);
       VS.Enemies.update(game.enemies, dt, game);
       VS.Weapons.update(game.weapons, dt, game);
       VS.Pickups.update(game.pickups, dt, game);
@@ -270,13 +306,19 @@
       /* --- 屏幕震动衰减 --- */
       if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 26);
 
-      /* --- 判定：先死亡，再升级 --- */
+      /* --- 判定：死亡（先让宠物尝试救一次）→ 升级 → 选宠物 --- */
       if (!game.player.alive) {
-        Game.endRun(game);
-        return;
+        if (!VS.Pets.tryRevive(game)) {
+          Game.endRun(game);
+          return;
+        }
       }
       if (game.pendingLevels > 0) {
         Game.openLevelUp(game);
+        return;
+      }
+      if (game.pendingPetSelect && !VS.Pets.chosen(game.pets)) {
+        Game.openPetSelect(game);
       }
     },
 
@@ -298,6 +340,8 @@
     },
 
     choose: function (game, index) {
+      /* 键盘 1/2/3 与卡片点击走同一条路：宠物面板期间就当作选宠物 */
+      if (game.state === STATE.PETSELECT) return Game.choosePet(game, index);
       if (game.state !== STATE.LEVELUP) return false;
 
       var c = game.choices[index];
@@ -307,6 +351,51 @@
       game.pendingLevels = Math.max(0, game.pendingLevels - 1);
 
       if (game.deps.panels) game.deps.panels.hideLevelUp();
+
+      if (game.pendingLevels > 0) {
+        Game.openLevelUp(game);
+      } else {
+        game.state = STATE.PLAYING;
+        VS.Effects.beginFrame(game.fx);
+      }
+      return true;
+    },
+
+    /* ---------------- 宠物三选一 ---------------- */
+
+    openPetSelect: function (game) {
+      if (!game.pets || game.pets.id) {
+        game.pendingPetSelect = false;
+        return;
+      }
+
+      game.state = STATE.PETSELECT;
+      game.petChoices = VS.Pets.list();
+
+      if (game.deps.audio) game.deps.audio.play('level');
+      if (game.deps.hud) game.deps.hud.update(game);
+
+      if (game.deps.panels && game.deps.panels.showPetSelect) {
+        game.deps.panels.showPetSelect(game.petChoices);
+      } else {
+        /* 没有面板时兜底：直接选第一个，避免卡死 */
+        Game.choosePet(game, 0);
+      }
+    },
+
+    choosePet: function (game, index) {
+      if (game.state !== STATE.PETSELECT) return false;
+
+      var d = (game.petChoices || [])[index];
+      if (!d) return false;
+
+      if (!VS.Pets.choose(game.pets, d.id, game)) return false;
+
+      game.pendingPetSelect = false;
+
+      if (game.deps.panels && game.deps.panels.hidePetSelect) {
+        game.deps.panels.hidePetSelect();
+      }
 
       if (game.pendingLevels > 0) {
         Game.openLevelUp(game);

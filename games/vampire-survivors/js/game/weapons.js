@@ -93,16 +93,21 @@
   var BOLT_LIFE = 1.8;        // 飞弹存活时间（秒），与射程换算挂钩
   var BOLT_TURN = 5.0;        // 追踪转向速率（弧度/秒）
 
-  function fireBolt(game, w, st) {
+  /**
+   * 核心发射：从 (sx,sy) 按 st 的数值打一轮，锁最近的 count 个目标。
+   * @returns {number} 实际发射了几颗（0 = 射程内没目标，调用方不该消耗冷却）
+   */
+  function fireVolleyFrom(game, sx, sy, st) {
     var p = game.player;
     var state = game.weapons;
 
-    var count = st.count + p.projBonus;
+    // noProjBonus：宠物不吃"多重射击"增益，保持"每秒 4 颗"的语义
+    var count = st.count + (st.noProjBonus ? 0 : p.projBonus);
     var maxRange = st.speed * BOLT_LIFE;
 
     // 只锁定射程内的目标：射程外的敌人根本打不到，锁定它只是白白浪费冷却
-    var targets = nearestEnemies(game, p.x, p.y, count, maxRange * maxRange);
-    if (targets.length === 0) return;   // 不消耗冷却，等敌人进入射程再打
+    var targets = nearestEnemies(game, sx, sy, count, maxRange * maxRange);
+    if (targets.length === 0) return 0;
 
     var spread = 0.17;
 
@@ -110,19 +115,19 @@
       var tgt = targets[i % targets.length];
 
       // 按目标当前速度做提前量，减少需要追踪的幅度
-      var flight = Math.sqrt(U.dist2(p.x, p.y, tgt.x, tgt.y)) / st.speed;
+      var flight = Math.sqrt(U.dist2(sx, sy, tgt.x, tgt.y)) / st.speed;
       var aimX = tgt.x + (tgt.vx || 0) * flight;
       var aimY = tgt.y + (tgt.vy || 0) * flight;
 
-      var ang = Math.atan2(aimY - p.y, aimX - p.x);
+      var ang = Math.atan2(aimY - sy, aimX - sx);
       if (count > 1) ang += (i - (count - 1) / 2) * spread * 0.55;
 
       var d = rollDamage(game, st.damage);
-      var muzzle = p.radius + 5;
+      var muzzle = (st.muzzle !== undefined ? st.muzzle : p.radius) + 5;
 
       state.projectiles.push({
-        x: p.x + Math.cos(ang) * muzzle,
-        y: p.y + Math.sin(ang) * muzzle,
+        x: sx + Math.cos(ang) * muzzle,
+        y: sy + Math.sin(ang) * muzzle,
         vx: Math.cos(ang) * st.speed,
         vy: Math.sin(ang) * st.speed,
         speed: st.speed,
@@ -134,11 +139,17 @@
         pierce: st.pierce,
         life: BOLT_LIFE,
         hitIds: [],
-        color: C.WEAPONS.bolt.color
+        color: st.color || C.WEAPONS.bolt.color
       });
     }
 
-    VS.Audio.play('shoot');
+    return count;
+  }
+
+  function fireBolt(game, w, st) {
+    if (fireVolleyFrom(game, game.player.x, game.player.y, st) > 0) {
+      VS.Audio.play('shoot');
+    }
   }
 
   function updateProjectiles(state, dt, game) {
@@ -427,6 +438,27 @@
         state.auraPulse.life -= dt;
         if (state.auraPulse.life <= 0) state.auraPulse = null;
       }
+    },
+
+    /**
+     * 宠物「德国的狼」用：从宠物位置按"玩家初始飞弹"的数值打一发。
+     * 走 fireVolleyFrom 而不是自己造弹丸，这样射程判定、提前量、追踪、
+     * 伤害增益与暴击都跟玩家武器完全一致。
+     */
+    firePetBolt: function (game, sx, sy) {
+      var base = C.WEAPONS.bolt.stats(1);
+      var st = {
+        count: 1,
+        damage: base.damage,
+        speed: base.speed,
+        radius: base.radius,
+        pierce: base.pierce,
+        noProjBonus: true,
+        muzzle: 4,
+        color: '#d9f0ff'
+      };
+      if (fireVolleyFrom(game, sx, sy, st) > 0) VS.Audio.play('shoot');
+      return true;
     },
 
     /** 供 UI 显示：当前武器与等级 */

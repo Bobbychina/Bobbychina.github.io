@@ -110,7 +110,7 @@
       color: '#ffcc44', edge: '#fff0b8', shape: 'blob',
       minTime: 240, weight: 1.3, elite: true
     },
-    /* Boss：由 C.BOSS 定时单独投放，不参与常规抽取
+    /* Boss：由 C.BOSS.SCHEDULE 定时单独投放，不参与常规抽取
        （minTime=Infinity 保证 pickType 永远不会选到它） */
     /* Boss 本体（加强版）：血量 3200 → 4000（**这是基础值**，实际还要乘难度曲线 HP_CURVE：
        5:00 首次登场时 ×2.45 ≈ 9800）。速度略降、撞击更疼 —— 打得久才谈得上"手法"。
@@ -131,6 +131,23 @@
       hp: 4000, speed: 46, radius: 46, damage: 52, xp: 620,
       color: '#5f9e57', edge: '#d6ffc9', shape: 'blob',
       minTime: Infinity, weight: 0, boss: true
+    },
+    /* 第二个 Boss：柠檬猪，会从嘴里吐柠檬酸液远程攻击 */
+    lemonPig: {
+      id: 'lemonPig', name: '柠檬猪',
+      hp: 5200, speed: 40, radius: 50, damage: 46, xp: 600,
+      color: '#e3d84a', edge: '#fffbae', shape: 'blob',
+      minTime: Infinity, weight: 0, boss: true,
+      ranged: {
+        cooldown: 2.4,      // 每隔多久吐一次
+        count: 3,           // 一次几发
+        spread: 0.34,       // 扇形散布（弧度）
+        speed: 230,         // 酸液飞行速度
+        radius: 13,
+        damage: 20,
+        life: 3.2,
+        range: 700           // 玩家在这个距离内才会吐
+      }
     }
   };
 
@@ -223,15 +240,30 @@
     }
   ];
 
-  /* ---------------- Boss ---------------- */
+  /* ---------------- Boss ----------------
+     固定时间表，每只只投一次。
+     （2026-09-22 改：删掉"击杀后 90 秒再来一只"的循环 Boss —— 那只会落在 7 分多钟；
+       现在改成 5:00 尸潮之王、10:00 柠檬猪，各一只。）
+  ---------------------------------------- */
 
   C.BOSS = {
-    FIRST_AT: 300,        // 第 5 分钟首次出现
-    REPEAT_DELAY: 90,     // 击杀后隔多久再来一只（越来越强）
-    HP_GROWTH: 1.45,      // 每只比上一只强多少倍
+    SCHEDULE: [
+      {
+        at: 300, type: 'boss', name: '尸潮之王',
+        tip: '尸 潮 之 王 降 临', sub: '单挑时间 · 小怪不再刷新',
+        reward: 'firstBoss'          // 击杀后：等级 +1 并解锁宠物三选一
+      },
+      {
+        at: 600, type: 'lemonPig', name: '柠檬猪',
+        tip: '柠 檬 猪 出 现', sub: '小心它嘴里的柠檬酸液',
+        reward: null,
+        kit: false                   // 不走 BossKit 的四档七招，只有逼近 + 酸液
+      }
+    ],
     ENTRY_SHAKE: 16,      // 登场时的镜头震动
     MINION_BATCH: 0,      // 登场不带小怪（Boss 战期间常规刷怪仍然停）
     PAUSE_SPAWN: true,    // Boss 存活期间完全停止常规刷怪，直到它死亡
+    HP_GROWTH: 1.45,      // 仅作参考；固定时间表下不再按次数增厚
 
     /* ---------------- 招式（M-VS「尸潮之王」加强） ----------------
        改前：它只会"走过来撞你"，没有任何招式与机制。
@@ -275,6 +307,36 @@
     }
   };
 
+  /* ---------------- 宠物（打完第一只 Boss 三选一） ---------------- */
+
+  C.PETS = [
+    {
+      id: 'faerie', name: '小精灵', icon: '✧', color: '#a6f7b0',
+      desc: '每秒额外回复 3 点生命',
+      detail: '生命回复 +3/秒'
+    },
+    {
+      id: 'wolf', name: '德国的狼', icon: '🐺', color: '#d6e2ee',
+      desc: '每秒射出 4 颗飞弹，移动速度 +20%',
+      detail: '每秒 4 发 · 移速 +20%'
+    },
+    {
+      id: 'pig', name: '死亡猪神', icon: '🐷', color: '#ffb4c8',
+      desc: '每 2 分钟积攒一次复活：致命伤时自动消耗，回复一半生命并无敌 5 秒',
+      detail: '每 2 分钟 +1 次复活'
+    }
+  ];
+
+  C.PET = {
+    FAERIE_REGEN: 3,             // 小精灵：每秒额外回血
+    WOLF_SPEED_MUL: 1.20,        // 德国的狼：移速倍率
+    WOLF_SHOTS_PER_SEC: 4,       // 德国的狼：每秒飞弹数
+    PIG_CHARGE_INTERVAL: 120,    // 死亡猪神：每多少秒攒一次复活
+    PIG_MAX_CHARGES: 3,          // 最多攒几次
+    PIG_REVIVE_HP: 0.5,          // 复活回复最大生命的比例
+    PIG_REVIVE_INVULN: 5         // 复活后的无敌秒数
+  };
+
   /* ---------------- 掉落 ---------------- */
 
   C.DROP = {
@@ -287,13 +349,21 @@
     /* --- 金色经验球 ---
        普通经验球的经验量就是怪物自身的 xp 值；
        金色球 = 该值的 GOLD_ORB_MULT 倍，一次顶一百个。
-       存活满 GOLD_ORB_FROM（3 分钟）之后才开始掉落，
-       用来解决后期升级太慢的问题。 */
-    GOLD_ORB_FROM: 180,       // 存活满 3 分钟（180 秒）后才开始掉落
-    GOLD_ORB_CHANCE: 0.10,    // 解锁后，每只普通怪 10% 概率掉一颗金色经验球
-    GOLD_ORB_MULT: 100,       // 经验量 = 普通经验球的 100 倍
-    GOLD_ORB_RADIUS: 9,       // 比普通球大一圈，更显眼
-    GOLD_MAGNET_MULT: 1.7     // 金色球的吸附范围更大，尽量别让它被漏掉
+       掉落率按时间和进度分档（见 Pickups.goldChance）。 */
+    GOLD_ORB_FROM: 180,             // 存活满 3 分钟（180 秒）后才开始掉落
+    GOLD_ORB_CHANCE_EARLY: 0.05,    // 3:00–4:00 期间：5%
+    GOLD_ORB_CHANCE_AFTER_BOSS: 0.20, // 打完第一只 Boss 之后：20%
+    GOLD_ORB_CHANCE: 0.05,          // 兼容旧字段（等于 EARLY）
+    GOLD_ORB_MULT: 100,             // 经验量 = 普通经验球的 100 倍
+    GOLD_ORB_RADIUS: 9,             // 比普通球大一圈，更显眼
+    GOLD_MAGNET_MULT: 1.7,          // 金色球的吸附范围更大，尽量别让它被漏掉
+
+    /* --- 超级经验球 ---
+       10 分钟之后 0.3% 概率掉落；拾取后等级直接 +1（不是加经验）。 */
+    SUPER_ORB_FROM: 600,            // 存活满 10 分钟
+    SUPER_ORB_CHANCE: 0.003,        // 0.3%
+    SUPER_ORB_RADIUS: 11,
+    SUPER_MAGNET_MULT: 2.0
   };
 
   /* ---------------- 武器 ----------------

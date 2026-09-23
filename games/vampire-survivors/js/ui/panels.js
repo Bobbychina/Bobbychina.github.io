@@ -10,6 +10,7 @@
   var cb = {};                 // 回调
   var dom = null;
   var currentChoices = [];     // 当前展示的三张卡
+  var currentPets = [];        // 当前展示的三只宠物
   var bannerTimer = null;
 
   function el(id) { return document.getElementById(id); }
@@ -55,6 +56,7 @@
         overlays: el('overlays'),
         panelStart: el('panel-start'),
         panelLevelUp: el('panel-levelup'),
+        panelPetSelect: el('panel-petselect'),
         panelPause: el('panel-pause'),
         panelGameOver: el('panel-gameover'),
 
@@ -63,6 +65,9 @@
 
         luLevel: el('luLevel'),
         luCards: el('luCards'),
+
+        petReward: el('petReward'),
+        petCards: el('petCards'),
 
         pauseInfo: el('pauseInfo'),
         resumeBtn: el('resumeBtn'),
@@ -81,7 +86,7 @@
         bannerSub: el('bannerSub')
       };
 
-      dom.panels = [dom.panelStart, dom.panelLevelUp, dom.panelPause, dom.panelGameOver];
+      dom.panels = [dom.panelStart, dom.panelLevelUp, dom.panelPetSelect, dom.panelPause, dom.panelGameOver];
 
       bindClick(dom.startBtn, function () { if (cb.onStart) cb.onStart(); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
@@ -190,6 +195,60 @@
       syncOverlay();
     },
 
+    /* ---------------- 宠物三选一面板 ----------------
+       打完第一只 Boss 才出现，三选一，选完永久生效。 */
+
+    showPetSelect: function (pets) {
+      if (!dom) return;
+      currentPets = pets || [];
+
+      if (dom.petReward) dom.petReward.textContent = ' 击杀奖励';
+
+      var html = '';
+      for (var i = 0; i < currentPets.length; i++) {
+        var p = currentPets[i];
+        var accent = p.color || '#ffd166';
+
+        html += '<div class="card pet" data-index="' + i + '" style="--card-accent:' + accent + '">' +
+                  '<div class="ico">' + p.icon + '</div>' +
+                  '<div class="nm">' + p.name + '</div>' +
+                  '<div class="ds">' + p.desc + '</div>' +
+                  '<div class="tag">' + (p.detail || '永久生效') + '</div>' +
+                  '<div class="key">按 ' + (i + 1) + ' 选择</div>' +
+                '</div>';
+      }
+
+      if (dom.petCards) {
+        dom.petCards.innerHTML = html;
+
+        var cards = dom.petCards.querySelectorAll('.card');
+        for (var j = 0; j < cards.length; j++) {
+          (function (node) {
+            node.addEventListener('click', function (e) {
+              e.stopPropagation();
+              var idx = parseInt(node.getAttribute('data-index'), 10);
+              Panels.choosePet(idx);
+            });
+          })(cards[j]);
+        }
+      }
+
+      show(dom.panelPetSelect);
+    },
+
+    /** 玩家点了某只宠物（或被键盘 1/2/3 触发） */
+    choosePet: function (index) {
+      if (!currentPets[index]) return;
+      if (cb.onChoosePet) cb.onChoosePet(index, currentPets[index]);
+    },
+
+    hidePetSelect: function () {
+      if (!dom) return;
+      dom.panelPetSelect.hidden = true;
+      currentPets = [];
+      syncOverlay();
+    },
+
     /* ---------------- 暂停面板 ---------------- */
 
     showPause: function (info) {
@@ -227,6 +286,7 @@
     which: function () {
       if (!dom) return null;
       if (!dom.panelLevelUp.hidden) return 'levelup';
+      if (dom.panelPetSelect && !dom.panelPetSelect.hidden) return 'petselect';
       if (!dom.panelPause.hidden) return 'pause';
       if (!dom.panelGameOver.hidden) return 'gameover';
       if (!dom.panelStart.hidden) return 'start';

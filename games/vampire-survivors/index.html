@@ -72,14 +72,17 @@
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键移动</li>
         <li>武器<b>自动攻击</b>，无需手动开火</li>
         <li>拾取经验球升级，从三张卡中选一项增益</li>
-        <li>存活满 <b>3 分钟</b>后，击杀有 10% 概率掉落<b>金色经验球</b>，一颗顶 100 颗</li>
+        <li>存活满 <b>3 分钟</b>后，击杀有 <b>5%</b> 概率掉落<b>金色经验球</b>（一颗顶 100 颗）</li>
+        <li>打死 <b>5 分钟</b>的 Boss 有奖励：<b>等级 +1</b> 并<b>三选一宠物</b>；之后金球概率升到 <b>20%</b></li>
+        <li><b>10 分钟</b>第二只 Boss <b>柠檬猪</b>登场，会远程喷柠檬酸液；此后击杀有 <b>0.3%</b> 概率掉<b>超级经验球</b>（直接升一级）</li>
         <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Shift</kbd> <b>闪避</b>（短暂无敌）· <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
       </ul>
       <div class="phases">
         <div><b>0–2 分</b><span>正常</span></div>
         <div class="ph-horde"><b>2–4 分</b><span>尸潮 · 僵尸暴增</span></div>
         <div class="ph-rest"><b>4–5 分</b><span>停止刷怪 · 捡经验</span></div>
-        <div class="ph-boss"><b>5 分后</b><span>尸潮之王 · 单挑</span></div>
+        <div class="ph-boss"><b>5 分</b><span>尸潮之王 · 送宠物</span></div>
+        <div class="ph-boss"><b>10 分</b><span>柠檬猪 · 酸液</span></div>
       </div>
       <button class="btn primary" id="startBtn">开始游戏</button>
       <p class="tip">手机端：在画面上拖动即可移动</p>
@@ -89,6 +92,13 @@
       <h2>升级！<span class="lv" id="luLevel"></span></h2>
       <p class="sub">从下面三项中选择一项增益</p>
       <div class="cards" id="luCards"></div>
+      <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
+    </section>
+
+    <section class="panel" id="panel-petselect" hidden>
+      <h2>宠物三选一<span class="lv" id="petReward"></span></h2>
+      <p class="sub">击杀尸潮之王的奖励 · 只能选一次，永久生效</p>
+      <div class="cards pet-cards" id="petCards"></div>
       <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
     </section>
 
@@ -150,6 +160,7 @@
 <script defer src="js/game/enemies.js"></script>
 <script defer src="js/game/bosskit.js"></script>
 <script defer src="js/game/pickups.js"></script>
+<script defer src="js/game/pets.js"></script>
 <script defer src="js/render/sprites.js"></script>
 <script defer src="js/render/assets.js"></script>
 <script defer src="js/render/renderer.js"></script>

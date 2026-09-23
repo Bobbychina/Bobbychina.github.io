@@ -104,22 +104,43 @@
     return e;
   }
 
-  /* ---------------- Boss ---------------- */
+  /* ---------------- Boss ----------------
+     固定时间表（C.BOSS.SCHEDULE）：5:00 尸潮之王、10:00 柠檬猪，各一只。
+     原先"击杀后 90 秒再来一只"的循环已经删掉（那只会落在 7 分多钟）。
+  ---------------------------------------- */
 
-  function spawnBoss(state, game) {
-    var def = C.ENEMY_TYPES.boss;
-    var mult = Math.pow(C.BOSS.HP_GROWTH, state.bossCount);
+  function spawnBoss(state, game, entry) {
+    var def = C.ENEMY_TYPES[entry.type];
+    if (!def) return null;
 
-    var e = spawnEnemy(state, def, game, { hpMult: mult });
+    var e = spawnEnemy(state, def, game);
+
+    e.bossEntry = entry;
+    e.name = entry.name || def.name;
+
+    /* 时间表里 kit:false 的 Boss（柠檬猪）不走 BossKit 的招式状态机：
+       它只有"慢慢逼近 + 吐酸液"两件事，招式由下面的 updateBossAttack 负责。
+       BossKit 只服务尸潮之王那套四档七招。 */
+    if (entry.kit === false) e.noKit = true;
+
+    /* 远程攻击的伤害按生成时的难度倍率定下来 */
+    if (def.ranged) {
+      e.fireCd = def.ranged.cooldown * 0.6;    // 登场后先缓一下再吐
+      e.rangedDamage = def.ranged.damage * scaleFor(game.time).dmg;
+    }
 
     state.boss = e;
     state.bossCount++;
 
-    /* 登场：镜头震动 + 一圈小怪 */
+    /* 登场：镜头震动 + 爆炸 */
     game.shake = Math.max(game.shake || 0, C.BOSS.ENTRY_SHAKE);
-    VS.Effects.explosion(game.fx, e.x, e.y, 2.4);
-    VS.Effects.burst(game.fx, e.x, e.y, '#9be08a', 26, { speed: 220, life: 0.7, size: 3.4 });
+    VS.Effects.explosion(game.fx, e.x, e.y, 2.6);
+    VS.Effects.burst(game.fx, e.x, e.y, def.edge, 30, { speed: 230, life: 0.8, size: 3.4 });
     VS.Audio.play('over');
+
+    if (game.deps && game.deps.panels && game.deps.panels.showBanner && entry.tip) {
+      game.deps.panels.showBanner(entry.tip, entry.sub);
+    }
 
     for (var i = 0; i < C.BOSS.MINION_BATCH; i++) {
       if (state.list.length >= C.SPAWN.MAX_ENEMIES) break;
@@ -146,19 +167,88 @@
     return made;
   }
 
-  /** Boss 计时：没 Boss 时倒计时，到点投放；Boss 死了则排下一只 */
+  /** 时间表推进：场上没 Boss 且到点了就投放下一只 */
   function updateBoss(state, dt, game) {
-    if (state.boss) {
-      if (state.boss.dead) {
-        state.boss = null;
-        state.bossTimer = C.BOSS.REPEAT_DELAY;   // 下一只更厚的
-      }
-      return;
+    if (state.boss) return;                              // 上一只还活着
+
+    var sched = C.BOSS.SCHEDULE;
+    if (state.bossIndex >= sched.length) return;         // 时间表跑完，不再有 Boss
+
+    if (game.time < sched[state.bossIndex].at) return;
+
+    spawnBoss(state, game, sched[state.bossIndex]);
+    state.bossIndex++;
+  }
+
+  /* ---------------- Boss 的远程攻击（柠檬酸液） ---------------- */
+
+  function updateBossAttack(state, dt, game) {
+    var b = state.boss;
+    if (!b || b.dead) return;
+
+    var def = C.ENEMY_TYPES[b.type];
+    if (!def || !def.ranged) return;
+
+    var R = def.ranged;
+    b.fireCd -= dt;
+    if (b.fireCd > 0) return;
+
+    var p = game.player;
+    if (!p.alive) return;
+
+    var d2 = U.dist2(b.x, b.y, p.x, p.y);
+    if (d2 > R.range * R.range) return;                  // 玩家太远，先走近再说
+
+    b.fireCd = R.cooldown;
+
+    var base = Math.atan2(p.y - b.y, p.x - b.x);
+    var count = R.count;
+
+    for (var i = 0; i < count; i++) {
+      var a = base + (i - (count - 1) / 2) * R.spread;
+      state.shots.push({
+        x: b.x + Math.cos(a) * (b.radius * 0.55),
+        y: b.y + Math.sin(a) * (b.radius * 0.55),
+        vx: Math.cos(a) * R.speed,
+        vy: Math.sin(a) * R.speed,
+        r: R.radius,
+        angle: a,
+        damage: b.rangedDamage || R.damage,
+        life: R.life,
+        phase: Math.random() * U.TAU
+      });
     }
 
-    state.bossTimer -= dt;
-    if (state.bossTimer <= 0) {
-      spawnBoss(state, game);
+    VS.Audio.play('nova');
+  }
+
+  /** 酸液飞行 + 命中玩家 */
+  function updateShots(state, dt, game) {
+    var list = state.shots;
+    if (!list.length) return;
+
+    var p = game.player;
+    var world = game.world;
+
+    for (var i = list.length - 1; i >= 0; i--) {
+      var s = list[i];
+
+      s.life -= dt;
+      s.phase += dt * 6;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+
+      if (s.life <= 0 || !VS.World.isInside(world, s.x, s.y, 0)) {
+        VS.Effects.burst(game.fx, s.x, s.y, '#c8e04a', 4, { speed: 70, life: 0.3, size: 2.4 });
+        U.swapRemove(list, i);
+        continue;
+      }
+
+      if (p.alive && U.circleHit(p.x, p.y, p.radius, s.x, s.y, s.r)) {
+        VS.Player.takeDamage(p, s.damage, game, s.x, s.y);
+        VS.Effects.burst(game.fx, s.x, s.y, '#d8f05a', 12, { speed: 150, life: 0.45, size: 3 });
+        U.swapRemove(list, i);
+      }
     }
   }
 
@@ -296,8 +386,9 @@
       if (e.hitFlash > 0) e.hitFlash -= dt;
       if (e.orbitCd > 0) e.orbitCd -= dt;
 
-      /* --- Boss 的移动/招式交给 BossKit（弹幕、召唤、冲撞都在那边） --- */
-      var driven = !!(e.boss && VS.BossKit);
+      /* --- Boss 的移动/招式交给 BossKit（弹幕、召唤、冲撞都在那边）；
+             柠檬猪标了 noKit，走下面的常规追击 + 自己的酸液 --- */
+      var driven = !!(e.boss && VS.BossKit && !e.noKit);
       if (driven) VS.BossKit.step(e, dt, game);
 
       /* --- 朝玩家移动 --- */
@@ -352,14 +443,19 @@
     game.player.kills++;
     game.kills++;
 
-    /* Boss 死亡：更大的爆炸、掉落一大把经验石、并且排队下一只 */
+    /* Boss 死亡：更大的爆炸、掉落一大把经验石、结算奖励 */
     if (e.boss) {
+      var es = game.enemies;
+
       VS.Effects.explosion(game.fx, e.x, e.y, 3.4);
       VS.Effects.explosion(game.fx, e.x, e.y, 2.2);
       VS.Effects.gib(game.fx, e.x, e.y, e.color, 60);
       VS.Effects.burst(game.fx, e.x, e.y, '#ffd166', 40, { speed: 320, life: 1.1, size: 4 });
       game.shake = Math.max(game.shake || 0, 18);
       VS.Audio.play('over');
+
+      es.boss = null;
+      es.bossesKilled++;
 
       // 经验石撒成一圈，方便一口气全捡
       var orbs = 14;
@@ -371,6 +467,12 @@
       }
       VS.Pickups.spawnHeart(game.pickups, e.x, e.y);
       VS.Pickups.spawnHeart(game.pickups, e.x + 34, e.y);
+
+      /* 第一只 Boss 的击杀奖励：等级 +1 + 解锁宠物三选一 */
+      if (e.bossEntry && e.bossEntry.reward === 'firstBoss' && !es.firstBossDefeated) {
+        es.firstBossDefeated = true;
+        if (game.onFirstBossReward) game.onFirstBossReward();
+      }
       return;
     }
 
@@ -385,9 +487,14 @@
     var xp = Math.max(1, Math.round(e.xp * game.player.luck));
     VS.Pickups.spawnXp(game.pickups, e.x, e.y, xp);
 
-    /* 金色经验球：存活满 3 分钟后才开始掉，10% 概率，经验量 = 普通球的 100 倍 */
-    if (VS.Pickups.rollGold(game.time)) {
+    /* 金色经验球：3 分钟后 5%，打完第一只 Boss 后 20%；经验量 = 普通球的 100 倍 */
+    if (VS.Pickups.rollGold(game.time, game.enemies.firstBossDefeated)) {
       VS.Pickups.spawnGold(game.pickups, e.x, e.y, xp * C.DROP.GOLD_ORB_MULT);
+    }
+
+    /* 超级经验球：10 分钟后 0.3%，拾取直接升一级 */
+    if (VS.Pickups.rollSuper(game.time)) {
+      VS.Pickups.spawnSuper(game.pickups, e.x, e.y);
     }
 
     var heartChance = e.elite ? C.DROP.HEART_ELITE_CHANCE : C.DROP.HEART_CHANCE;
@@ -413,26 +520,32 @@
     create: function () {
       return {
         list: [],
+        shots: [],                     // Boss 吐出来的酸液（敌方弹幕）
         spawnAcc: 0,
         sepAcc: 0,
         uid: 1,
         kills: 0,
         boss: null,                    // 当前存活的 Boss（HUD 血条读它）
-        bossCount: 0,                  // 已经投放了几只（决定强度）
-        bossTimer: C.BOSS.FIRST_AT,    // 倒计时到第 5 分钟
+        bossIndex: 0,                  // 时间表指针：下一只要投放的是第几条
+        bossCount: 0,                  // 已经投放了几只
+        bossesKilled: 0,               // 已经打死了几只
+        firstBossDefeated: false,      // 第一只 Boss 是否已击杀（金球掉率分档要用）
         _pt: { x: 0, y: 0 }            // 复用的生成点对象
       };
     },
 
     reset: function (state) {
       state.list.length = 0;
+      state.shots.length = 0;
       state.spawnAcc = 0;
       state.sepAcc = 0;
       state.uid = 1;
       state.kills = 0;
       state.boss = null;
+      state.bossIndex = 0;
       state.bossCount = 0;
-      state.bossTimer = C.BOSS.FIRST_AT;
+      state.bossesKilled = 0;
+      state.firstBossDefeated = false;
     },
 
     /**
@@ -515,6 +628,8 @@
            否则登场那一帧刷怪逻辑已经跑过了，会漏出一只小怪 */
         var t = nowMs();
         updateBoss(state, dt, game);
+        updateBossAttack(state, dt, game);
+        updateShots(state, dt, game);
         prof.move += nowMs() - t;
 
         t = nowMs();
@@ -538,6 +653,8 @@
 
       /* 顺序要紧：先 Boss 再刷怪（见上面注释） */
       updateBoss(state, dt, game);
+      updateBossAttack(state, dt, game);
+      updateShots(state, dt, game);
       updateSpawning(state, dt, game);
       moveAndCollide(state, dt, game);
       rebuildGrid(state, game);

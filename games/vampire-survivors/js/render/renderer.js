@@ -23,12 +23,16 @@
   var ENEMY_SCALE = {
     bat: 2, zombie: 2, skeleton: 2, ghost: 2, wraith: 2,
     brute: 3, elite: 4,
-    boss: 4            // 24px 原始 -> 96px，配合 radius 44 的碰撞圆
+    boss: 4,           // 24px 原始 -> 96px，配合 radius 44 的碰撞圆
+    lemonPig: 4        // 同上：24px -> 96px，配合 radius 50 的碰撞圆
   };
   var PLAYER_SCALE = 2;
+  var PET_SCALE = 2.2;         // 宠物 16px -> 35px，比玩家略小一点又不至于看不清
   var BOLT_SCALE = 2.2;
+  var ACID_SCALE = 2.4;        // 柠檬酸液弹
   var GEM_SCALE = 2;
   var GOLD_ORB_SCALE = 2.3;
+  var SUPER_ORB_SCALE = 2.6;   // 超级经验球最大，一眼就能认出来
   var HEART_SCALE = 2.2;
   var DECO_SCALE = 2;
   var DECO_CELL = 108;       // 装饰物按这个网格撒点
@@ -248,9 +252,11 @@
       Renderer.drawBossTelegraph(ctx, game);          // Boss 前摇光环（在它身下，别盖住本体）
       Renderer.drawEnemies(ctx, game, view, time);
       Renderer.drawPlayer(ctx, r, game);
+      Renderer.drawPets(ctx, r, game, time);
       Renderer.drawOrbit(ctx, game, time);
       Renderer.drawProjectiles(ctx, game, view, time);
       Renderer.drawBossShots(ctx, r, game, view);     // 敌方弹幕压在玩家弹幕之上
+      Renderer.drawShots(ctx, game, view, time);      // 柠檬猪的酸液（enemies.shots）
       Renderer.drawParticles(ctx, game, view);
       Renderer.drawSparks(ctx, game, view);
       Renderer.drawBooms(ctx, game, view);
@@ -581,7 +587,38 @@
         var g = gems[i];
         if (!VS.World.isVisible(view, g.x, g.y, 20)) continue;
 
-        if (g.gold) {
+        if (g.super) {
+          /* 超级经验球：彩虹光环 + 上下浮动，场上最亮的东西 */
+          var sb = Math.sin(g.phase * 1.4) * 2.6;
+          var sp = 0.55 + 0.45 * Math.sin(g.phase * 2.6);
+
+          if (!glow) glow = Renderer.ensureGoldGlow(r);
+          if (glow) {
+            var sr2 = (22 + sp * 10) * 2;
+            ctx.save();
+            ctx.globalAlpha = sp;
+            ctx.drawImage(glow, g.x - sr2 / 2, g.y - sr2 / 2 + sb, sr2, sr2);
+            ctx.restore();
+          }
+
+          /* 旋转的彩色光环 */
+          ctx.save();
+          ctx.translate(g.x, g.y + sb);
+          ctx.rotate(g.phase * 0.9);
+          ctx.globalAlpha = 0.55 + 0.35 * sp;
+          ctx.strokeStyle = '#ff9ae0';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 6]);
+          ctx.beginPath();
+          ctx.arc(0, 0, 22, 0, U.TAU);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+
+          if (!blit(ctx, 'orb_super', g.x, g.y, SUPER_ORB_SCALE, { dy: sb })) {
+            fallbackCircle(ctx, g.x, g.y, g.radius, '#ffffff');
+          }
+        } else if (g.gold) {
           /* 金色经验球：更大、会浮动、带一圈脉动光晕，一眼就能认出 */
           var gb = Math.sin(g.phase * 1.6) * 2.4;
           var pulse = 0.55 + 0.45 * Math.sin(g.phase * 2.2);
@@ -830,6 +867,115 @@
 
       if (p.hurtFlash > 0 && name) {
         blitWhite(ctx, name, p.x, p.y, PLAYER_SCALE, Math.min(1, p.hurtFlash / 0.28) * 0.85, bob);
+      }
+    },
+
+    /* ---------------- 宠物 ----------------
+       跟在玩家侧后方的三选一宠物。没选就什么都不画。 */
+
+    drawPets: function (ctx, r, game, time) {
+      var pet = game.pets;
+      if (!pet || !pet.id) return;
+
+      var p = game.player;
+      if (!p || !p.alive) return;
+
+      var group = 'pet_' + pet.id;
+      var def = VS.Pets.def ? VS.Pets.def(pet.id) : null;
+      var fr = animFrame(group, time, 3.2, 0);
+      var name = fr ? fr.name : null;
+
+      // 悬浮感：小精灵飘得高一点，其他两只贴地
+      var floatY = pet.id === 'faerie' ? -10 : 0;
+      var bob = Math.sin(time * 3.4) * 2 + floatY;
+
+      // 脚下阴影
+      ctx.save();
+      ctx.globalAlpha = 0.26;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.ellipse(pet.x, pet.y + 12, 10, 3.6, 0, 0, U.TAU);
+      ctx.fill();
+      ctx.restore();
+
+      /* 小精灵自带柔光；猪神身上有一圈粉色护佑光 */
+      if (pet.id === 'faerie' || pet.id === 'pig') {
+        var aura = def ? def.color : '#ffffff';
+        ctx.save();
+        ctx.globalAlpha = 0.28 + 0.16 * Math.sin(time * 4);
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(pet.x, pet.y + bob, 15, 0, U.TAU);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      var drawn = blit(ctx, name, pet.x, pet.y, PET_SCALE, { dy: bob });
+
+      if (!drawn) {
+        fallbackCircle(ctx, pet.x, pet.y + bob, 8, def ? def.color : '#ffd166', '#000');
+      }
+
+      /* 猪神的复活充能：脚下画一圈进度环 */
+      if (pet.id === 'pig' && VS.Pets.pigProgress) {
+        var prog = VS.Pets.pigProgress(pet);
+        ctx.save();
+        ctx.globalAlpha = 0.75;
+        ctx.strokeStyle = 'rgba(0,0,0,.55)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(pet.x, pet.y + 12, 13, 0, U.TAU);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffb4c8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pet.x, pet.y + 12, 13, -Math.PI / 2, -Math.PI / 2 + prog * U.TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+    },
+
+    /* ---------------- 柠檬猪的酸液弹 ---------------- */
+
+    drawShots: function (ctx, game, view, time) {
+      var shots = game.enemies && game.enemies.shots;
+      if (!shots || !shots.length) return;
+
+      for (var i = 0; i < shots.length; i++) {
+        var s = shots[i];
+        var sr = s.r || 13;
+        if (!VS.World.isVisible(view, s.x, s.y, sr + 20)) continue;
+
+        /* 拖尾：沿飞行反方向点三个越来越淡的小圆 */
+        var ang = s.angle !== undefined ? s.angle : Math.atan2(s.vy, s.vx);
+        ctx.save();
+        for (var t = 1; t <= 3; t++) {
+          ctx.globalAlpha = 0.22 / t;
+          ctx.fillStyle = '#c7f24a';
+          ctx.beginPath();
+          ctx.arc(s.x - Math.cos(ang) * t * 9, s.y - Math.sin(ang) * t * 9,
+                  sr * (1 - t * 0.16), 0, U.TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        /* 酸液会一边飞一边"咕嘟"抖动 */
+        var wob = Math.sin(s.phase * 1.6) * 2;
+
+        if (!blit(ctx, 'acid', s.x, s.y, ACID_SCALE, { dy: wob, angle: ang })) {
+          fallbackCircle(ctx, s.x, s.y, sr, '#c7f24a', '#243305');
+        }
+
+        /* 一圈淡绿光晕，暗色地面上也能看清 */
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = '#e6ff9a';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, sr + 3, 0, U.TAU);
+        ctx.stroke();
+        ctx.restore();
       }
     },
 

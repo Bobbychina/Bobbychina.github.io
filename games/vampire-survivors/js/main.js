@@ -81,7 +81,8 @@
       onRetry: function () { VS.Game.start(game); },
       onResume: function () { VS.Game.resume(game); },
       onRestart: function () { VS.Game.start(game); },
-      onChoose: function (index) { VS.Game.choose(game, index); }
+      onChoose: function (index) { VS.Game.choose(game, index); },
+      onChoosePet: function (index) { VS.Game.choosePet(game, index); }
     });
     game.deps.panels = panels;
 
@@ -195,7 +196,9 @@
         VS.Renderer.render(renderer, game, game.animTime, dt);
       }
 
-      if (game.state === VS.Game.STATE.PLAYING || game.state === VS.Game.STATE.LEVELUP) {
+      if (game.state === VS.Game.STATE.PLAYING ||
+          game.state === VS.Game.STATE.LEVELUP ||
+          game.state === VS.Game.STATE.PETSELECT) {
         VS.Hud.update(game);
       }
 

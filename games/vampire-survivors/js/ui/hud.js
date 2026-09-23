@@ -154,6 +154,12 @@
       var sig = '';
       for (var i = 0; i < list.length; i++) sig += list[i].id + list[i].level + '|';
 
+      /* 宠物那一格也跟着走：猪神的复活次数会变，所以一起进签名 */
+      var pet = game.pets;
+      var petText = (VS.Pets && VS.Pets.statusText) ? VS.Pets.statusText(pet) : '';
+      var petDef = (petText && VS.Pets.def) ? VS.Pets.def(pet.id) : null;
+      sig += '#' + petText;
+
       if (sig !== lastWeaponSig && dom.weaponStrip) {
         lastWeaponSig = sig;
 
@@ -166,6 +172,14 @@
                     '<span class="lv">Lv' + w.level + '</span>' +
                   '</span>';
         }
+
+        if (petDef) {
+          html += '<span class="wslot pet" style="--pet-accent:' + (petDef.color || '#ffd166') + '">' +
+                    '<span class="ico">' + petDef.icon + '</span>' +
+                    '<span class="nm">' + petText + '</span>' +
+                  '</span>';
+        }
+
         dom.weaponStrip.innerHTML = html;
       }
     }
