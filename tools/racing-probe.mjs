@@ -89,6 +89,19 @@ ok('开场卡片上「开始比赛」在首屏内（1440×900）', env.startBtnV
 
 await page.screenshot({ path: outDir + '/intro.png' });
 
+/* 页面不是游戏（典型：GitHub Pages 还没发布完，返回 404 错误页）时，
+   后面的 evaluate 会直接抛异常把探针整个打断 —— 那样只会看到一堆堆栈，
+   真正原因（页面没上线）反而被埋掉。所以这里显式早退，并把原因写清楚。 */
+if (!env.game) {
+  ok('页面已经发布（不是 404/错误页）', false, '页面标题：' + env.title + '；跳过后面的游戏内检查');
+  out.aborted = 'window.RACEGAME 不存在 —— 页面没上线或不是游戏页';
+  if (!cdpMode) await browser.close();
+  writeFileSync(outDir + '/../racing-probe.json', JSON.stringify(out, null, 1), 'utf8');
+  const p = out.checks.filter(c => c.ok).length, f = out.checks.length - p;
+  console.log('\n有失败：' + p + ' 通过 / ' + f + ' 失败（' + out.aborted + '）  探针：racing-probe');
+  process.exit(1);
+}
+
 /* 2. 排行榜面板：能打开、能真读到榜（GET 是公开只读，不需要登录） */
 if (apiArg) {
   await page.evaluate(a => { window.DSH_AUTH_CONFIG.api = a; window.DSH_AUTH_CONFIG.github.relay = ''; window.RACEGAME.Online.base = ''; }, apiArg);
