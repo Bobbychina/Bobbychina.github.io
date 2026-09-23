@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <script src="/mac-block.js"></script>   <!-- macOS 拦截：同步执行、紧跟 charset（见文件头注释） -->
 <!-- CSP：本页不加载任何第三方脚本；script/style 需要 'unsafe-inline' 是因为部分脚本是内联的（单文件产物同样如此）。
-     connect-src 只放行自己的 Worker + api.github.com + 本地联调用的 127.0.0.1:5199，别的外联一律拒绝。
-     ⚠️ 换 Worker 地址时，这里和 auth-config.js 的 api 要一起改。
+     connect-src 放行：自己的 Worker（直连）、**Cloudflare Pages 中继**（部分网络把 *.workers.dev 整段黑洞，
+     账号/存档/榜单都得靠它，见 functions/[[path]].js）、api.github.com（Gist 云存档）+ 本地联调用的 127.0.0.1。
+     别的外联一律拒绝。
+     ⚠️ 换 Worker 地址时，这里、auth-config.js 的 api 与 relay 要一起改。
      （frame-ancestors 只能由 HTTP 响应头提供，写在 meta 里会被忽略，所以没写。） -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://api.github.com https://dsh-oauth-relay.bobby-minecraft.workers.dev http://127.0.0.1:5199; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev http://127.0.0.1:5199; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行 -->
 <script src="/i18n/i18n.js"></script>
