@@ -46,9 +46,73 @@
       emit: 0,          // 螺旋弹幕的发射节拍
       spin: 0,          // 环形弹幕的旋转相位
       shots: 0,         // 本次施放已经打了多少发
-      phaseName: ''
+      phaseName: '',
+
+      /* 护盾阶段（M-VS 加强）：血量跌破阈值 → 无敌 + 召唤一波，清完才破盾 */
+      shieldAt: (VS.Config.BOSS.SHIELD && VS.Config.BOSS.SHIELD.AT ? VS.Config.BOSS.SHIELD.AT.slice() : []),
+      shield: null,     // { need: 这一波还有几只没死 }
+      invuln: 0,        // > 0 时 Boss 免疫伤害
+      vulnBonus: 1,     // 虚弱期受伤倍率
+      laser: null,      // { ang, t, dir } 激光横扫状态
+      meteors: [],      // [{ x, y, t, dmg, radius }]
+      meteorTick: 0,
+      enraged: false
     };
     return boss.ai;
+  }
+
+  /* ---------------- 护盾 / 弱化窗口 ---------------- */
+
+  function checkShield(boss, ai, game) {
+    var cfgS = cfg().SHIELD;
+    if (!cfgS || !ai.shieldAt.length) return;
+    var frac = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
+    if (frac > ai.shieldAt[0]) return;
+
+    var idx = (cfgS.AT.length - ai.shieldAt.length);           // 第几档
+    ai.shieldAt.shift();
+    var wave = cfgS.WAVE[idx] || cfgS.WAVE[0];
+    ai.shield = { need: wave };
+    ai.invuln = 999;                                           // 破盾前一直免疫
+    ai.vulnBonus = 1;
+    ai.state = 'idle';
+    ai.cd = 0.6;
+    VS.Enemies.summonMinions(game.enemies, wave, game, boss.x, boss.y);
+    VS.Effects.burst(game.fx, boss.x, boss.y, '#9fd6ff', 40, { speed: 260, life: 0.8, size: 3.6 });
+    game.shake = Math.max(game.shake || 0, 10);
+    VS.Audio.play('over');
+  }
+
+  function updateShield(boss, ai, game) {
+    if (!ai.shield) return;
+    var alive = 0;
+    var list = game.enemies.list;
+    for (var i = 0; i < list.length; i++) { var e = list[i]; if (!e.dead && !e.boss) alive++; }
+    if (alive > 0) return;
+    /* 破盾：给一段虚弱期（受伤加成），这是玩家的输出窗口 */
+    var s = cfg().SHIELD;
+    ai.shield = null;
+    ai.invuln = 0;
+    ai.vulnBonus = s.VULN_BONUS || 1.3;
+    ai.weakT = s.IFRAME || 2.5;
+    ai.state = 'idle';
+    ai.cd = 0;
+    VS.Effects.explosion(game.fx, boss.x, boss.y, 2.6);
+    VS.Effects.burst(game.fx, boss.x, boss.y, '#ffd166', 34, { speed: 300, life: 0.9, size: 4 });
+    game.shake = Math.max(game.shake || 0, 12);
+  }
+
+  function updateEnrage(boss, ai, game) {
+    var e = cfg().ENRAGE;
+    if (!e || ai.enraged) return;
+    if (boss.maxHp > 0 && boss.hp / boss.maxHp <= e.AT) {
+      ai.enraged = true;
+      ai.cd = 0.4;
+      VS.Effects.burst(game.fx, boss.x, boss.y, '#ff5d5d', 46, { speed: 320, life: 1.0, size: 4.2 });
+      VS.Effects.explosion(game.fx, boss.x, boss.y, 3.0);
+      game.shake = Math.max(game.shake || 0, 16);
+      VS.Audio.play('over');
+    }
   }
 
   function pickMove(ai, phase) {
@@ -67,12 +131,13 @@
     var list = shotsOf(game);
     if (list.length >= cfg().SHOT_MAX) return false;
     var s = m.shots;
+    var mul = (boss.ai && boss.ai.enraged && cfg().ENRAGE) ? cfg().ENRAGE.SHOT_DMG_MUL : 1;
     list.push({
       x: boss.x + Math.cos(ang) * (boss.radius * 0.6),
       y: boss.y + Math.sin(ang) * (boss.radius * 0.6),
       vx: Math.cos(ang) * (speed || s.speed),
       vy: Math.sin(ang) * (speed || s.speed),
-      r: s.r, dmg: dmg || s.dmg, life: s.life, age: 0, tone: m.tone
+      r: s.r, dmg: (dmg || s.dmg) * mul, life: s.life, age: 0, tone: m.tone
     });
     return true;
   }
@@ -121,6 +186,78 @@
       VS.Audio.play('over');
       return;
     }
+
+    if (move === 'laser') {
+      /* 起始角度指向玩家，然后横扫 —— 玩家要判断扫向哪边再横向闪开 */
+      var la = Math.atan2(p.y - boss.y, p.x - boss.x);
+      ai.laser = { ang: la - (m.laser.sweep * (m.busy || 1)) / 2, t: m.busy || 1.3, dir: 1, tick: 0 };
+      VS.Audio.play('over');
+      return;
+    }
+
+    if (move === 'meteor') {
+      ai.meteorTick = 0;
+      ai.meteorLeft = m.meteor.count;
+      VS.Audio.play('hit');
+      return;
+    }
+  }
+
+  /* 激光横扫：一条从 Boss 出发的长射线，边扫边判定；宽度 26px，逼玩家横向走位 */
+  function updateLaser(boss, ai, game, dt) {
+    var l = ai.laser;
+    if (!l) return;
+    var m = cfg().MOVES.laser;
+    l.t -= dt;
+    l.ang += (m.laser.sweep || 2) * dt * l.dir;
+    l.tick -= dt;
+
+    var p = game.player;
+    if (p.alive && l.tick <= 0) {
+      var ux = Math.cos(l.ang), uy = Math.sin(l.ang);
+      var dx = p.x - boss.x, dy = p.y - boss.y;
+      var proj = dx * ux + dy * uy;
+      if (proj > 0 && proj < (m.laser.len || 520)) {
+        var cx = boss.x + ux * proj, cy = boss.y + uy * proj;
+        var dist = Math.hypot(p.x - cx, p.y - cy);
+        if (dist <= (m.laser.width || 26) / 2 + p.radius) {
+          l.tick = 0.25;                                   // 同一条激光里的连续伤害节流
+          VS.Player.takeDamage(p, (m.laser.dmg || 30) * (ai.enraged ? cfg().ENRAGE.SHOT_DMG_MUL : 1), game, cx, cy);
+        }
+      }
+    }
+
+    if (l.t <= 0) ai.laser = null;
+  }
+
+  /* 落石：按节拍在玩家当前位置留标记，延迟后炸开 —— 站桩输出就会被连着炸 */
+  function updateMeteors(boss, ai, game, dt) {
+    var m = cfg().MOVES.meteor;
+    if (ai.meteorLeft > 0) {
+      ai.meteorTick -= dt;
+      if (ai.meteorTick <= 0) {
+        ai.meteorTick = m.meteor.every;
+        ai.meteorLeft--;
+        var p = game.player;
+        /* 稍微预判一点（按玩家当前速度向前 0.35 秒），逼玩家变向 */
+        var lead = 0.35;
+        var tx = p.x + (p.facing.x * p.speed * (p.moving ? lead : 0));
+        var ty = p.y + (p.facing.y * p.speed * (p.moving ? lead : 0));
+        ai.meteors.push({ x: tx, y: ty, t: m.meteor.delay, radius: m.meteor.radius, dmg: m.meteor.dmg });
+      }
+    }
+    for (var i = ai.meteors.length - 1; i >= 0; i--) {
+      var mt = ai.meteors[i];
+      mt.t -= dt;
+      if (mt.t > 0) continue;
+      var pl = game.player;
+      if (pl.alive && Math.hypot(pl.x - mt.x, pl.y - mt.y) <= mt.radius) {
+        VS.Player.takeDamage(pl, mt.dmg, game, mt.x, mt.y);
+      }
+      VS.Effects.burst(game.fx, mt.x, mt.y, m.tone, 18, { speed: 220, life: 0.5, size: 3.4 });
+      game.shake = Math.max(game.shake || 0, 4);
+      ai.meteors.splice(i, 1);
+    }
   }
 
   function fireSpiral(boss, ai, game, m, dt) {
@@ -137,6 +274,15 @@
   function step(boss, dt, game) {
     var ai = init(boss);
     var p = game.player;
+    var B = cfg();
+
+    /* 加强版 Boss 的三件事每帧都要看：狂暴 / 护盾触发 / 护盾是否被打破 */
+    updateEnrage(boss, ai, game);
+    checkShield(boss, ai, game);
+    updateShield(boss, ai, game);
+    if (ai.weakT > 0) { ai.weakT -= dt; if (ai.weakT <= 0) ai.vulnBonus = 1; }
+    if (ai.laser) updateLaser(boss, ai, game, dt);
+    updateMeteors(boss, ai, game, dt);
 
     var idx = phaseIndex(boss);
     if (idx !== ai.phaseIdx) {
@@ -149,13 +295,24 @@
       game.shake = Math.max(game.shake || 0, 6);
     }
     var ph = ai.phase;
+    var enr = ai.enraged ? (B.ENRAGE || { CD_MUL: 1, SPEED_MUL: 1 }) : { CD_MUL: 1, SPEED_MUL: 1 };
+
+    /* 护盾期：不放招，只慢慢追过来（玩家该去清小怪，而不是站在原地挨打） */
+    if (ai.shield) {
+      var sx = p.x - boss.x, sy = p.y - boss.y;
+      var sd = Math.sqrt(sx * sx + sy * sy) || 1;
+      boss.x += (sx / sd) * boss.speed * 0.7 * dt;
+      boss.y += (sy / sd) * boss.speed * 0.7 * dt;
+      return;
+    }
 
     if (ai.state === 'idle') {
-      /* 追人（速度按档位加成） */
+      /* 追人（速度按档位 × 狂暴加成） */
       var dx = p.x - boss.x, dy = p.y - boss.y;
       var d = Math.sqrt(dx * dx + dy * dy) || 1;
-      boss.x += (dx / d) * boss.speed * ph.speedMul * dt;
-      boss.y += (dy / d) * boss.speed * ph.speedMul * dt;
+      var sp = boss.speed * ph.speedMul * enr.SPEED_MUL;
+      boss.x += (dx / d) * sp * dt;
+      boss.y += (dy / d) * sp * dt;
 
       ai.cd -= dt;
       if (ai.cd <= 0) {
@@ -189,7 +346,7 @@
     }
     if (ai.t <= 0) {
       ai.state = 'idle';
-      ai.cd = cfg().MOVES[ai.move].cd * ph.cdMul;
+      ai.cd = cfg().MOVES[ai.move].cd * ph.cdMul * enr.CD_MUL;
     }
   }
 
@@ -224,13 +381,16 @@
     }
   }
 
-  /** 送给探针/调试用：一眼看清现在什么状态、什么招式、几发弹幕 */
+  /** 送给探针/调试用：一眼看清现在什么状态、什么招式、几发弹幕、护盾/狂暴 */
   function debug(boss, game) {
     var ai = boss && boss.ai;
     return {
       state: ai ? ai.state : 'none', move: ai ? ai.move : '',
       phase: ai ? ai.phaseName : '', shots: shotsOf(game).length,
-      minions: game.enemies.list.filter(function (e) { return !e.dead && !e.boss; }).length
+      minions: game.enemies.list.filter(function (e) { return !e.dead && !e.boss; }).length,
+      shield: !!(ai && ai.shield), invuln: ai ? ai.invuln : 0, vulnBonus: ai ? ai.vulnBonus : 1,
+      enraged: !!(ai && ai.enraged), laser: !!(ai && ai.laser), meteors: ai ? ai.meteors.length : 0,
+      hpFrac: boss && boss.maxHp ? +(boss.hp / boss.maxHp).toFixed(3) : 0
     };
   }
 

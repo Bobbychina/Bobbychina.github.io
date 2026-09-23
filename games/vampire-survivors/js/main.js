@@ -91,6 +91,7 @@
       onPause: function () { VS.Game.togglePause(game); },
       onMute: toggleMute,
       onChoice: function (index) { VS.Game.choose(game, index); },
+      onDash: function () { VS.Player.dash(game.player, VS.Input.axis(), game); },
       onConfirm: function () {
         if (!assetsReady) return;
         if (game.state === VS.Game.STATE.MENU || game.state === VS.Game.STATE.GAMEOVER) {

@@ -2,3 +2,5 @@
 .probe/
 node_modules/
 _*.log
+# 站长在本机部署 Worker 时的 wrangler 本地状态（含账号信息，绝不入库）
+.wrangler/

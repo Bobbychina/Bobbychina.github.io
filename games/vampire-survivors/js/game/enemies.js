@@ -446,6 +446,20 @@
     hurt: function (game, e, amount, crit, kx, ky) {
       if (e.dead) return;
 
+      /* Boss 的护盾阶段：无敌（必须清掉它召唤的那一波才破盾）—— 这就是"配队思路"的落点：
+         纯单体构筑会在这一阶段干瞪眼，纯 AoE 构筑又清得慢、Boss 打得久。
+         虚弱期反过来给伤害加成，让"会打断"的玩家有正反馈。 */
+      if (e.boss && e.ai) {
+        if (e.ai.invuln > 0) {
+          if (game.textBudget > 0) {
+            game.textBudget--;
+            VS.Effects.text(game.fx, e.x, e.y - e.radius, '免疫', '#9fd6ff', { crit: false });
+          }
+          return 0;
+        }
+        if (e.ai.vulnBonus > 1) amount *= e.ai.vulnBonus;
+      }
+
       e.hp -= amount;
       e.hitFlash = 0.12;
       game.player.damageDealt += amount;

@@ -444,25 +444,94 @@
       return lit;
     },
 
-    /** Boss 前摇光环：招式颜色 + 由内向外扩散的圈（看到就知道要躲哪一招） */
+    /** Boss 前摇光环 + 护盾/狂暴状态 + 激光与落石（都是低成本绘制：线、圈、贴图） */
     drawBossTelegraph: function (ctx, game) {
       var boss = game.enemies && game.enemies.boss;
-      if (!boss || boss.dead || !boss.ai || boss.ai.state !== 'telegraph') return;
-      var m = VS.Config.BOSS.MOVES[boss.ai.move];
-      if (!m) return;
-      var full = m.telegraph || 0.8;
-      var k = 1 - (Math.max(0, boss.ai.t) / full);        // 0 → 1 走完前摇
-      var rad = boss.radius + 26 + k * 78;
+      if (!boss || boss.dead || !boss.ai) return;
+      var ai = boss.ai;
+
+      /* 落石预警：地上的红圈（延迟爆炸），玩家要走出去 */
+      if (ai.meteors && ai.meteors.length) {
+        var m = VS.Config.BOSS.MOVES.meteor;
+        for (var mi = 0; mi < ai.meteors.length; mi++) {
+          var mt = ai.meteors[mi];
+          var k = 1 - Math.max(0, mt.t) / (m.meteor.delay || 1);
+          ctx.save();
+          ctx.globalAlpha = 0.22 + 0.35 * k;
+          ctx.fillStyle = m.tone;
+          ctx.beginPath();
+          ctx.arc(mt.x, mt.y, mt.radius, 0, U.TAU);
+          ctx.fill();
+          ctx.globalAlpha = 0.75;
+          ctx.strokeStyle = m.tone;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(mt.x, mt.y, mt.radius * (0.35 + 0.65 * k), 0, U.TAU);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      /* 激光：从 Boss 出发的长射线（两端渐隐靠两段线宽模拟，别用渐变省性能） */
+      if (ai.laser) {
+        var lm = VS.Config.BOSS.MOVES.laser.laser;
+        var ux = Math.cos(ai.laser.ang), uy = Math.sin(ai.laser.ang);
+        var x1 = boss.x + ux * lm.len, y1 = boss.y + uy * lm.len;
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = VS.Config.BOSS.MOVES.laser.tone;
+        ctx.lineWidth = lm.width;
+        ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = Math.max(2, lm.width * 0.22);
+        ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.lineTo(x1, y1); ctx.stroke();
+        ctx.restore();
+      }
+
+      /* 护盾：一圈蓝色脉动环 + 狂暴时整圈红 */
+      if (ai.shield) {
+        var pulse = 0.55 + 0.45 * Math.abs(Math.sin(game.animTime * 4));
+        ctx.save();
+        ctx.globalAlpha = 0.35 + 0.4 * pulse;
+        ctx.strokeStyle = '#9fd6ff';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(boss.x, boss.y, boss.radius + 12, 0, U.TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = '#9fd6ff';
+        ctx.beginPath();
+        ctx.arc(boss.x, boss.y, boss.radius + 12, 0, U.TAU);
+        ctx.fill();
+        ctx.restore();
+      } else if (ai.enraged) {
+        ctx.save();
+        ctx.globalAlpha = 0.30 + 0.20 * Math.abs(Math.sin(game.animTime * 6));
+        ctx.strokeStyle = '#ff5d5d';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(boss.x, boss.y, boss.radius + 8, 0, U.TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (ai.state !== 'telegraph') return;
+      var m2 = VS.Config.BOSS.MOVES[ai.move];
+      if (!m2) return;
+      var full = m2.telegraph || 0.8;
+      var k2 = 1 - (Math.max(0, ai.t) / full);           // 0 → 1 走完前摇
+      var rad = boss.radius + 26 + k2 * 78;
 
       ctx.save();
-      ctx.globalAlpha = 0.20 + 0.35 * k;
-      ctx.strokeStyle = m.tone;
+      ctx.globalAlpha = 0.20 + 0.35 * k2;
+      ctx.strokeStyle = m2.tone;
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(boss.x, boss.y, rad, 0, U.TAU);
       ctx.stroke();
 
-      ctx.globalAlpha = 0.28 + 0.5 * k;
+      ctx.globalAlpha = 0.28 + 0.5 * k2;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(boss.x, boss.y, boss.radius + 8, 0, U.TAU);

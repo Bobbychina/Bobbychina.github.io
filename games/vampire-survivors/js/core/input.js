@@ -77,6 +77,14 @@
       if (handlers.onChoice) handlers.onChoice(parseInt(k, 10) - 1);
       return;
     }
+    if (k === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      /* 闪避（手法来源）：按一次触发一次，按住不会连发 —— 由 keys 标记 + 松开清掉 */
+      if (!keys.__dashHeld) {
+        keys.__dashHeld = true;
+        if (handlers.onDash) handlers.onDash();
+      }
+      return;
+    }
     if (k === ' ' || k === 'Enter' || k === 'Spacebar') {
       if (handlers.onConfirm) handlers.onConfirm();
       return;
@@ -90,6 +98,7 @@
     if (!k) return;
     keys[k] = false;
     if (e.code) keys[e.code] = false;
+    if (k === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.__dashHeld = false;
     recomputeAxis();
   }
 

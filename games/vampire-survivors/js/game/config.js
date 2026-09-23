@@ -36,7 +36,11 @@
                              // 不然 100 血配 12~15 点接触伤害只有 5 秒活路（测量台实测：被围住必死）
     KNOCKBACK: 130,          // 被撞时的击退初速
     PUSH_DAMP: 7,            // 击退衰减速率
-    START_WEAPON: 'bolt'
+    START_WEAPON: 'bolt',
+
+    /* 闪避（Shift）：Boss 加强后的"手法"入口 —— 弹幕/激光/冲撞都能靠它躲掉，
+       无敌帧 0.28 秒比冲刺时长略长，这样"卡着时机闪"才有意义。 */
+    DASH: { SPEED: 900, TIME: 0.16, CD: 1.5, IFRAME: 0.30 }
   };
 
   /* ---------------- 经验与升级 ---------------- */
@@ -108,9 +112,15 @@
     },
     /* Boss：由 C.BOSS 定时单独投放，不参与常规抽取
        （minTime=Infinity 保证 pickType 永远不会选到它） */
+    /* Boss 本体（加强版）：血量 3200 → 6000（**这是基础值**，实际还要乘难度曲线 HP_CURVE：
+       5:00 首次登场时 ×2.45 ≈ 14700）。速度略降、撞击更疼 —— 打得久才谈得上"手法"。
+       血量口径是量出来的，不是拍的：机器人中期构筑（bolt Lv5 + 光环 Lv4）对 Boss 实测 ≈196~203 DPS，
+       14700 血 → TTK 75 秒（探针 ⑩ 的窗口是 20~95 秒）；9600 基础值那版实测要打 116 秒，
+       而 120 血的角色在弹幕里活不到那么久，等于"打不动"。后续 Boss 再乘 HP_GROWTH 1.45。
+       它的伤害减免由 shield 阶段与虚弱期共同决定（见 bosskit） */
     boss: {
       id: 'boss', name: '尸潮之王',
-      hp: 3200, speed: 42, radius: 44, damage: 42, xp: 320,
+      hp: 6000, speed: 46, radius: 46, damage: 52, xp: 620,
       color: '#5f9e57', edge: '#d6ffc9', shape: 'blob',
       minTime: Infinity, weight: 0, boss: true
     }
@@ -225,20 +235,35 @@
          压制（100%~66%）：环形弹幕 + 扇形瞄准弹
          召唤（66%~33%）：多一招招小弟（场上有上限，不会无限堆）
          暴怒（33%~0%）  ：再解锁螺旋弹幕与冲撞，出手更快、冷却更短 */
-    SHOT_MAX: 260,        // 场上敌方弹幕上限（到顶就不再发射，保性能）
-    MINION_MAX: 14,       // Boss 小弟的同时存在上限
+    SHOT_MAX: 320,        // 场上敌方弹幕上限（到顶就不再发射，保性能）
+    MINION_MAX: 24,       // Boss 小弟的同时存在上限（打 Boss 时常规刷怪是停的，多放点才够压力）
+    /* 护盾阶段（"配队思路"的核心）：血量跌破阈值时 Boss 无敌 + 召唤一波小弟，
+       必须把这一波清掉才破盾、才能继续输出 —— 逼玩家在"清小怪"和"打 Boss"之间做取舍，
+       也顺手惩罚纯单体 / 纯 AoE 的极端构筑。 */
+    SHIELD: {
+      AT: [0.62, 0.30],   // 这两档血量触发（按 maxHp 比例，从高到低只触发一次）
+      WAVE: [8, 10],      // 每档召唤几只
+      IFRAME: 2.5,        // 破盾后 Boss 会有一段"虚弱期"（其实是给玩家的输出窗口）
+      VULN_BONUS: 1.35    // 虚弱期受伤倍率（打得好 → 收益大）
+    },
+    ENRAGE: { AT: 0.18, CD_MUL: 0.55, SPEED_MUL: 1.35, SHOT_DMG_MUL: 1.25 },
     PHASES: [
-      { at: 1.00, name: '压制', speedMul: 1.00, cdMul: 1.00, pool: ['ring', 'spread'] },
-      { at: 0.66, name: '召唤', speedMul: 1.06, cdMul: 0.88, pool: ['ring', 'spread', 'summon'] },
-      { at: 0.33, name: '暴怒', speedMul: 1.20, cdMul: 0.70, pool: ['ring', 'spread', 'spiral', 'summon', 'charge'] }
+      { at: 1.00, name: '压制', speedMul: 1.00, cdMul: 1.00, pool: ['ring', 'spread', 'meteor'] },
+      { at: 0.70, name: '召唤', speedMul: 1.06, cdMul: 0.88, pool: ['ring', 'spread', 'summon', 'meteor', 'laser'] },
+      { at: 0.45, name: '暴怒', speedMul: 1.18, cdMul: 0.72, pool: ['ring', 'spread', 'spiral', 'summon', 'charge', 'laser', 'meteor'] },
+      { at: 0.20, name: '狂暴', speedMul: 1.30, cdMul: 0.55, pool: ['spiral', 'ring', 'charge', 'laser', 'meteor', 'summon'] }
     ],
     /* 每招：前摇 telegraph → 施放（busy 为施放时长）→ 冷却 cd（乘当前档的 cdMul） */
     MOVES: {
-      ring:   { tone: '#7ee787', telegraph: 0.85, busy: 0.35, cd: 4.6, shots: { n: 18, speed: 132, r: 7, dmg: 12, life: 5.0, spin: 0.22 } },
-      spread: { tone: '#ffd166', telegraph: 0.70, busy: 0.30, cd: 5.4, shots: { n: 5, arc: 0.62, speed: 176, r: 6, dmg: 14, life: 4.2 } },
-      spiral: { tone: '#b58cff', telegraph: 0.80, busy: 2.40, cd: 7.4, shots: { every: 0.11, speed: 122, r: 6, dmg: 11, life: 4.0, turn: 2.35 } },
-      summon: { tone: '#ff9a6c', telegraph: 1.00, busy: 0.55, cd: 10.5, minions: 6 },
-      charge: { tone: '#ff6b6b', telegraph: 0.90, busy: 1.05, cd: 8.2, speed: 340, dmg: 34 }
+      ring:   { tone: '#7ee787', telegraph: 0.85, busy: 0.35, cd: 4.6, shots: { n: 22, speed: 148, r: 7, dmg: 18, life: 5.0, spin: 0.22 } },
+      spread: { tone: '#ffd166', telegraph: 0.70, busy: 0.30, cd: 5.4, shots: { n: 7, arc: 0.72, speed: 196, r: 6, dmg: 21, life: 4.2 } },
+      spiral: { tone: '#b58cff', telegraph: 0.80, busy: 2.60, cd: 7.0, shots: { every: 0.095, speed: 140, r: 6, dmg: 17, life: 4.0, turn: 2.35 } },
+      summon: { tone: '#ff9a6c', telegraph: 1.00, busy: 0.55, cd: 10.0, minions: 10 },
+      charge: { tone: '#ff6b6b', telegraph: 0.90, busy: 1.05, cd: 7.6, speed: 380, dmg: 48 },
+      /* 激光横扫：一条长射线从一侧扫到另一侧 —— 必须判断扫过来的方向、横向闪开（手法招） */
+      laser:  { tone: '#ff5d5d', telegraph: 1.05, busy: 1.35, cd: 8.6, laser: { len: 520, width: 26, dmg: 30, sweep: 2.2 } },
+      /* 落石：在你脚下连续标记几处，延迟后炸开 —— 逼你一直动，别站桩输出 */
+      meteor: { tone: '#ffa94d', telegraph: 0.55, busy: 2.10, cd: 7.4, meteor: { count: 6, every: 0.28, delay: 0.95, radius: 68, dmg: 26 } }
     }
   };
 
@@ -295,11 +320,13 @@
       id: 'garlic', name: '腐化光环', icon: '◉', color: '#9ae66e',
       desc: '身周持续散发腐化区域，周期性伤害范围内的所有敌人。',
       maxLevel: 8,
+      /* 平衡（2026-09-23，测量台数据）：这是最典型的"轮椅" —— 满级 89.7 dps 覆盖半径 134 的整片区域、
+         不用瞄准、没有空窗期。砍法：伤害 -28%、半径 -15%、节拍放慢（满级 ≈52 dps）。 */
       stats: function (lv) {
         return {
-          radius: 64 + 10 * (lv - 1),
-          damage: 6 + 3.5 * (lv - 1),
-          tick: Math.max(0.22, 0.55 - 0.03 * (lv - 1))
+          radius: 58 + 8 * (lv - 1),
+          damage: 5 + 2.4 * (lv - 1),
+          tick: Math.max(0.26, 0.62 - 0.028 * (lv - 1))
         };
       },
       describe: function (lv) {
@@ -312,14 +339,16 @@
       id: 'orbit', name: '环绕骨刃', icon: '✜', color: '#ffd166',
       desc: '若干骨刃环绕身周旋转，碰到敌人即造成伤害。',
       maxLevel: 8,
+      /* 平衡（2026-09-23）：另一件"轮椅" —— 满级 6 把刃、每 0.4 秒就能对同一个敌人再砍一刀（≈101 dps 常驻）。
+         砍法：刃数 6→4、单次伤害 -28%、同一敌人的再命中间隔 0.4→0.55 秒（满级 ≈53 dps）。 */
       stats: function (lv) {
         return {
-          count: 2 + Math.floor(lv / 2),
-          radius: 76 + 8 * (lv - 1),
-          damage: 9 + 4.5 * (lv - 1),
+          count: 2 + Math.floor(lv / 3),
+          radius: 70 + 6 * (lv - 1),
+          damage: 8 + 3.0 * (lv - 1),
           spin: 2.1 + 0.13 * (lv - 1),
           bladeRadius: 13,
-          hitCooldown: 0.40
+          hitCooldown: 0.55
         };
       },
       describe: function (lv) {
@@ -332,11 +361,12 @@
       id: 'nova', name: '血爆新星', icon: '❂', color: '#ff6b6b',
       desc: '周期性以自身为中心引爆冲击波，扫过范围内的所有敌人。',
       maxLevel: 8,
+      /* 平衡（2026-09-23）：半径 323 的整圈扫、48 dps，配合"站桩"太舒服 —— 伤害 -20%、间隔 +30%。 */
       stats: function (lv) {
         return {
-          cooldown: Math.max(1.4, 3.6 - 0.30 * (lv - 1)),
-          damage: 16 + 8 * (lv - 1),
-          maxRadius: 155 + 24 * (lv - 1),
+          cooldown: Math.max(1.9, 3.9 - 0.27 * (lv - 1)),
+          damage: 15 + 6 * (lv - 1),
+          maxRadius: 150 + 22 * (lv - 1),
           expandSpeed: 430
         };
       },

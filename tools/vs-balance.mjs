@@ -173,7 +173,7 @@ while (Date.now() - t0 < cap * 1000) {
   if (st) {
     rows.push(st)
     const hpPct = st.maxHp ? Math.round(st.hp / st.maxHp * 100) : 0
-    console.log(`t=${String(st.t).padStart(6)}s  hp=${String(hpPct).padStart(3)}%  Lv.${String(st.lv).padStart(2)}  击杀 ${String(st.kills).padStart(4)}  怪 ${String(st.enemies).padStart(4)}  弹幕 ${String(st.shots).padStart(3)}${st.boss ? `  BOSS ${Math.round(st.boss.hp / st.boss.maxHp * 100)}% ${st.boss.state}/${st.boss.move}` : ''}`)
+    console.log(`t=${String(st.t).padStart(6)}s ${st.state}  hp=${String(hpPct).padStart(3)}%  Lv.${String(st.lv).padStart(2)}  击杀 ${String(st.kills).padStart(4)}  怪 ${String(st.enemies).padStart(4)}  弹幕 ${String(st.shots).padStart(3)}${st.boss ? `  BOSS ${Math.round(st.boss.hp / st.boss.maxHp * 100)}% ${st.boss.state}/${st.boss.move}` : ''}`)
     if (st.state === 'gameover') { died = st; break }
   }
   await sleep(2000)

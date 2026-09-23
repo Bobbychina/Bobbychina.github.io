@@ -60,21 +60,60 @@
         critChance: 0,
 
         upgrades: {},           // 增益 id -> 已叠加层数
-        weapons: []             // [{ id, level, cd }]
+        weapons: [],            // [{ id, level, cd }]
+
+        dashT: 0,               // 闪避剩余时长
+        dashCd: 0,              // 闪避冷却
+        dashX: 0,               // 闪避方向（单位向量）
+        dashY: 0
       };
+    },
+
+    /**
+     * 闪避（Shift）：朝当前移动方向冲一段，期间无敌。
+     * 没在移动就朝面朝方向冲 —— 手感上"不动就往后撤"容易误触，所以定为面朝方向。
+     * @returns {boolean} 是否真的冲出去了（冷却中返回 false）
+     */
+    dash: function (p, axis, game) {
+      if (!p || !p.alive || p.dashCd > 0 || p.dashT > 0) return false;
+      var dx = axis ? axis.x : 0, dy = axis ? axis.y : 0;
+      if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) { dx = p.facing.x; dy = p.facing.y; }
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      p.dashX = dx / len;
+      p.dashY = dy / len;
+      p.facing.x = p.dashX;
+      p.facing.y = p.dashY;
+      p.dashT = C.PLAYER.DASH.TIME;
+      p.dashCd = C.PLAYER.DASH.CD;
+      /* 无敌帧比位移略长：按得准就能"穿"过弹幕和冲撞 */
+      p.invuln = Math.max(p.invuln, C.PLAYER.DASH.IFRAME);
+      if (game) {
+        VS.Audio.play('hit');
+        VS.Effects.burst(game.fx, p.x, p.y, '#7ee0ff', 12, { speed: 190, life: 0.32, size: 2.8 });
+      }
+      return true;
     },
 
     /** 每帧更新；axis 由输入模块提供 */
     update: function (p, dt, world, axis) {
       if (!p.alive) return;
 
+      /* --- 闪避位移（优先于普通移动；无敌帧从按下那一刻算） --- */
+      if (p.dashT > 0) {
+        p.dashT = Math.max(0, p.dashT - dt);
+        p.x += p.dashX * C.PLAYER.DASH.SPEED * dt;
+        p.y += p.dashY * C.PLAYER.DASH.SPEED * dt;
+        p.moving = true;
+      }
+      if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
+
       /* --- 操作移动 --- */
       var ax = axis ? axis.x : 0;
       var ay = axis ? axis.y : 0;
 
-      p.moving = (ax !== 0 || ay !== 0);
+      if (p.dashT <= 0) p.moving = (ax !== 0 || ay !== 0);
 
-      if (p.moving) {
+      if (p.dashT <= 0 && p.moving) {
         p.x += ax * p.speed * dt;
         p.y += ay * p.speed * dt;
 
