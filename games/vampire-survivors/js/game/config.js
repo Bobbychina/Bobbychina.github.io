@@ -126,6 +126,10 @@
     BATCH_GROWTH: 0.012,      // 每只怪的数量增长：1 + floor(t * BATCH_GROWTH)（原来 0.021）
     MAX_BATCH: 11,            // 原来 15
     MAX_ENEMIES: 520,         // 场上怪物硬上限（性能保护）
+    /* 人潮刹车：场上怪 ≥ CROWD_AT 时刷怪间隔 × CROWD_MUL（怪掉回去就恢复）。
+       测量台数据：弱构筑的最差一局 180 秒就顶满 520、之后只能被磨死；有这道闸至少能撑住不再滚雪球。 */
+    CROWD_AT: 380,
+    CROWD_MUL: 2.4,
     RING_MARGIN: 110,         // 在屏幕外多远处生成
     RING_MIN_FACTOR: 0.75,    // 生成环最小半径系数（相对屏幕对角线的一半）
 

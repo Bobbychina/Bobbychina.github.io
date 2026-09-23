@@ -183,10 +183,17 @@
     var spawnMul = VS.Phases.spawnMul(t);
     var batchMul = VS.Phases.batchMul(t);
 
+    /* 人潮刹车（平衡安全网，2026-09-23 测量台数据）：
+       弱构筑时"刷得比打得快"会滚成雪崩 —— 实测最差的一局 180 秒就顶到 520 硬上限、
+       之后只能被磨死。场上怪超过 CROWD_AT 之后把刷怪间隔乘 CROWD_MUL，给玩家一个喘息的窗口；
+       怪掉回阈值以下立刻恢复正常节奏（不是永久削弱）。 */
+    var crowdBrake = 1;
+    if (state.list.length >= C.SPAWN.CROWD_AT) crowdBrake = C.SPAWN.CROWD_MUL;
+
     var interval = Math.max(
       C.SPAWN.MIN_INTERVAL,
       (C.SPAWN.START_INTERVAL - t * C.SPAWN.INTERVAL_DECAY) * spawnMul
-    );
+    ) * crowdBrake;
     state.spawnAcc += dt;
 
     var batch = Math.min(
