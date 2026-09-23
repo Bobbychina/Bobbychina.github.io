@@ -1,4 +1,4 @@
-// 「尸潮之王」加强版取证：三档血量 + 护盾阶段 + 七招（含激光/落石/冲撞）+ 狂暴 + 玩家闪避 + 性能
+﻿// 「尸潮之王」加强版取证：三档血量 + 护盾阶段 + 七招（含激光/落石/冲撞）+ 狂暴 + 玩家闪避 + 性能
 // 用法：node tools/vs-boss-probe.mjs <cdpPort> <url> <outDir>
 const [, , cdpPort, url, outDir] = process.argv
 const fs = await import('node:fs/promises')
@@ -36,7 +36,10 @@ for (let i = 0; i < 150; i++) { if (String(await ev(`document.readyState`)) === 
 
 /* 游戏逻辑跑在 requestAnimationFrame 里：标签页被别的页面挡住 / 不在前台时 rAF 会被节流甚至停摆，
    探头就会看到"前摇计时器不走""弹幕画了 0 个"这类假红（线上连跑时真踩到过 ③④ 两条）。
-   所以开场先把自己推到前台，并且所有跟帧相关的断言都先等帧真的在动。 */
+   而且**被节流的帧率会直接压低 DPS**（实测同一套构筑：前台 ~195、被节流 ~136 → TTK 从 68 秒虚增到 98 秒），
+   所以除了推到前台，还要打开 CDP 的焦点模拟（setFocusEmulationEnabled），让 rAF 按满速跑。
+   任何"按秒计"的测量（TTK / DPS）在探针里都必须先确认这一条。 */
+await send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => undefined)
 await send('Page.bringToFront').catch(() => undefined)
 const waitFrames = async (n = 3, tries = 40) => {
   await ev(`(() => { window.__f = 0; const t = () => { window.__f++; requestAnimationFrame(t) }; requestAnimationFrame(t); return 1 })()`)
@@ -67,7 +70,7 @@ const setup = await j(`(() => {
   const boss = VS.Enemies.spawnBoss(g.enemies, g)
   return JSON.stringify({ has: !!boss, hp: Math.round(boss.hp), static: VS.Config.ENEMY_TYPES.boss.hp })
 })()`)
-ok('① 投放「尸潮之王」（基础血量 5400 × 难度曲线，5:00 实到 ≈13230）', setup.has === true && setup.hp > 5400 && setup.static === 5400, JSON.stringify(setup))
+ok('① 投放「尸潮之王」（基础血量 4000 × 难度曲线，5:00 实到 ≈9800）', setup.has === true && setup.hp > 4000 && setup.static === 4000, JSON.stringify(setup))
 
 /* 通用工具：把 Boss 拉回"干净"状态（清护盾、满血、暂停出招），每个用例互不污染 */
 const RESET = `(() => {
@@ -257,6 +260,12 @@ const ttk = JSON.parse(String(await ev(`(async () => {
   b.ai.shieldAt = VS.Config.BOSS.SHIELD.AT.slice()
   g.bossShots = []
   p.weapons = []; p.upgrades = {}; p.damageMul = 1; p.attackSpeedMul = 1
+  /* 卡片的乘区会跨局残留：只重置伤害/攻速两项的话，god 模式自动选到的
+     projBonus / critChance / areaMul / luck 会一代代累加 —— 同一套"中期构筑"实测差到
+     160 vs 337 DPS（差一倍），TTK 就成了噪声。这里把 6 个乘区一次性打回初始值，
+     量的才是"bolt Lv5 + 光环 Lv4"这一套本身。 */
+  p.areaMul = 1; p.projBonus = 0; p.luck = 1; p.critChance = 0
+  p.regen = VS.Config.PLAYER.REGEN
   VS.Weapons.add(p, 'bolt'); VS.Weapons.add(p, 'garlic')
   for (let i = 0; i < 4; i++) VS.Weapons.upgrade(p, 'bolt')
   for (let i = 0; i < 3; i++) VS.Weapons.upgrade(p, 'garlic')
@@ -275,7 +284,12 @@ const ttk = JSON.parse(String(await ev(`(async () => {
     return r
   }
   const t0 = performance.now()
-  let tick = 0, distSum = 0
+  /* 顺手数一下这段的帧率：TTK 是"按秒"的量，帧率被节流的话 DPS 会虚低（探针自己要能看出来） */
+  window.__ttkF = 0
+  const ft = () => { window.__ttkF++; requestAnimationFrame(ft) }
+  requestAnimationFrame(ft)
+  let tick = 0, distSum = 0, aliveTicks = 0, died = false
+  const marks = []
   while (!b.dead && (performance.now() - t0) < 120000) {
     await new Promise((r) => setTimeout(r, 500))
     if (b.ai.invuln > 0) { invulnTicks++; if (!shieldSeen) { shieldSeen = true; shieldWaves++ } }
@@ -287,20 +301,35 @@ const ttk = JSON.parse(String(await ev(`(async () => {
     const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy)
     distSum += d
     if (d > 240) { const k = Math.min(60, d - 240) / d; p.x += dx * k; p.y += dy * k }
-    if (++tick % 20 === 0) p.hp = p.maxHp
+    /* 死掉的玩家不再输出（游戏会进结算态）—— 那之后的秒数不算进 DPS，否则"打不动"和"人先死了"
+       会混成一个数字（9600 那版第一测就是这么误判的）。 */
+    if (p.hp > 0 && g.state !== 'over') aliveTicks++; else died = true
+    if (++tick % 10 === 0) p.hp = p.maxHp;                 // 每 5 秒兜一次血：模拟"会躲会包扎"的玩家
+    /* 打 Boss 期间**冻结升级**：god 模式的自动选卡每升一级都白送一张（实测 60 秒后 DPS 从
+       120 跳到 200+），不冻住的话量的是"随机抽到什么卡"而不是这套构筑。 */
+    p.xp = 0; g.pendingLevels = 0
+    /* 每 10 秒记一笔累计伤害：DPS 在整场里到底是不是恒定的（不是就得看是谁在变） */
+    if (tick % 20 === 0) marks.push([tick / 2, Math.round(bossDmg), Math.round(b.hp / b.maxHp * 100)])
   }
   const secs = (performance.now() - t0) / 1000
+  const aliveSecs = Math.max(0.5, aliveTicks * 0.5)
   VS.Player.takeDamage = orig
   VS.Enemies.hurt = hurtOrig
   const bossMax = Math.round(b.maxHp)
-  return JSON.stringify({ killed: !!b.dead, secs: +secs.toFixed(1), hits, dmg,
-    bossDmg: Math.round(bossDmg), dps: Math.round(bossDmg / secs), bossMax, avgDist: Math.round(distSum / Math.max(1, tick)),
+  return JSON.stringify({ killed: !!b.dead, secs: +secs.toFixed(1), aliveSecs: +aliveSecs.toFixed(1), died,
+    hits, dmg,
+    bossDmg: Math.round(bossDmg), dps: Math.round(bossDmg / secs), dpsAlive: Math.round(bossDmg / aliveSecs),
+    bossMax, avgDist: Math.round(distSum / Math.max(1, tick)),
+    ttkFps: +(window.__ttkF / secs).toFixed(1),
     bossHpLeftPct: Math.round(b.hp / b.maxHp * 100), shieldWaves,
+    marks,
     invulnPct: Math.round(invulnTicks / tick * 100), hpLeftPct: Math.round(p.hp / p.maxHp * 100),
     cfgHp: VS.Config.ENEMY_TYPES.boss.hp })
 })()`, 150000)))
-ok('⑩ 中期构筑（bolt Lv5 + 光环 Lv4）打得死：TTK 落在 20~95 秒（既不是秒杀，也不是打不动）',
-  ttk.killed === true && ttk.secs >= 20 && ttk.secs <= 95, JSON.stringify(ttk))
+/* 判定口径：**活着打完**且在 20~95 秒内杀掉（died 单列出来 —— 人先死和 Boss 太肉是两回事）。
+   满帧前提（ttkFps ≥ 55）也是断言的一部分：被节流的帧率会直接压低 DPS，量出来的不是构筑强度。 */
+ok('⑩ 中期构筑（bolt Lv5 + 光环 Lv4）打得死：满帧下 TTK 落在 20~95 秒（既不是秒杀，也不是打不动）',
+  ttk.killed === true && ttk.secs >= 20 && ttk.secs <= 95 && ttk.died === false && ttk.ttkFps >= 55, JSON.stringify(ttk))
 await shot('boss-ttk')
 await ev(`(() => { clearInterval(window.__god); return 1 })()`)
 
