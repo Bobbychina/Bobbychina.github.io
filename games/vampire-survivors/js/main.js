@@ -82,7 +82,8 @@
       onResume: function () { VS.Game.resume(game); },
       onRestart: function () { VS.Game.start(game); },
       onChoose: function (index) { VS.Game.choose(game, index); },
-      onChoosePet: function (index) { VS.Game.choosePet(game, index); }
+      onChoosePet: function (index) { VS.Game.choosePet(game, index); },
+      onNextLevel: function () { VS.Game.nextLevel(game); }
     });
     game.deps.panels = panels;
 
@@ -127,7 +128,7 @@
 
     /* ---- 起始画面 ---- */
     VS.Hud.hide();
-    VS.Panels.showStart(data.bestTime);
+    VS.Panels.showStart(data.bestTime, VS.Levels ? VS.Levels.count() : 1);
     VS.Game.snapCamera(game);
 
     /* ---- 等图集解码完再允许开局，避免第一帧用降级图形 ---- */
@@ -198,7 +199,8 @@
 
       if (game.state === VS.Game.STATE.PLAYING ||
           game.state === VS.Game.STATE.LEVELUP ||
-          game.state === VS.Game.STATE.PETSELECT) {
+          game.state === VS.Game.STATE.PETSELECT ||
+          game.state === VS.Game.STATE.LEVELCLEAR) {
         VS.Hud.update(game);
       }
 

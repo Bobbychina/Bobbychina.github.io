@@ -132,21 +132,39 @@
       color: '#5f9e57', edge: '#d6ffc9', shape: 'blob',
       minTime: Infinity, weight: 0, boss: true
     },
-    /* 第二个 Boss：柠檬猪，会从嘴里吐柠檬酸液远程攻击 */
+    /* 第二个 Boss：柠檬猪（2026-09-23 加强）
+       原来只会"吐一发扇形酸液"，站在侧面绕圈就能白嫖 —— 现在三种攻击轮换：
+         fan  扇形三连（原来的招式，弹速与伤害上调）
+         ring 环形十连（贴身会被糊一脸，必须往外闪）
+         pool 往玩家脚下吐酸液池（在地上持续掉血，逼你换位置）
+       血量/伤害/速度也都上调了一档，10 分钟不再是"顺手打死"。 */
     lemonPig: {
       id: 'lemonPig', name: '柠檬猪',
-      hp: 5200, speed: 40, radius: 50, damage: 46, xp: 600,
+      hp: 11000, speed: 52, radius: 54, damage: 58, xp: 900,
       color: '#e3d84a', edge: '#fffbae', shape: 'blob',
       minTime: Infinity, weight: 0, boss: true,
       ranged: {
-        cooldown: 2.4,      // 每隔多久吐一次
-        count: 3,           // 一次几发
-        spread: 0.34,       // 扇形散布（弧度）
-        speed: 230,         // 酸液飞行速度
+        cooldown: 1.9,       // 每隔多久出手一次
+        count: 3,            // 扇形：一次几发
+        spread: 0.34,        // 扇形散布（弧度）
+        speed: 250,          // 酸液飞行速度
         radius: 13,
-        damage: 20,
+        damage: 26,
         life: 3.2,
-        range: 700           // 玩家在这个距离内才会吐
+        range: 760,          // 玩家在这个距离内才会出手
+        patterns: ['fan', 'ring', 'pool'],   // 三种攻击轮换（顺序固定，玩家能背板）
+        ringCount: 10,       // 环形弹幕发数
+        ringSpeed: 175,      // 环形弹幕慢一点，是"走位题"不是"反应题"
+        /* 酸液池：吐在玩家脚下，落地后持续掉血 */
+        pool: {
+          count: 3,          // 一次吐几滩
+          radius: 78,
+          life: 5.0,         // 存在几秒
+          tick: 0.5,         // 每几秒结算一次
+          damage: 12,
+          dist: 130,         // 落在离玩家多远处（命中点附近会散开）
+          gap: 0.12          // 同一轮几滩之间的间隔（秒）
+        }
       }
     }
   };
@@ -324,6 +342,64 @@
       meteor: { tone: '#ffa94d', telegraph: 0.55, busy: 2.10, cd: 7.4, meteor: { count: 6, every: 0.28, delay: 0.95, radius: 68, dmg: 26 } }
     }
   };
+
+  /* ---------------- 关卡 ----------------
+     一次"跑图" = 若干关，打完一关进下一关，最后一关打完算通关。
+     · duration  本关时长（秒），时间到就过关（第一关 = 15:00）
+     · bosses    本关的 Boss 时间表（时间按**本关**的 game.time 算）
+     · hpMul / dmgMul / speedMul   本关所有怪物的额外乘区（叠在难度曲线之上）
+     · spawnMul  刷怪间隔倍率（<1 = 刷得更密）
+     · unlockMul 怪物解锁时间倍率（<1 = 强力怪更早出场）
+     · typeBias  额外权重（让某一关"某种怪特别多"）
+     · ground    地面底图精灵名（每关一张，零每帧开销，见 tools/gen-sprites.js）
+
+     第二关目前是**大概版**：怪物更强更早、地面换成柠檬色调、三只 Boss，
+     时长 12 分钟。要调手感直接改这张表就行（数值都在这一处）。
+  ---------------------------------------- */
+
+  C.LEVELS = [
+    {
+      id: 1,
+      name: '第一关',
+      subtitle: '血色荒野',
+      duration: 900,                     // 15:00 过关
+      bosses: C.BOSS.SCHEDULE,           // 5:00 尸潮之王（送宠物）、10:00 柠檬猪
+      hpMul: 1, dmgMul: 1, speedMul: 1,
+      spawnMul: 1, unlockMul: 1,
+      typeBias: null,
+      ground: 'ground'
+    },
+    {
+      id: 2,
+      name: '第二关',
+      subtitle: '柠檬深渊',
+      duration: 720,                     // 12:00 通关（大概版）
+      bosses: [
+        {
+          at: 180, type: 'lemonPig', name: '柠檬猪',
+          tip: '柠 檬 猪 · 第 二 关', sub: '酸液池会留在地上，别站在里面',
+          reward: 'levelUp'
+        },
+        {
+          at: 480, type: 'boss', name: '尸潮之王', hpMul: 1.15,
+          tip: '尸 潮 之 王 · 再 临', sub: '它记得你',
+          reward: 'levelUp'
+        },
+        {
+          at: 690, type: 'lemonPig', name: '柠檬猪 · 暴走', hpMul: 1.45,
+          tip: '柠 檬 猪 · 暴 走', sub: '最后一战',
+          reward: 'levelUp'
+        }
+      ],
+      hpMul: 1.60,                       // 怪更肉
+      dmgMul: 1.35,                      // 打得更疼
+      speedMul: 1.10,                    // 略快（第一关已经压过速度曲线，这里只是小幅回补）
+      spawnMul: 0.85,                    // 刷得更密
+      unlockMul: 0.35,                   // 暗影/巨魔/精英很早就出来
+      typeBias: { wraith: 2.2, brute: 1.8, elite: 1.6, ghost: 1.4 },
+      ground: 'ground_l2'
+    }
+  ];
 
   /* ---------------- 宠物（打完第一只 Boss 三选一） ---------------- */
 

@@ -11,14 +11,15 @@
 
   /**
    * 当前时间下的属性倍率。
-   * 血量/伤害走 Phases 里的关键帧曲线（可按阶段压平），
-   * 速度仍旧是缓和的线性增长。
+   * 血量/伤害走 Phases 里的关键帧曲线（可按阶段压平），速度走 SPEED_CURVE；
+   * 再乘上**关卡**的额外乘区（第二关 hp ×1.6 / dmg ×1.35 / speed ×1.10）。
    */
-  function scaleFor(t) {
+  function scaleFor(t, levelIndex) {
+    var mul = VS.Levels ? VS.Levels.statMul(levelIndex || 0) : { hp: 1, dmg: 1, speed: 1 };
     return {
-      hp: VS.Phases.hpMult(t),
-      dmg: VS.Phases.dmgMult(t),
-      speed: VS.Phases.speedMult(t)
+      hp: VS.Phases.hpMult(t) * mul.hp,
+      dmg: VS.Phases.dmgMult(t) * mul.dmg,
+      speed: VS.Phases.speedMult(t) * mul.speed
     };
   }
 
@@ -29,19 +30,22 @@
 
   /**
    * 依权重抽一个已解锁的怪物类型。
-   * 阶段可以通过 typeBias 给某类怪加权（尸潮阶段就是靠这个让僵尸特别多）。
+   * 阶段可以通过 typeBias 给某类怪加权（尸潮阶段就是靠这个让僵尸特别多）；
+   * 关卡还能再叠一层：第二关 unlockMul 0.35 让暗影/巨魔/精英很早就出场。
    */
-  function pickType(t) {
+  function pickType(t, levelIndex) {
     var ids = [];
     var weights = [];
+    var unlock = VS.Levels ? VS.Levels.unlockMul(levelIndex || 0) : 1;
 
     for (var id in C.ENEMY_TYPES) {
       if (!Object.prototype.hasOwnProperty.call(C.ENEMY_TYPES, id)) continue;
       var def = C.ENEMY_TYPES[id];
       if (def.boss) continue;            // Boss 单独投放，不进常规池
-      if (t < def.minTime) continue;
+      if (t < def.minTime * unlock) continue;
 
-      var w = def.weight * VS.Phases.typeBias(t, id);
+      var w = def.weight * VS.Phases.typeBias(t, id) *
+              (VS.Levels ? VS.Levels.typeBias(levelIndex || 0, id) : 1);
       if (w <= 0) continue;
 
       ids.push(id);
@@ -71,7 +75,7 @@
     var pos = (opt.x !== undefined && opt.y !== undefined)
       ? { x: opt.x, y: opt.y }
       : VS.World.ringSpawnPoint(game.world, p.x, p.y, spawnRadius(game), state._pt);
-    var sc = scaleFor(game.time);
+    var sc = scaleFor(game.time, game.level);
 
     var hp = type.hp * sc.hp * (opt.hpMult || 1);
 
@@ -111,15 +115,16 @@
 
   function spawnBoss(state, game, entry) {
     /* entry 可以省略：外部工具（vs-boss-probe.mjs 等）一直按 spawnBoss(state, game)
-       调用，默认给时间表里的**第一只**（尸潮之王）。
+       调用，默认给**本关时间表里的第一只**。
        注意别默认成"时间表里的下一只" —— 探针把时钟跳到 5:00 之后，游戏自己会先把
        尸潮之王投放掉、bossIndex 变成 1，那样默认值就变成柠檬猪了（它没有 bosskit 的 ai）。 */
-    if (!entry) entry = C.BOSS.SCHEDULE[0];
+    if (!entry) entry = (VS.Levels ? VS.Levels.bosses(game.level) : C.BOSS.SCHEDULE)[0];
 
     var def = C.ENEMY_TYPES[entry.type];
     if (!def) return null;
 
-    var e = spawnEnemy(state, def, game);
+    /* 时间表条目可以带 hpMul：第二关的「柠檬猪·暴走」就是靠它加厚 */
+    var e = spawnEnemy(state, def, game, { hpMult: entry.hpMul || 1 });
 
     e.bossEntry = entry;
     e.name = entry.name || def.name;
@@ -132,7 +137,8 @@
     /* 远程攻击的伤害按生成时的难度倍率定下来 */
     if (def.ranged) {
       e.fireCd = def.ranged.cooldown * 0.6;    // 登场后先缓一下再吐
-      e.rangedDamage = def.ranged.damage * scaleFor(game.time).dmg;
+      e.rangedDamage = def.ranged.damage * scaleFor(game.time, game.level).dmg;
+      e.patternIndex = 0;                      // 三种攻击从扇形开始轮
     }
 
     state.boss = e;
@@ -150,7 +156,7 @@
 
     for (var i = 0; i < C.BOSS.MINION_BATCH; i++) {
       if (state.list.length >= C.SPAWN.MAX_ENEMIES) break;
-      spawnEnemy(state, pickType(game.time), game);
+      spawnEnemy(state, pickType(game.time, game.level), game);
     }
 
     return e;
@@ -167,17 +173,17 @@
       var dist = 54 + Math.random() * 46;
       var x = U.clamp(ox + Math.cos(a) * dist, pad + 30, world.w - pad - 30);
       var y = U.clamp(oy + Math.sin(a) * dist, pad + 30, world.h - pad - 30);
-      var e = spawnEnemy(state, pickType(game.time), game, { x: x, y: y });
+      var e = spawnEnemy(state, pickType(game.time, game.level), game, { x: x, y: y });
       if (e) { made++; VS.Effects.burst(game.fx, x, y, '#ff9a6c', 8, { speed: 150, life: 0.4, size: 2.6 }); }
     }
     return made;
   }
 
-  /** 时间表推进：场上没 Boss 且到点了就投放下一只 */
+  /** 时间表推进：场上没 Boss 且到点了就投放下一只（时间表按关卡取） */
   function updateBoss(state, dt, game) {
     if (state.boss) return;                              // 上一只还活着
 
-    var sched = C.BOSS.SCHEDULE;
+    var sched = VS.Levels ? VS.Levels.bosses(game.level) : C.BOSS.SCHEDULE;
     if (state.bossIndex >= sched.length) return;         // 时间表跑完，不再有 Boss
 
     if (game.time < sched[state.bossIndex].at) return;
@@ -186,7 +192,54 @@
     state.bossIndex++;
   }
 
-  /* ---------------- Boss 的远程攻击（柠檬酸液） ---------------- */
+  /* ---------------- Boss 的远程攻击（柠檬酸液） ----------------
+     柠檬猪加强后有三种攻击轮换（顺序固定，玩家能背板）：
+       fan  扇形三连
+       ring 环形十连（贴身会被糊一脸）
+       pool 往玩家脚下吐酸液池，落地后持续掉血
+  ------------------------------------------------------------ */
+
+  /** 扇形 / 环形共用：朝 angle 方向扔一发酸液 */
+  function fireShot(state, b, angle, speed, radius, damage, life) {
+    state.shots.push({
+      x: b.x + Math.cos(angle) * (b.radius * 0.55),
+      y: b.y + Math.sin(angle) * (b.radius * 0.55),
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: radius,
+      angle: angle,
+      damage: damage,
+      life: life,
+      phase: Math.random() * U.TAU
+    });
+  }
+
+  /** 酸液池：往玩家脚下（和周围）吐几滩，落地后持续掉血 */
+  function firePools(state, b, game, R) {
+    var P = R.pool;
+    var p = game.player;
+    var world = game.world;
+    var pad = world.pad;
+
+    for (var i = 0; i < P.count; i++) {
+      var a = Math.random() * U.TAU;
+      var d = P.dist * (0.35 + Math.random() * 0.85);
+      state.pools.push({
+        x: U.clamp(p.x + Math.cos(a) * d, pad + 30, world.w - pad - 30),
+        y: U.clamp(p.y + Math.sin(a) * d, pad + 30, world.h - pad - 30),
+        radius: P.radius,
+        life: P.life,
+        maxLife: P.life,
+        tick: P.tick,
+        damage: P.damage,
+        /* 错开每滩的首次结算，别几滩同时打一下把人秒了 */
+        acc: 0.35 + i * (P.gap || 0.12),
+        phase: Math.random() * U.TAU
+      });
+    }
+
+    VS.Effects.burst(game.fx, b.x, b.y, '#c7f24a', 16, { speed: 190, life: 0.5, size: 3 });
+  }
 
   function updateBossAttack(state, dt, game) {
     var b = state.boss;
@@ -208,24 +261,71 @@
     b.fireCd = R.cooldown;
 
     var base = Math.atan2(p.y - b.y, p.x - b.x);
-    var count = R.count;
+    var dmg = b.rangedDamage || R.damage;
 
-    for (var i = 0; i < count; i++) {
-      var a = base + (i - (count - 1) / 2) * R.spread;
-      state.shots.push({
-        x: b.x + Math.cos(a) * (b.radius * 0.55),
-        y: b.y + Math.sin(a) * (b.radius * 0.55),
-        vx: Math.cos(a) * R.speed,
-        vy: Math.sin(a) * R.speed,
-        r: R.radius,
-        angle: a,
-        damage: b.rangedDamage || R.damage,
-        life: R.life,
-        phase: Math.random() * U.TAU
-      });
+    /* 三种攻击轮换；没配 patterns 的（旧数据）就走扇形 */
+    var pats = R.patterns || ['fan'];
+    var pat = pats[(b.patternIndex || 0) % pats.length];
+    b.patternIndex = (b.patternIndex || 0) + 1;
+    b.lastPattern = pat;
+
+    if (pat === 'ring') {
+      /* 环形弹幕：以自身为中心均匀撒一圈，贴身站位会被糊一脸 */
+      var n = R.ringCount || 10;
+      var spd = R.ringSpeed || R.speed * 0.7;
+      var off = Math.random() * U.TAU;
+      for (var k = 0; k < n; k++) {
+        fireShot(state, b, off + (k / n) * U.TAU, spd, R.radius, dmg, R.life);
+      }
+    } else if (pat === 'pool' && R.pool) {
+      /* 酸液池：吐在玩家脚下，落地后持续掉血 */
+      firePools(state, b, game, R);
+    } else {
+      /* 扇形三连（默认） */
+      var count = R.count;
+      for (var i = 0; i < count; i++) {
+        var a = base + (i - (count - 1) / 2) * R.spread;
+        fireShot(state, b, a, R.speed, R.radius, dmg, R.life);
+      }
     }
 
     VS.Audio.play('nova');
+  }
+
+  /* ---------------- 酸液池：站在里面持续掉血 ---------------- */
+
+  function updatePools(state, dt, game) {
+    var list = state.pools;
+    if (!list || !list.length) return;
+
+    var p = game.player;
+
+    for (var i = list.length - 1; i >= 0; i--) {
+      var z = list[i];
+
+      z.life -= dt;
+      z.phase += dt * 2.4;
+
+      if (z.life <= 0) {
+        VS.Effects.burst(game.fx, z.x, z.y, '#c8e04a', 8, { speed: 90, life: 0.4, size: 2.6 });
+        U.swapRemove(list, i);
+        continue;
+      }
+
+      if (!p.alive || p.invuln > 0) continue;
+
+      /* 站在池子里：每 tick 秒结算一次（按时间而不是按帧，帧率不会改变伤害） */
+      z.acc += dt;
+      if (z.acc < z.tick) continue;
+
+      if (U.circleHit(p.x, p.y, p.radius, z.x, z.y, z.radius)) {
+        z.acc = 0;
+        VS.Player.takeDamage(p, z.damage, game, z.x, z.y);
+        VS.Effects.burst(game.fx, p.x, p.y, '#d8f05a', 6, { speed: 110, life: 0.35, size: 2.6 });
+      } else if (z.acc > z.tick * 3) {
+        z.acc = z.tick;      // 没人踩的时候别把欠账攒起来
+      }
+    }
   }
 
   /** 酸液飞行 + 命中玩家 */
@@ -305,7 +405,7 @@
 
       var n = Math.min(batch, C.SPAWN.MAX_ENEMIES - state.list.length);
       for (var i = 0; i < n; i++) {
-        spawnEnemy(state, pickType(t), game);
+        spawnEnemy(state, pickType(t, game.level), game);
       }
     }
   }
@@ -478,6 +578,9 @@
       if (e.bossEntry && e.bossEntry.reward === 'firstBoss' && !es.firstBossDefeated) {
         es.firstBossDefeated = true;
         if (game.onFirstBossReward) game.onFirstBossReward();
+      } else if (e.bossEntry && e.bossEntry.reward === 'levelUp' && game.onBossReward) {
+        /* 第二关起的 Boss：等级 +1（宠物已经选过了） */
+        game.onBossReward();
       }
       return;
     }
@@ -527,15 +630,16 @@
       return {
         list: [],
         shots: [],                     // Boss 吐出来的酸液（敌方弹幕）
+        pools: [],                     // 柠檬猪的酸液池（站进去持续掉血）
         spawnAcc: 0,
         sepAcc: 0,
         uid: 1,
         kills: 0,
         boss: null,                    // 当前存活的 Boss（HUD 血条读它）
-        bossIndex: 0,                  // 时间表指针：下一只要投放的是第几条
+        bossIndex: 0,                  // 时间表指针：下一只要投放的是第几条（每关重置）
         bossCount: 0,                  // 已经投放了几只
         bossesKilled: 0,               // 已经打死了几只
-        firstBossDefeated: false,      // 第一只 Boss 是否已击杀（金球掉率分档要用）
+        firstBossDefeated: false,      // 第一只 Boss 是否已击杀（金球掉率分档要用，跨关保留）
         _pt: { x: 0, y: 0 }            // 复用的生成点对象
       };
     },
@@ -543,6 +647,7 @@
     reset: function (state) {
       state.list.length = 0;
       state.shots.length = 0;
+      state.pools.length = 0;
       state.spawnAcc = 0;
       state.sepAcc = 0;
       state.uid = 1;
@@ -636,6 +741,7 @@
         updateBoss(state, dt, game);
         updateBossAttack(state, dt, game);
         updateShots(state, dt, game);
+        updatePools(state, dt, game);
         prof.move += nowMs() - t;
 
         t = nowMs();
@@ -661,6 +767,7 @@
       updateBoss(state, dt, game);
       updateBossAttack(state, dt, game);
       updateShots(state, dt, game);
+      updatePools(state, dt, game);
       updateSpawning(state, dt, game);
       moveAndCollide(state, dt, game);
       rebuildGrid(state, game);

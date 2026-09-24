@@ -185,6 +185,10 @@ body {
 }
 .stat.gold .v { color: var(--gold); }
 .stat.cyan .v { color: var(--cyan); }
+/* 关卡那一格：第二关起变成柠檬色，一眼能看出换图了（靠 :not 做不到，用属性选择器） */
+.stat.stage .v { color: #b9cbdc; }
+.stat.stage .v[data-stage="2"] { color: #e3d84a; text-shadow: 0 0 12px rgba(227, 216, 74, .55); }
+.stat.stage .v[data-stage="3"] { color: #ff9ae0; text-shadow: 0 0 12px rgba(255, 154, 224, .55); }
 
 .icon-btn {
   pointer-events: auto;
@@ -320,6 +324,7 @@ body {
   text-shadow: 0 0 24px rgba(126, 224, 255, .45), 0 2px 0 rgba(0,0,0,.6);
 }
 .panel h2.dead { color: #ff8a8a; text-shadow: 0 0 28px rgba(255, 80, 80, .55), 0 2px 0 rgba(0,0,0,.6); }
+.panel h2.clear { color: #9ef7b0; text-shadow: 0 0 30px rgba(126, 231, 135, .6), 0 2px 0 rgba(0,0,0,.6); }
 .panel h2 .lv { color: var(--gold); }
 
 .panel .sub {

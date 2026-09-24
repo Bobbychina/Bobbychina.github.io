@@ -39,6 +39,7 @@
         xpIcon: el('xpIcon'),
         timer: el('timer'),
         wave: el('wave'),
+        stage: el('stage'),
         phase: el('phase'),
         kills: el('kills'),
         level: el('level'),
@@ -121,6 +122,17 @@
       if (dom.wave) dom.wave.textContent = String(VS.Enemies.waveFor(game.time));
       if (dom.kills) dom.kills.textContent = U.group(p.kills);
       if (dom.level) dom.level.textContent = String(p.level);
+
+      /* --- 当前关卡（存活计时是按"本关"走的，所以要把关卡摆在旁边） --- */
+      if (dom.stage) {
+        dom.stage.textContent = String(game.level + 1);
+        dom.stage.setAttribute('data-stage', String(game.level + 1));
+        if (VS.Levels) {
+          var ld = VS.Levels.def(game.level);
+          dom.stage.title = VS.Levels.label(game.level) +
+            ' · 本关 ' + U.formatTime(ld.duration) + ' 过关';
+        }
+      }
 
       /* --- 当前阶段 --- */
       if (dom.phase) {

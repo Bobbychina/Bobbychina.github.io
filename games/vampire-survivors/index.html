@@ -37,6 +37,7 @@
     </div>
     <div class="hud-stats">
       <div class="stat"><span class="k">存活</span><span class="v" id="timer">00:00</span></div>
+      <div class="stat stage"><span class="k">关卡</span><span class="v" id="stage">1</span></div>
       <div class="stat phase"><span class="k">阶段</span><span class="v" id="phase">正常</span></div>
       <div class="stat gold"><span class="k">波次</span><span class="v" id="wave">1</span></div>
       <div class="stat"><span class="k">击杀</span><span class="v" id="kills">0</span></div>
@@ -67,7 +68,7 @@
 
     <section class="panel" id="panel-start">
       <h1>吸血鬼幸存者</h1>
-      <p class="sub">在无尽的怪物潮中活下去</p>
+      <p class="sub">在无尽的怪物潮中活下去 · 共 <b id="startLevels">2</b> 关，第一关 <b>15 分钟</b>过关</p>
       <div class="best">最高存活时间：<b id="startBest">--:--</b></div>
       <ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键移动</li>
@@ -75,7 +76,8 @@
         <li>拾取经验球升级，从三张卡中选一项增益</li>
         <li>存活满 <b>3 分钟</b>后，击杀有 <b>5%</b> 概率掉落<b>金色经验球</b>（一颗顶 100 颗）</li>
         <li>打死 <b>5 分钟</b>的 Boss 有奖励：<b>等级 +1</b> 并<b>三选一宠物</b>；之后金球概率升到 <b>20%</b></li>
-        <li><b>10 分钟</b>第二只 Boss <b>柠檬猪</b>登场，会远程喷柠檬酸液；此后击杀有 <b>0.3%</b> 概率掉<b>超级经验球</b>（直接升一级）</li>
+        <li><b>10 分钟</b>第二只 Boss <b>柠檬猪</b>登场：扇形酸液 / 环形酸液 / 地上留<b>酸液池</b>三种轮着来</li>
+        <li><b>15 分钟</b>过关进入<b>第二关</b>（柠檬深渊）：怪更肉更疼，构筑与宠物都带过去</li>
         <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Shift</kbd> <b>闪避</b>（短暂无敌）· <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
       </ul>
       <div class="phases">
@@ -83,7 +85,7 @@
         <div class="ph-horde"><b>2–4 分</b><span>尸潮 · 僵尸暴增</span></div>
         <div class="ph-rest"><b>4–5 分</b><span>停止刷怪 · 捡经验</span></div>
         <div class="ph-boss"><b>5 分</b><span>尸潮之王 · 送宠物</span></div>
-        <div class="ph-boss"><b>10 分</b><span>柠檬猪 · 酸液</span></div>
+        <div class="ph-boss"><b>10 分</b><span>柠檬猪 · 三种酸液</span></div>
       </div>
       <button class="btn primary" id="startBtn">开始游戏</button>
       <p class="tip">手机端：在画面上拖动即可移动</p>
@@ -103,6 +105,22 @@
       <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
     </section>
 
+    <section class="panel" id="panel-levelclear" hidden>
+      <h2 class="clear"><span id="lcTitle">第一关 通过</span></h2>
+      <p class="sub" id="lcSub"></p>
+      <div class="result">
+        <div class="big" id="lcTime">15:00</div>
+        <div class="grid">
+          <div><span>本关击杀</span><b id="lcKills">0</b></div>
+          <div><span>等级</span><b id="lcLevel">1</b></div>
+          <div><span>宠物</span><b id="lcPet">—</b></div>
+          <div><span>总用时</span><b id="lcTotal">15:00</b></div>
+        </div>
+      </div>
+      <button class="btn primary" id="nextLevelBtn">进入第二关</button>
+      <p class="tip">构筑、等级、宠物都会带进下一关；血量回满，并给 3 秒无敌</p>
+    </section>
+
     <section class="panel" id="panel-pause" hidden>
       <h2>已暂停</h2>
       <p class="sub" id="pauseInfo"></p>
@@ -111,7 +129,7 @@
     </section>
 
     <section class="panel" id="panel-gameover" hidden>
-      <h2 class="dead">你已阵亡</h2>
+      <h2 class="dead" id="goTitle">你已阵亡</h2>
       <div class="result">
         <div class="big" id="goTime">00:00</div>
         <div class="newbest" id="goNewBest" hidden>★ 新纪录 ★</div>
@@ -119,7 +137,7 @@
           <div><span>最高纪录</span><b id="goBest">00:00</b></div>
           <div><span>击杀</span><b id="goKills">0</b></div>
           <div><span>等级</span><b id="goLevel">1</b></div>
-          <div><span>波次</span><b id="goWave">1</b></div>
+          <div><span>关卡</span><b id="goStage">1</b></div>
         </div>
       </div>
       <button class="btn primary" id="retryBtn">再来一局</button>
@@ -144,6 +162,7 @@
 <script defer src="js/core/utils.js"></script>
 <script defer src="js/game/config.js"></script>
 <script defer src="js/game/phases.js"></script>
+<script defer src="js/game/levels.js"></script>
 <script defer src="js/core/save.js"></script>
 <script defer src="js/core/scores.js"></script>
 <script defer src="js/core/cloud.js"></script>

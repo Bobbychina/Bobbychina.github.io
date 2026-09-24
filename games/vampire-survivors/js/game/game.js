@@ -1,7 +1,10 @@
 /* ===========================================================
-   游戏主控：状态机 + 每帧调度 + 升级选卡 + 结算
-   状态：menu / playing / levelup / paused / gameover
-   调度顺序：玩家 → 怪物 → 武器 → 拾取 → 特效 → 摄像机 → 判定
+   游戏主控：状态机 + 每帧调度 + 升级选卡 + 关卡推进 + 结算
+   状态：menu / playing / levelup / petselect / levelclear / paused / gameover
+   调度顺序：玩家 → 宠物 → 怪物 → 武器 → 拾取 → 特效 → 摄像机 → 判定
+
+   关卡：一次"跑图"由若干关组成（C.LEVELS）。本关时间到 → levelclear 面板 →
+   下一关（保留构筑与宠物，回满血、重置本关时间与怪物）；最后一关打完 = 通关。
    =========================================================== */
 (function (VS) {
   'use strict';
@@ -14,9 +17,15 @@
     PLAYING: 'playing',
     LEVELUP: 'levelup',
     PETSELECT: 'petselect',
+    LEVELCLEAR: 'levelclear',
     PAUSED: 'paused',
     GAMEOVER: 'gameover'
   };
+
+  /** 一局的总时长 = 已打完的关卡 + 本关已经过的时间 */
+  function runTime(game) {
+    return (game.totalTime || 0) + game.time;
+  }
 
   function viewW(game) {
     var r = game.deps && game.deps.renderer;
@@ -144,6 +153,10 @@
       var game = {
         state: STATE.MENU,
         time: 0,
+        totalTime: 0,          // 已经打完的关卡时长之和（结算/排行用 runTime()）
+        level: 0,              // 当前关卡下标（0 起）
+        levelDef: null,
+        victory: false,        // 通关（而不是被打死）
         kills: 0,
         shake: 0,
         textBudget: 14,
@@ -188,6 +201,16 @@
            奖励信息已经写在面板副标题里（「击杀尸潮之王的奖励 · 等级 +1」）。 */
       };
 
+      /* 第二关起的 Boss 奖励：等级 +1（宠物已经在第一关选过了） */
+      game.onBossReward = function () {
+        if (VS.Player.grantLevel(game.player)) {
+          game.pendingLevels += 1;
+          if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
+            game.deps.panels.showBanner('击 杀 奖 励', '等级 +1');
+          }
+        }
+      };
+
       Game.newRun(game);
       return game;
     },
@@ -195,6 +218,9 @@
     /** 重置一整局（不改变 state，由调用方决定） */
     newRun: function (game) {
       game.time = 0;
+      game.totalTime = 0;
+      game.level = 0;
+      game.victory = false;
       game.kills = 0;
       game.shake = 0;
       game.pendingLevels = 0;
@@ -211,12 +237,54 @@
 
       game.pendingPetSelect = false;
       game.petChoices = [];
+      game.levelDef = VS.Levels.def(0);
 
       VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);
 
       VS.World.snapCamera(game.world, game.player.x, game.player.y, viewW(game), viewH(game));
 
       game.phase = VS.Phases.at(0).id;
+
+      return game;
+    },
+
+    /**
+     * 进入/切换到某一关。
+     * 保留：玩家等级、经验、武器、增益、宠物、总击杀、金球档位
+     * 重置：本关时间、怪物、掉落物、弹幕/酸液池、特效、玩家位置与血量
+     */
+    startLevel: function (game, index, opt) {
+      opt = opt || {};
+
+      game.level = index;
+      game.levelDef = VS.Levels.def(index);
+      game.time = 0;
+      game.phase = VS.Phases.at(0).id;
+      game.pendingLevels = 0;
+      game.choices = [];
+
+      game.enemies = VS.Enemies.create();
+      game.pickups = VS.Pickups.create();
+      game.weapons = VS.Weapons.create();
+      game.fx = VS.Effects.create();
+
+      /* 玩家：位置回地图中心，回满血，给一小段无敌（免得一进来就被贴脸） */
+      var p = game.player;
+      p.x = game.world.w / 2;
+      p.y = game.world.h / 2;
+      p.vx = 0;
+      p.vy = 0;
+      p.hp = p.maxHp;
+      p.invuln = opt.invuln === undefined ? 3 : opt.invuln;
+      p.alive = true;
+
+      VS.World.snapCamera(game.world, p.x, p.y, viewW(game), viewH(game));
+
+      if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
+        game.deps.panels.showBanner(VS.Levels.label(index), '本关时长 ' +
+          U.formatTime(game.levelDef.duration) + ' · 撑住');
+      }
+      if (game.deps && game.deps.audio) game.deps.audio.play('level');
 
       return game;
     },
@@ -305,12 +373,16 @@
       /* --- 屏幕震动衰减 --- */
       if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 26);
 
-      /* --- 判定：死亡（先让宠物尝试救一次）→ 升级 → 选宠物 --- */
+      /* --- 判定：死亡（先让宠物尝试救一次）→ 本关时间到 → 升级 → 选宠物 --- */
       if (!game.player.alive) {
         if (!VS.Pets.tryRevive(game)) {
           Game.endRun(game);
           return;
         }
+      }
+      if (game.time >= game.levelDef.duration) {
+        Game.clearLevel(game);
+        return;
       }
       if (game.pendingLevels > 0) {
         Game.openLevelUp(game);
@@ -319,6 +391,67 @@
       if (game.pendingPetSelect && !VS.Pets.chosen(game.pets)) {
         Game.openPetSelect(game);
       }
+    },
+
+    /* ---------------- 关卡推进 ---------------- */
+
+    /** 本关时间到：弹过关面板（最后一关则是通关） */
+    clearLevel: function (game) {
+      game.state = STATE.LEVELCLEAR;
+
+      /* 注意：这里**不要**把本关时长并进 totalTime —— 此刻 game.time 还是本关时长，
+         runTime() = totalTime + time 会把它算两遍（面板上会显示成 30:00）。
+         并账放在 nextLevel()：真正离开这一关的时候再加。 */
+      game.time = game.levelDef.duration;
+
+      var last = VS.Levels.isLast(game.level);
+
+      /* 面板一出来就把横幅收掉：横幅是浮层，会和面板标题叠在一起 */
+      if (game.deps.panels && game.deps.panels.hideBanner) game.deps.panels.hideBanner();
+
+      if (game.deps.audio) game.deps.audio.play('level');
+      if (game.deps.hud) game.deps.hud.update(game);
+
+      if (game.deps.panels && game.deps.panels.showLevelClear) {
+        game.deps.panels.showLevelClear({
+          level: game.level,
+          label: VS.Levels.label(game.level),
+          last: last,
+          time: game.levelDef.duration,
+          total: runTime(game),
+          kills: game.player.kills,
+          playerLevel: game.player.level,
+          pet: VS.Pets.statusText(game.pets),
+          nextLabel: last ? '' : VS.Levels.label(game.level + 1)
+        });
+      } else {
+        /* 没有面板就兜底：直接进下一关 / 直接结算，别卡死 */
+        Game.nextLevel(game);
+      }
+    },
+
+    /** 过关面板上点「继续」：进下一关，或（最后一关）通关结算 */
+    nextLevel: function (game) {
+      if (game.state !== STATE.LEVELCLEAR) return false;
+
+      if (game.deps.panels && game.deps.panels.hideLevelClear) {
+        game.deps.panels.hideLevelClear();
+      }
+
+      /* 离开本关：把它的时长并进总时长（runTime() 用的是 totalTime + 本关时间）。
+         之后必须把本关时间清零 —— 否则通关结算时会再算一遍（面板上会变成 39:00 而不是 27:00）。 */
+      game.totalTime += game.levelDef.duration;
+      game.time = 0;
+
+      if (VS.Levels.isLast(game.level)) {
+        Game.endRun(game, { victory: true });
+        return true;
+      }
+
+      Game.startLevel(game, game.level + 1);
+      game.state = STATE.PLAYING;
+      if (game.deps.hud) game.deps.hud.update(game);
+      return true;
     },
 
     /* ---------------- 升级 ---------------- */
@@ -435,27 +568,34 @@
 
     /* ---------------- 结算 ---------------- */
 
-    endRun: function (game) {
+    endRun: function (game, opt) {
+      opt = opt || {};
       game.state = STATE.GAMEOVER;
+      game.victory = !!opt.victory;
 
+      /* 一局的总时长：打完的关卡 + 本关已经过的时间。
+         第一关就死了的话就等于第一关的时间，和以前的口径一致。 */
+      var total = runTime(game);
       var wave = VS.Enemies.waveFor(game.time);
       var p = game.player;
 
       var isNewBest = VS.Save.submit({
-        time: game.time,
+        time: total,
         kills: p.kills,
         level: p.level,
-        wave: wave
+        wave: wave,
+        stage: game.level + 1
       }, game.data);
 
       /* 个人纪录榜（本机 top5，登录后跟着云存档合并） */
       var rankInfo = null;
       if (VS.Scores) {
-        rankInfo = VS.Scores.add({ time: game.time, kills: p.kills, level: p.level, wave: wave });
+        rankInfo = VS.Scores.add({ time: total, kills: p.kills, level: p.level, wave: wave, stage: game.level + 1 });
         if (VS.ScoresUI) VS.ScoresUI.refresh();
       }
 
-      if (game.deps.audio) game.deps.audio.play('over');
+      if (game.deps.audio) game.deps.audio.play(game.victory ? 'level' : 'over');
+      if (game.deps.panels && game.deps.panels.hideBanner) game.deps.panels.hideBanner();
 
       /* 云存档：登录了就往自己的 Gist 推一份（安静做，失败只更新一下面板提示） */
       if (VS.Cloud && VS.Cloud.logged()) {
@@ -472,11 +612,14 @@
       if (game.deps.hud) game.deps.hud.hide();
       if (game.deps.panels) {
         game.deps.panels.showGameOver({
-          time: game.time,
+          time: total,
           best: game.data.bestTime,
           kills: p.kills,
           level: p.level,
           wave: wave,
+          stage: game.level + 1,
+          stageLabel: VS.Levels.label(game.level),
+          victory: game.victory,
           isNewBest: isNewBest
         });
       }
@@ -484,7 +627,7 @@
 
       /* 全站榜：云账号登录了就提交（GitHub-Gist 模式的账号不经过服务端，跳过） */
       if (VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
-        VS.LeaderboardUI.submitRun({ time: game.time, kills: p.kills, level: p.level, wave: wave });
+        VS.LeaderboardUI.submitRun({ time: total, kills: p.kills, level: p.level, wave: wave });
       }
     },
 
@@ -498,7 +641,8 @@
 
     /* 供测试/调试使用的内部函数 */
     _buildChoices: buildChoices,
-    _applyChoice: applyChoice
+    _applyChoice: applyChoice,
+    _runTime: runTime
   };
 
   VS.register('Game', Game);

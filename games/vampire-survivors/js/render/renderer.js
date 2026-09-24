@@ -246,6 +246,7 @@
       var view = VS.World.viewRect(game.world, 120);
 
       Renderer.drawDecorations(ctx, game, view);
+      Renderer.drawPools(ctx, game, view, time);      // 酸液池铺在地上（在怪下面）
       Renderer.drawPickups(ctx, r, game, view, time);
       Renderer.drawAura(ctx, game, time);
       Renderer.drawNovas(ctx, game, time);
@@ -272,18 +273,23 @@
 
     /* ---------------- 地面 ---------------- */
 
-    ensureGroundPattern: function (r) {
-      var img = VS.Assets.img('ground');
+    ensureGroundPattern: function (r, name) {
+      var img = VS.Assets.img(name || 'ground');
       if (!VS.Assets.isReady(img)) return null;
-      if (r.groundPattern && r.groundPatternFor === img) return r.groundPattern;
 
+      /* 每关一张底图：缓存按图分开存，别让第二关把第一关的 pattern 冲掉 */
+      r.groundPatterns = r.groundPatterns || {};
+      var cached = r.groundPatterns[name];
+      if (cached && cached.for === img) return cached.pattern;
+
+      var pat = null;
       try {
-        r.groundPattern = r.ctx.createPattern(img, 'repeat');
-        r.groundPatternFor = img;
+        pat = r.ctx.createPattern(img, 'repeat');
       } catch (e) {
-        r.groundPattern = null;
+        pat = null;
       }
-      return r.groundPattern;
+      r.groundPatterns[name] = { for: img, pattern: pat };
+      return pat;
     },
 
     /**
@@ -310,14 +316,17 @@
       }
       if (x1 <= x0 || y1 <= y0) return;
 
-      var pat = Renderer.ensureGroundPattern(r);
+      var groundName = VS.Levels ? VS.Levels.ground(game.level) : 'ground';
+      if (!VS.Assets.ready(groundName)) groundName = 'ground';   // 第二关底图没就绪就先用第一关的
+
+      var pat = Renderer.ensureGroundPattern(r, groundName);
       if (!pat) {
         ctx.fillStyle = '#101720';
         ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
         return;
       }
 
-      var img = VS.Assets.img('ground');
+      var img = VS.Assets.img(groundName);
       var TS = img.naturalWidth || 64;
 
       var ox = -(((camX % TS) + TS) % TS);
@@ -975,6 +984,54 @@
         ctx.beginPath();
         ctx.arc(s.x, s.y, sr + 3, 0, U.TAU);
         ctx.stroke();
+        ctx.restore();
+      }
+    },
+
+    /* ---------------- 柠檬猪的酸液池 ----------------
+       画在怪物**下面**（先于敌人绘制），免得池子盖住站在里面的怪。 */
+
+    drawPools: function (ctx, game, view, time) {
+      var pools = game.enemies && game.enemies.pools;
+      if (!pools || !pools.length) return;
+
+      for (var i = 0; i < pools.length; i++) {
+        var z = pools[i];
+        if (!VS.World.isVisible(view, z.x, z.y, z.radius + 24)) continue;
+
+        /* 快消失时闪烁，提示"这块要没了" */
+        var k = z.life / z.maxLife;
+        var blink = k < 0.25 ? (Math.sin(z.life * 22) > 0 ? 0.42 : 0.85) : 0.85;
+        var pulse = 1 + Math.sin(z.phase * 2.2) * 0.04;
+        var rr = z.radius * pulse;
+
+        /* 主体：半透明酸液 */
+        ctx.save();
+        ctx.globalAlpha = blink * 0.5;
+        ctx.fillStyle = '#a8d92e';
+        ctx.beginPath();
+        ctx.ellipse(z.x, z.y, rr, rr * 0.86, 0, 0, U.TAU);
+        ctx.fill();
+
+        /* 边沿：一圈更亮的柠檬色，方便一眼看清范围 */
+        ctx.globalAlpha = blink * 0.9;
+        ctx.strokeStyle = '#e6ff9a';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.ellipse(z.x, z.y, rr, rr * 0.86, 0, 0, U.TAU);
+        ctx.stroke();
+
+        /* 冒泡：三个随时间上浮的小点（纯几何，不用精灵） */
+        ctx.globalAlpha = blink * 0.75;
+        ctx.fillStyle = '#f2ffd0';
+        for (var b = 0; b < 3; b++) {
+          var t = (z.phase * 0.5 + b / 3) % 1;
+          var bx = z.x + Math.cos(z.phase + b * 2.1) * rr * 0.5;
+          var by = z.y + rr * 0.86 - t * rr * 1.6;
+          ctx.beginPath();
+          ctx.arc(bx, by, 2.6 * (1 - t * 0.5), 0, U.TAU);
+          ctx.fill();
+        }
         ctx.restore();
       }
     },

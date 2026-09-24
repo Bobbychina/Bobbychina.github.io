@@ -57,10 +57,12 @@
         panelStart: el('panel-start'),
         panelLevelUp: el('panel-levelup'),
         panelPetSelect: el('panel-petselect'),
+        panelLevelClear: el('panel-levelclear'),
         panelPause: el('panel-pause'),
         panelGameOver: el('panel-gameover'),
 
         startBest: el('startBest'),
+        startLevels: el('startLevels'),
         startBtn: el('startBtn'),
 
         luLevel: el('luLevel'),
@@ -68,16 +70,26 @@
 
         petCards: el('petCards'),
 
+        lcTitle: el('lcTitle'),
+        lcSub: el('lcSub'),
+        lcTime: el('lcTime'),
+        lcKills: el('lcKills'),
+        lcLevel: el('lcLevel'),
+        lcPet: el('lcPet'),
+        lcTotal: el('lcTotal'),
+        nextLevelBtn: el('nextLevelBtn'),
+
         pauseInfo: el('pauseInfo'),
         resumeBtn: el('resumeBtn'),
         pauseRestartBtn: el('pauseRestartBtn'),
 
+        goTitle: el('goTitle'),
         goTime: el('goTime'),
         goBest: el('goBest'),
         goNewBest: el('goNewBest'),
         goKills: el('goKills'),
         goLevel: el('goLevel'),
-        goWave: el('goWave'),
+        goStage: el('goStage'),
         retryBtn: el('retryBtn'),
 
         banner: el('banner'),
@@ -85,12 +97,14 @@
         bannerSub: el('bannerSub')
       };
 
-      dom.panels = [dom.panelStart, dom.panelLevelUp, dom.panelPetSelect, dom.panelPause, dom.panelGameOver];
+      dom.panels = [dom.panelStart, dom.panelLevelUp, dom.panelPetSelect,
+                    dom.panelLevelClear, dom.panelPause, dom.panelGameOver];
 
       bindClick(dom.startBtn, function () { if (cb.onStart) cb.onStart(); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
       bindClick(dom.resumeBtn, function () { if (cb.onResume) cb.onResume(); });
       bindClick(dom.pauseRestartBtn, function () { if (cb.onRestart) cb.onRestart(); });
+      bindClick(dom.nextLevelBtn, function () { if (cb.onNextLevel) cb.onNextLevel(); });
 
       hideAll();
       return Panels;   // 返回模块本身（而不是内部 dom 缓存）
@@ -134,9 +148,10 @@
 
     /* ---------------- 开始面板 ---------------- */
 
-    showStart: function (bestTime) {
+    showStart: function (bestTime, levelCount) {
       if (!dom) return;
       if (dom.startBest) dom.startBest.textContent = bestTime > 0 ? U.formatTime(bestTime) : '--:--';
+      if (dom.startLevels && levelCount) dom.startLevels.textContent = String(levelCount);
       show(dom.panelStart);
     },
 
@@ -246,6 +261,41 @@
       syncOverlay();
     },
 
+    /* ---------------- 过关面板 ----------------
+       本关时间到就弹出来：最后一关的按钮变成「查看结算」。 */
+
+    showLevelClear: function (info) {
+      if (!dom) return;
+      info = info || {};
+
+      if (dom.lcTitle) {
+        dom.lcTitle.textContent = info.last
+          ? (info.label + ' 通过')
+          : (info.label + ' 通过');
+      }
+      if (dom.lcSub) {
+        dom.lcSub.textContent = info.last
+          ? '所有关卡都打完了 · 看看这一局的成绩'
+          : ('下一关：' + (info.nextLabel || '') + ' · 构筑 / 等级 / 宠物都会带过去');
+      }
+      if (dom.lcTime) dom.lcTime.textContent = U.formatTime(info.time || 0);
+      if (dom.lcKills) dom.lcKills.textContent = U.group(info.kills || 0);
+      if (dom.lcLevel) dom.lcLevel.textContent = String(info.playerLevel || 1);
+      if (dom.lcPet) dom.lcPet.textContent = info.pet || '—';
+      if (dom.lcTotal) dom.lcTotal.textContent = U.formatTime(info.total || 0);
+      if (dom.nextLevelBtn) {
+        dom.nextLevelBtn.textContent = info.last ? '查看结算' : ('进入' + (info.nextLabel || '下一关'));
+      }
+
+      show(dom.panelLevelClear);
+    },
+
+    hideLevelClear: function () {
+      if (!dom) return;
+      dom.panelLevelClear.hidden = true;
+      syncOverlay();
+    },
+
     /* ---------------- 暂停面板 ---------------- */
 
     showPause: function (info) {
@@ -259,11 +309,18 @@
     showGameOver: function (r) {
       if (!dom) return;
 
+      /* 通关和阵亡是同一个面板，只有标题和副信息不同 */
+      if (dom.goTitle) {
+        dom.goTitle.textContent = r.victory ? '通 关 ！' : '你已阵亡';
+        dom.goTitle.className = r.victory ? 'clear' : 'dead';
+      }
       if (dom.goTime) dom.goTime.textContent = U.formatTime(r.time);
       if (dom.goBest) dom.goBest.textContent = U.formatTime(r.best);
       if (dom.goKills) dom.goKills.textContent = U.group(r.kills);
       if (dom.goLevel) dom.goLevel.textContent = String(r.level);
-      if (dom.goWave) dom.goWave.textContent = String(r.wave);
+      if (dom.goStage) {
+        dom.goStage.textContent = r.stageLabel || String(r.stage || 1);
+      }
       if (dom.goNewBest) dom.goNewBest.hidden = !r.isNewBest;
 
       show(dom.panelGameOver);
@@ -284,6 +341,7 @@
       if (!dom) return null;
       if (!dom.panelLevelUp.hidden) return 'levelup';
       if (dom.panelPetSelect && !dom.panelPetSelect.hidden) return 'petselect';
+      if (dom.panelLevelClear && !dom.panelLevelClear.hidden) return 'levelclear';
       if (!dom.panelPause.hidden) return 'pause';
       if (!dom.panelGameOver.hidden) return 'gameover';
       if (!dom.panelStart.hidden) return 'start';
