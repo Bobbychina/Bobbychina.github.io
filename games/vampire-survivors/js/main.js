@@ -88,6 +88,33 @@
     });
     game.deps.panels = panels;
 
+    /* ---- 主角皮肤选择器 ----
+       皮肤数据来自图集（VS.PlayerSkins，由 tools/player-art.js 的 SKINS 表生成），
+       选中后写进存档，开局时由 Game.newRun 读进 game.playerSkin。 */
+    function renderSkinRow() {
+      var row = document.getElementById('skinList');
+      if (!row || !VS.PlayerSkins) return;
+      row.innerHTML = '';
+
+      VS.PlayerSkins.forEach(function (skin) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'skin-chip' + (skin.id === data.playerSkin ? ' on' : '');
+        b.setAttribute('data-skin', skin.id);
+        /* 用皮肤的斗篷主色 + 帽子主色做一个小色标，省得再画一张缩略图 */
+        var c = skin.pal || {};
+        b.innerHTML = '<i style="background:' + (c.C || '#888') + ';border-color:' + (c.H || '#444') + '"></i>' +
+                      '<span>' + skin.name + '</span>';
+        b.addEventListener('click', function () {
+          data.playerSkin = VS.Save.setSkin(data, skin.id);
+          if (game.data) game.data.playerSkin = data.playerSkin;
+          game.playerSkin = data.playerSkin;
+          renderSkinRow();
+        });
+        row.appendChild(b);
+      });
+    }
+
     /* ---- 输入 ---- */
     VS.Input.init({
       surface: canvas,
@@ -131,6 +158,7 @@
     /* ---- 起始画面 ---- */
     VS.Hud.hide();
     VS.Panels.showStart(data.bestTime, VS.Levels ? VS.Levels.count() : 1);
+    renderSkinRow();
     VS.Game.snapCamera(game);
 
     /* ---- 等图集解码完再允许开局，避免第一帧用降级图形 ---- */

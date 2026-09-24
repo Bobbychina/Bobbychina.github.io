@@ -17,6 +17,7 @@
       runs: 0,
       totalKills: 0,
       muted: false,
+      playerSkin: 'witch', // 主角皮肤 id（见 tools/player-art.js 的 SKINS）
       top: []              // 个人前 5（见 core/scores.js），跟云存档一起走
     };
   }
@@ -62,6 +63,9 @@
         if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
         /* 数组字段（top 榜）：不能走 isFinite 那条判断 —— 两个以上元素的数组 isFinite 为 false，会被整条丢掉 */
         if (Array.isArray(def[k])) { if (Array.isArray(raw[k])) def[k] = raw[k].slice(0); continue; }
+        /* 字符串字段（playerSkin 之类）：isFinite('witch') 是 false，会被整条丢掉，
+           所以字符串单独判类型，不走数值那条路。 */
+        if (typeof def[k] === 'string') { if (typeof raw[k] === 'string' && raw[k]) def[k] = raw[k]; continue; }
         if (typeof raw[k] === typeof def[k] && isFinite(raw[k])) def[k] = raw[k];
       }
       return def;
@@ -98,6 +102,13 @@
       data.muted = !!muted;
       writeRaw(data);
       return data.muted;
+    },
+
+    /** 只改主角皮肤 id */
+    setSkin: function (data, skinId) {
+      data.playerSkin = String(skinId || 'witch');
+      writeRaw(data);
+      return data.playerSkin;
     },
 
     reset: function () {

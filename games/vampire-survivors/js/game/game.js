@@ -282,6 +282,10 @@
       game.pendingPetSelect = false;
       game.petChoices = [];
       game.draftCards = 0;
+
+      /* 主角皮肤：从存档取（换皮肤在开始面板，走 VS.Save.setSkin）。
+         取不到就给默认值，渲染层还会再兜一次底。 */
+      game.playerSkin = (game.data && game.data.playerSkin) || 'witch';
       game.levelDef = VS.Levels.def(0);
 
       VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);

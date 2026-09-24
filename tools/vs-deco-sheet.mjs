@@ -4,12 +4,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { createRequire } from 'node:module';
 
 const out = process.argv[2];
 const modPath = process.argv[3];
-if (!out || !modPath) { console.error('用法: node tools/vs-deco-sheet.mjs <out.png> <tiles.mjs>'); process.exit(1); }
+if (!out || !modPath) { console.error('用法: node tools/vs-deco-sheet.mjs <out.png> <tiles.js>'); process.exit(1); }
 
-const { default: groups } = await import('file://' + path.resolve(modPath));
+/* 美术源是 CommonJS（生成器也用 require 读它），所以这里按 CJS 加载 */
+const require = createRequire(import.meta.url);
+const groups = require(path.resolve(modPath));
 
 /* ---- PNG 编码 ---- */
 const CRC = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c; } return t; })();

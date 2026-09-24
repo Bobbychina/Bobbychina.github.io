@@ -26,7 +26,10 @@
     boss: 4,           // 24px 原始 -> 96px，配合 radius 44 的碰撞圆
     lemonPig: 4        // 同上：24px -> 96px，配合 radius 50 的碰撞圆
   };
-  var PLAYER_SCALE = 2;
+  var PLAYER_SCALE = 2;        // 20×24 原始 -> 40×48 屏幕像素
+  /* 皮肤：图集里每个皮肤一套 player_<skin>_<dir> 组（见 tools/player-art.js 的 SKINS）。
+     这里是取不到皮肤时用的兜底，改成 'witch' 之外的值不影响存档兼容。 */
+  var PLAYER_SKIN_DEFAULT = 'witch';
   var PET_SCALE = 2.2;         // 宠物 16px -> 35px，比玩家略小一点又不至于看不清
   var BOLT_SCALE = 2.2;
   var ACID_SCALE = 2.4;        // 柠檬酸液弹
@@ -859,8 +862,16 @@
         flip = p.facing.x < 0;
       }
 
-      var group = 'player_' + dirName;
+      /* 皮肤：图集里每个皮肤一套同名组 player_<skin>_<dir>。
+         取不到该皮肤的组就退回默认皮肤 —— 老存档里存的皮肤 id 已经不存在时不会变透明。 */
+      var skin = (game.playerSkin && /^[a-z0-9_]+$/.test(game.playerSkin)) ? game.playerSkin : PLAYER_SKIN_DEFAULT;
+      var group = 'player_' + skin + '_' + dirName;
       var list = VS.SpriteGroups[group];
+      if (!list) {
+        skin = PLAYER_SKIN_DEFAULT;
+        group = 'player_' + skin + '_' + dirName;
+        list = VS.SpriteGroups[group] || VS.SpriteGroups['player_' + dirName];
+      }
       var idx = list ? (Math.floor(r.walkPhase) % list.length) : 0;
       var name = list ? list[idx] : null;
 

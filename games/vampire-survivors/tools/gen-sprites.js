@@ -167,18 +167,7 @@ function withLegs(body, legs) {
    4. 调色板
    =========================================================== */
 
-const PAL_PLAYER = {
-  'K': '#150f22',   // 轮廓
-  'H': '#4b2f72',   // 帽子
-  'h': '#33204f',
-  'S': '#f7d0a8',   // 皮肤
-  'E': '#241a33',   // 眼睛
-  'C': '#7d59c8',   // 斗篷
-  'c': '#5b3d99',
-  'T': '#ffd166',   // 金边
-  'R': '#c0392b',   // 围巾
-  'B': '#382a4d'    // 靴子
-};
+/* 主角的配色已经搬进 tools/player-art.js 的 SKINS 表（多皮肤），这里不再重复一份 */
 
 const PAL_BAT = {
   'K': '#1a1024', 'W': '#b06bff', 'w': '#7a45c9',
@@ -239,64 +228,10 @@ const LEGS_A = ['....KBBKKBBK....', '.....KK..KK.....'];
 const LEGS_B = ['....KBBKKBBK....', '....KKK..KK.....'];
 const LEGS_C = ['....KBBKKBBK....', '.....KK..KKK....'];
 
-/* --- 玩家：三个朝向 × 三帧 --- */
-
-const PLAYER_DOWN = [
-  '................',
-  '.....KKKKKK.....',
-  '....KHHHHHHK....',
-  '...KHHHHHHHHK...',
-  '...KHSSSSSSHK...',
-  '...KSSESSESSK...',
-  '...KSSSSSSSSK...',
-  '....KSSSSSSK....',
-  '....KRRRRRRK....',
-  '...KKCCCCCCKK...',
-  '..KCCCCCCCCCCK..',
-  '..KCCCTTTTCCCK..',
-  '..KCCCCCCCCCCK..',
-  '...KCCCCCCCCK...',
-  '....KBBKKBBK....',
-  '.....KK..KK.....'
-];
-
-const PLAYER_UP = [
-  '................',
-  '.....KKKKKK.....',
-  '....KHHHHHHK....',
-  '...KHHHHHHHHK...',
-  '...KHHHHHHHHK...',
-  '...KHHhhhhHHK...',
-  '...KHhhhhhhHK...',
-  '....KHhhhhHK....',
-  '....KRRRRRRK....',
-  '...KKCCCCCCKK...',
-  '..KCCCCCCCCCCK..',
-  '..KCCCTTTTCCCK..',
-  '..KCCCCCCCCCCK..',
-  '...KCCCCCCCCK...',
-  '....KBBKKBBK....',
-  '.....KK..KK.....'
-];
-
-const PLAYER_SIDE = [
-  '................',
-  '.....KKKKK......',
-  '....KHHHHHK.....',
-  '...KHHHHHHHK....',
-  '...KHSSSSSK.....',
-  '...KHSESSK......',
-  '...KHSSSSSK.....',
-  '....KSSSSK......',
-  '....KRRRRK......',
-  '...KKCCCCCKK....',
-  '..KCCCCCCCCCK...',
-  '..KCCTTTTCCCK...',
-  '..KCCCCCCCCCK...',
-  '...KCCCCCCCK....',
-  '....KBBKKBBK....',
-  '.....KK..KK.....'
-];
+/* --- 玩家 ---
+   主角美术已经拆分到 tools/player-art.js（20×24、三方向 × 四帧 × 多皮肤）。
+   这里不再保留内联的 PLAYER_DOWN/UP/SIDE —— 那是旧的 16×16 三帧版本，
+   留着只会让人误改。要改主角请改 tools/player-art.js。 */
 
 /* --- 怪物 --- */
 
@@ -674,205 +609,20 @@ const BLADE_SHAPE = [
 /* ===========================================================
    6c. 主题点缀：按生物群落分的专属物件
    -----------------------------------------------------------
-   布置原则与生成器里原有的 DECO_* 保持一致：
-   · 16×16 画布、脚下 1~2 行留出与地面的过渡；
-   · 轮廓用近黑的 K，物件内部 2~3 个明度档；
-   · 几何沿用已经验证过的形状（碎石 / 骸骨 / 草丛 / 树桩），
-     换配色与细节来区分群落，避免"两关撒同一套东西"。
-   第一关「血色荒野」：焦黑锈红；第二关「柠檬深渊」：酸沼黄绿。
+   美术源在 tools/deco-art.js 里（形状 + 调色板一起），
+   和主角一样把"源"与"编译"分开 —— 改图形只改那个文件。
+   第一关「血色荒野」：焦土 / 铁丝网 / 锈铁 / 骸骨
+   第二关「柠檬深渊」：酸池 / 柠檬树 / 孢子囊 / 酸晶
    =========================================================== */
 
-/* ---------------- 第一关 · 血色荒野 ----------------
-   复用已有的 PAL_ROCK / PAL_BONE / PAL_GRASS / PAL_STUMP，
-   只把其中的"土色"换成焦土锈红，几何形状沿用已验证的那几套。 */
+const decoArt = require('./deco-art.js');
 
-/* 焦黑锈石：把岩石的冷灰换成锈红 */
-const PAL_WASTE_ROCK = { K: '#150d0f', g: '#38282a', G: '#55403c', H: '#6d5348', o: '#241a18' };
-
-/* 焦骨：骨色压暗、偏灰败 */
-const PAL_WASTE_BONE = { K: '#150d0f', W: '#8e8570', w: '#736b59', c: '#b3a98e', b: '#a1977d', B: '#7d7462', o: '#241a18' };
-
-/* 焦草：焦土上的草茬，暗绿被烧成褐绿 */
-const PAL_WASTE_GRASS = { K: '#150d0f', g: '#2b3a1c', G: '#44532a', o: '#33261f' };
-
-/* 焦木桩：断面炭化 */
-const PAL_WASTE_STUMP = { K: '#150d0f', g: '#4a3524', G: '#6b4c31', o: '#241a18', W: '#55403c', w: '#38282a' };
-
-/* ---------------- 第二关 · 柠檬深渊 ----------------
-   沿用酸沼的黄绿体系，骨头改成被酸蚀过的青白。 */
-
-/* 沼石：长荧光苔 */
-const PAL_ABYSS_ROCK = { K: '#111607', G: '#3f5c10', g: '#5f8518', L: '#8fb52a', a: '#96c020', A: '#c2e03c', l: '#e8f47a' };
-
-/* 蚀骨：被酸蚀出孔洞 */
-const PAL_ABYSS_BONE_ = { K: '#111607', W: '#9aa47e', w: '#7d8763', c: '#e0e6c8', b: '#c2cba6', B: '#a5ae8b', G: '#3f5c10' };
-
-/* 酸沼草：宽叶带荧光叶尖 */
-const PAL_ABYSS_GRASS_ = { K: '#111607', g: '#3f5c10', G: '#5f8518', l: '#e8f47a', A: '#c2e03c' };
-
-/* 柠檬树桩：断口渗酸 */
-const PAL_ABYSS_STUMP_ = { K: '#111607', g: '#5f8518', G: '#3f5c10', y: '#d8e84a', l: '#e8f47a' };
-
-/* 焦黑锈石：受光面偏暖，底部吃进焦土 */
-const DECO_WASTE_ROCK = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.......KKK......',
-  '.....KKgGGK.....',
-  '....KgGGGHGK....',
-  '...KgGGHHHGGK...',
-  '...KgGGHHHGGK...',
-  '..KgGGHHHHGGgK..',
-  '..KgGGHHHHGGgK..',
-  '..KKggGGGGggKK..',
-  '...KKooooooKK...',
-  '....KKKKKKKK....'
-];
-
-/* 焦骨堆：被烧过的骸骨，颜色偏灰败 */
-const DECO_WASTE_BONE = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.......KcK......',
-  '......KcbcK.....',
-  '......KBcbK.....',
-  '......KcbbK.....',
-  '...KbK.KBK......',
-  '..KbBbKKbBbK....',
-  '..KBbBbBbBbK....',
-  '...KKKKKKKK.....',
-  '....KooooK......'
-];
-
-/* 焦草：烧剩的草茬，短而硬 */
-const DECO_WASTE_GRASS = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '....KgK..KgK....',
-  '....KgK.KgK.....',
-  '...KgGK.KgGK....',
-  '...KgGK.KgGK....',
-  '..KgGGK.KgGGK...',
-  '..KoooKKKoooK...',
-  '..KKKKKKKKKKK...'
-];
-
-/* 焦木桩：烧断的树桩，断面有炭化纹 */
-const DECO_WASTE_STUMP = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.....KKKKKK.....',
-  '....KoWWWWoK....',
-  '....KoKooKoK....',
-  '....KoWWWWoK....',
-  '....KowWWwoK....',
-  '....KowWWwoK....',
-  '....KowWWwoK....',
-  '...KKooooooKK...',
-  '...KKKKKKKKKK...'
-];
-
-/* ---------------- 第二关 · 柠檬深渊 ---------------- */
-
-/* 沼石：长满荧光苔的石头 */
-const DECO_ABYSS_ROCK = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.......KKK......',
-  '.....KKgLLK.....',
-  '....KGgLLLgK....',
-  '...KGgLLaLLgK...',
-  '...KGgLaAAaLgK..',
-  '..KGgLaAllALgK..',
-  '..KGgGaAllAGgK..',
-  '..KKGggaaaggKK..',
-  '...KKGGGGGGKK...',
-  '....KKKKKKKK....'
-];
-
-/* 蚀骨堆：被酸蚀出孔洞的残骸 */
-const DECO_ABYSS_BONE = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.......KcK......',
-  '......KcbcK.....',
-  '......KBcbK.....',
-  '......KcbbK.....',
-  '...KbK.KBK......',
-  '..KbBbKKbBbK....',
-  '..KBbBbBbBbK....',
-  '...KKKKKKKK.....',
-  '....KGGGGK......'
-];
-
-/* 酸沼草：宽叶毒草，叶尖带荧光 */
-const DECO_ABYSS_GRASS = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '....KlK..KlK....',
-  '....KlK.KlK.....',
-  '...KlAK.KlAK....',
-  '...KlAK.KlAK....',
-  '..KlAAK.KlAAK...',
-  '..KlAAK.KlAAK...',
-  '..KGGGKKKGGGK...',
-  '..KKKKKKKKKKK...'
-];
-
-/* 柠檬树桩：切断的柠檬树，断口渗出酸液 */
-const DECO_ABYSS_STUMP = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '.....KKKKKK.....',
-  '....KgyyyygK....',
-  '....KgKllKgK....',
-  '....KgyyyygK....',
-  '....KggygggK....',
-  '....KggygggK....',
-  '....KggygggK....',
-  '...KKGGGGGGKK...',
-  '...KKKKKKKKKK...'
+/* 把 deco-art.js 里的组名映射成图集里的组名与精灵前缀 */
+const DECO_THEME_MAP = [
+  ['deco_l1', decoArt.deco_l1],
+  ['deco_l1', decoArt.deco_l1_big],
+  ['deco_l2', decoArt.deco_l2],
+  ['deco_l2', decoArt.deco_l2_big]
 ];
 
 /* ===========================================================
@@ -1252,23 +1002,32 @@ function addGroup(name, frames) {
   groups[name] = frames;
 }
 
-function buildAll() {
-  /* --- 玩家：每方向三帧，循环顺序 [0,1,0,2] 让左右脚交替 --- */
-  const dirs = [
-    ['down', PLAYER_DOWN],
-    ['up', PLAYER_UP],
-    ['side', PLAYER_SIDE]
-  ];
+/* 主角美术源：形状 + 皮肤表（tools/player-art.js）。
+   放在模块级，buildAll 与 writeSpritesJs 都要用（后者把皮肤表写进图集给 UI 读）。 */
+const playerArt = require('./player-art.js');
 
-  dirs.forEach(([dir, body]) => {
-    const legs = [LEGS_A, LEGS_B, LEGS_C];
-    const names = [];
-    legs.forEach((lg, i) => {
-      const n = `player_${dir}_${i}`;
-      addSprite(n, buildSprite(n, withLegs(body, lg), PAL_PLAYER));
-      names.push(n);
+function buildAll() {
+  /* --- 玩家：每皮肤 × 三方向 × 四帧 ---
+     形状与配色分离在 tools/player-art.js 里：加皮肤只改那边的 SKINS 表。
+     帧循环顺序 [0,1,2,3] 让左右脚交替。 */
+  playerArt.SKINS.forEach(function (skin) {
+    playerArt.DIRS.forEach(function (dir) {
+      const names = [];
+      playerArt.FRAMES.forEach(function (f) {
+        const n = 'p_' + skin.id + '_' + dir + '_' + f;
+        const rows = playerArt.buildFrame(dir, f);
+        addSprite(n, buildSprite(n, rows, skin.pal));
+        names.push(n);
+      });
+      addGroup('player_' + skin.id + '_' + dir, names);
     });
-    addGroup(`player_${dir}`, [names[0], names[1], names[0], names[2]]);
+  });
+
+  /* 兼容：默认皮肤仍叫 player_down / player_up / player_side，
+     老代码（探针 / 存档 / 任何还在按旧名取帧的地方）不会一下子全断。 */
+  playerArt.DIRS.forEach(function (dir) {
+    const src = groups['player_' + playerArt.SKINS[0].id + '_' + dir];
+    addGroup('player_' + dir, src.slice());
   });
 
   /* --- 怪物 --- */
@@ -1380,28 +1139,16 @@ function buildAll() {
      第一关「血色荒野」要的是废墟与焦土感，第二关「柠檬深渊」要的是酸沼与柠檬，
      两关不再共用同一套点缀（原来两关都撒那 8 个中性物件，看起来当然一模一样）。
      level 侧由 C.LEVELS[i].deco 指定用哪个组。 */
-  const decoThemes = [
-    ['deco_l1', [
-      ['waste_rock', DECO_WASTE_ROCK, PAL_WASTE_ROCK],
-      ['waste_bone', DECO_WASTE_BONE, PAL_WASTE_BONE],
-      ['waste_grass', DECO_WASTE_GRASS, PAL_WASTE_GRASS],
-      ['waste_stump', DECO_WASTE_STUMP, PAL_WASTE_STUMP]
-    ]],
-    ['deco_l2', [
-      ['abyss_rock', DECO_ABYSS_ROCK, PAL_ABYSS_ROCK],
-      ['abyss_bone', DECO_ABYSS_BONE, PAL_ABYSS_BONE_],
-      ['abyss_grass', DECO_ABYSS_GRASS, PAL_ABYSS_GRASS_],
-      ['abyss_stump', DECO_ABYSS_STUMP, PAL_ABYSS_STUMP_]
-    ]]
-  ];
-  decoThemes.forEach(([group, list]) => {
-    const out = [];
-    list.forEach(([id, rows, pal]) => {
-      addSprite('deco_' + id, buildSprite('deco_' + id, rows, pal));
-      out.push('deco_' + id);
+  const themeGroups = {};
+  DECO_THEME_MAP.forEach(([groupName, props]) => {
+    const list = themeGroups[groupName] || (themeGroups[groupName] = []);
+    Object.keys(props).forEach((id) => {
+      const spriteName = 'deco_' + id;
+      addSprite(spriteName, buildSprite(spriteName, props[id].rows, props[id].pal));
+      list.push(spriteName);
     });
-    addGroup(group, out);
   });
+  Object.keys(themeGroups).forEach((g) => addGroup(g, themeGroups[g]));
 }
 
 /* ===========================================================
@@ -1917,6 +1664,10 @@ ${groupLines.join(',\n')}
   };
 
   VS.SpriteInfo = { count: ${names.length}, pngBytes: ${totalBytes} };
+
+  /** 主角皮肤：UI 直接用这份渲染皮肤选择器，不要在别处再写死一遍。
+      数据源是 tools/player-art.js 的 SKINS 表。 */
+  VS.PlayerSkins = ${JSON.stringify(playerArt.SKINS.map(function (s) { return { id: s.id, name: s.name, pal: s.pal }; }), null, 2)};
 
 })(window.VS = window.VS || {});
 `;
