@@ -341,9 +341,11 @@
   }
 
   /* ---------------- 关卡加成 + 流派加成 ----------------
-     第二关：环绕骨刃 / 腐化光环 ×1.5（配置在 C.LEVELS[i].weaponMul）。
-     流派增益：层数记在武器对象上（w.school + w.schoolXxx），**这里是唯一施加点** ——
-     开火逻辑一律走 statsFor，不要再直接 def.stats()，否则加成一加就漏。 */
+     三种加成**全部在这一个函数里施加**（所有武器、所有开火逻辑都从这里取数值）：
+       · 玩家技能伤害倍率 C.LEVELS[i].playerDmgMul —— 第二关所有技能 ×1.15
+       · 单件武器的关卡倍率 C.LEVELS[i].weaponMul —— 第二关 orbit / garlic ×1.5
+       · 流派增益：层数记在武器对象上（w.school + w.schoolXxx）
+     开火逻辑一律走 statsFor，不要再直接 def.stats()，否则任何一条加成一加就漏。 */
 
   function statsFor(game, id, level, weapon) {
     var def = C.WEAPONS[id];
@@ -352,16 +354,17 @@
     var src = def.stats(level);
     var w = weapon || null;
     var mul = (game && VS.Levels) ? VS.Levels.weaponMul(game.level, id) : 1;
+    var dmgAll = (game && VS.Levels) ? VS.Levels.playerDmgMul(game.level) : 1;
 
     var out = src;
-    if (mul !== 1 || (w && w.school)) {
+    if (mul !== 1 || dmgAll !== 1 || (w && w.school)) {
       out = {};
       for (var k in src) if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
     }
 
-    /* 关卡倍率：只放伤害与范围，数量不动 */
-    if (mul !== 1) {
-      if (out.damage !== undefined) out.damage *= mul;
+    /* 关卡倍率：伤害（含"全技能加强"）与范围，数量不动 */
+    if (mul !== 1 || dmgAll !== 1) {
+      if (out.damage !== undefined) out.damage *= mul * dmgAll;
       if (out.radius !== undefined) out.radius *= mul;
       if (out.maxRadius !== undefined) out.maxRadius *= mul;
     }

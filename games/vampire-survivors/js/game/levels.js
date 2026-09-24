@@ -97,6 +97,12 @@
     return m[id] === undefined ? 1 : m[id];
   }
 
+  /** 这一关玩家**所有技能**的伤害倍率（第二关怪血厚，给全武器一个小幅补偿） */
+  function playerDmgMul(index) {
+    var d = def(index);
+    return (d && d.playerDmgMul !== undefined) ? d.playerDmgMul : 1;
+  }
+
   /** 这一关的地图机制（柠檬酸池之类）；没有就返回 null */
   function hazards(index) {
     var d = def(index);
@@ -145,6 +151,7 @@
     isFresh: isFresh,
     allows: allows,
     weaponMul: weaponMul,
+    playerDmgMul: playerDmgMul,
     hazards: hazards,
     noRest: noRest,
     clearRule: clearRule,
