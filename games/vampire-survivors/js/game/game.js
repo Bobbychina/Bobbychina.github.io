@@ -181,7 +181,8 @@
         pets: null,
         player: null,
         pendingPetSelect: false,
-        petChoices: []
+        petChoices: [],
+        draftCards: 0          // 跳关预览时"还要自己选几张卡"
       };
 
       /* 吃到经验石时由拾取模块回调到这里 */
@@ -244,6 +245,7 @@
 
       game.pendingPetSelect = false;
       game.petChoices = [];
+      game.draftCards = 0;
       game.levelDef = VS.Levels.def(0);
 
       VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);
@@ -343,24 +345,40 @@
 
     /**
      * 从第 N 关直接开跑（关卡选择还没做，先给开始面板一个"预览第二关"按钮）。
-     * 跳关时补一套能打的构筑 —— 第二关的怪是 ×1.6 血 ×1.35 伤害，光着进去就是送死。
+     *
+     * 跳关**不发保底构筑**，而是让玩家自己配：
+     *   ① 先弹宠物三选一（自己挑）；
+     *   ② 选完连抽 `opt.draft` 张升级卡（走现成的选卡面板，一张一张自己选）。
+     * 这样"跳关看第二关"和正式流程的差别只剩下"少了前面 15 分钟"，构筑口味仍然是玩家自己的。
+     *
+     * @param {object} [opt] { draft: 自选卡张数（默认 8）, pet: 是否让玩家自己选宠物（默认 true） }
      */
-    startAt: function (game, index) {
+    startAt: function (game, index, opt) {
+      opt = opt || {};
       Game.newRun(game);
 
       index = Math.max(0, Math.min(Math.floor(index || 0), VS.Levels.count() - 1));
 
+      game.draftCards = 0;
+
       if (index > 0) {
         Game.startLevel(game, index);
 
-        /* 注意：fresh 关（第二关）会在 startLevel 里**换一个全新的玩家**，
-           所以保底构筑必须在这之后再发，发早了会被换掉。 */
-        var p = game.player;
-        for (var i = 1; i < 12; i++) VS.Player.grantLevel(p);   // 到 Lv.12
-        for (var u = 0; u < 3; u++) VS.Weapons.upgrade(p, C.PLAYER.START_WEAPON);
-        VS.Weapons.add(p, 'nova');
-        VS.Pets.choose(game.pets, 'faerie', game);
-        p.hp = p.maxHp;
+        var draft = opt.draft === undefined ? 8 : Math.max(0, Math.floor(opt.draft));
+
+        if (opt.pet === false) {
+          /* 不选宠物就直接把卡发了（测试/调试用） */
+          Game.grantDraftCards(game, draft);
+          if (draft > 0) draft = 0;
+          game.draftCards = 0;
+        } else {
+          /* 宠物先选：选完在 choosePet 里把卡发下去，顺序就是"宠物 → 连抽 N 张" */
+          game.pendingPetSelect = true;
+          game.draftCards = draft;
+        }
+
+        game.player.hp = game.player.maxHp;
+        game.player.invuln = 5;      // 自选期间站在怪堆里也要有活路
       }
 
       game.state = STATE.PLAYING;
@@ -456,6 +474,18 @@
     },
 
     /* ---------------- 关卡推进 ---------------- */
+
+    /**
+     * 跳关预览的"自选卡"：按张数给这么多次选卡机会。
+     * 等级会真的涨（和正常升级一样），卡片走现成的三选一面板。
+     */
+    grantDraftCards: function (game, count) {
+      var n = Math.max(0, Math.floor(count || 0));
+      for (var i = 0; i < n; i++) {
+        if (VS.Player.grantLevel(game.player)) game.pendingLevels += 1;
+      }
+      return n;
+    },
 
     /** 本关时间到：弹过关面板（最后一关则是通关） */
     clearLevel: function (game) {
@@ -590,6 +620,13 @@
 
       if (game.deps.panels && game.deps.panels.hidePetSelect) {
         game.deps.panels.hidePetSelect();
+      }
+
+      /* 跳关预览：宠物选完接着把"自选卡"发下去（一张一张自己选） */
+      if (game.draftCards > 0) {
+        var n = game.draftCards;
+        game.draftCards = 0;
+        Game.grantDraftCards(game, n);
       }
 
       if (game.pendingLevels > 0) {
