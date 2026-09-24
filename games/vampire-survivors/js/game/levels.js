@@ -77,6 +77,32 @@
     return (d && d.ground) || 'ground';
   }
 
+  /** 这一关是不是"从 1 级重新开始"（不带上一关的构筑） */
+  function isFresh(index) {
+    var d = def(index);
+    return !!(d && d.fresh);
+  }
+
+  /** 只在某些关卡出现的东西：`entry.onlyFromLevel` 是关卡下标（0 起），没写就是哪关都能出 */
+  function allows(index, entry) {
+    if (!entry || entry.onlyFromLevel === undefined || entry.onlyFromLevel === null) return true;
+    return index >= entry.onlyFromLevel;
+  }
+
+  /** 这一关对某件武器的额外倍率（例如第二关的环绕骨刃 / 腐化光环 ×1.5） */
+  function weaponMul(index, id) {
+    var d = def(index);
+    var m = d && d.weaponMul;
+    if (!m) return 1;
+    return m[id] === undefined ? 1 : m[id];
+  }
+
+  /** 这一关的地图机制（柠檬酸池之类）；没有就返回 null */
+  function hazards(index) {
+    var d = def(index);
+    return (d && d.hazards) || null;
+  }
+
   /** UI 用的一行名字，例如「第一关 · 血色荒野」 */
   function label(index) {
     var d = def(index);
@@ -94,6 +120,10 @@
     unlockMul: unlockMul,
     typeBias: typeBias,
     ground: ground,
+    isFresh: isFresh,
+    allows: allows,
+    weaponMul: weaponMul,
+    hazards: hazards,
     label: label,
     list: function () { return C.LEVELS || []; }
   };

@@ -52,12 +52,17 @@
    *  - 尚未拥有且武器栏没满的新武器
    *  - 各类增益（未达叠加上限）
    * 按权重不重复抽取 3 个
+   *
+   * 关卡还能把关卡专属的东西挡在外面：`onlyFromLevel: 1` 的武器/增益
+   * （柠檬喷射器 / 雷击链 / 酸液抗性 / 嗜血）只在第二关及以后进池子。
    */
   function buildChoices(game) {
     var p = game.player;
     var pool = [];
     var weights = [];
     var i;
+    var lvIndex = game.level || 0;
+    var gate = function (def) { return VS.Levels ? VS.Levels.allows(lvIndex, def) : true; };
 
     /* --- 武器升级 --- */
     for (i = 0; i < p.weapons.length; i++) {
@@ -84,6 +89,7 @@
         var nid = C.NEW_WEAPON_POOL[i];
         if (VS.Weapons.has(p, nid)) continue;
         var ndef = C.WEAPONS[nid];
+        if (!gate(ndef)) continue;
 
         pool.push({
           kind: 'weapon-new',
@@ -102,6 +108,7 @@
     /* --- 增益 --- */
     for (i = 0; i < C.UPGRADES.length; i++) {
       var up = C.UPGRADES[i];
+      if (!gate(up)) continue;
       var lv = VS.Player.upgradeLevel(p, up.id);
       if (lv >= up.max) continue;
 
@@ -250,8 +257,10 @@
 
     /**
      * 进入/切换到某一关。
-     * 保留：玩家等级、经验、武器、增益、宠物、总击杀、金球档位
-     * 重置：本关时间、怪物、掉落物、弹幕/酸液池、特效、玩家位置与血量
+     * · 普通换关：保留玩家等级、经验、武器、增益、宠物、总击杀
+     * · `def.fresh` 的关（第二关）：**和第一关没有任何关系** —— 等级/武器/增益/宠物
+     *   全部重来，等于从 1 级重新开一局；只有"这一局的总时长/总击杀"这类跑图统计留着。
+     * 两种情况下都重置：本关时间、怪物、掉落物、弹幕与酸液池、特效、玩家位置与血量。
      */
     startLevel: function (game, index, opt) {
       opt = opt || {};
@@ -267,6 +276,25 @@
       game.pickups = VS.Pickups.create();
       game.weapons = VS.Weapons.create();
       game.fx = VS.Effects.create();
+
+      /* 本关从零开始：换一个全新的玩家（等级 / 武器 / 增益都清空），宠物也重新选 */
+      if (VS.Levels.isFresh(index)) {
+        var carriedKills = game.player ? game.player.kills : 0;
+
+        game.player = VS.Player.create(game.world);
+        game.player.kills = carriedKills;      // 跑图总击杀继续累计（结算面板要用）
+        VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);
+
+        game.pets = VS.Pets.create();
+        game.pendingPetSelect = false;
+
+        /* 宠物与金球档位都跟着重置：第二关的第一只 Boss 会再给一次三选一 */
+        game.enemies.firstBossDefeated = false;
+
+        if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
+          game.deps.panels.showBanner('重 新 开 始', '第二关从 1 级重来 · 只有本关的怪更凶');
+        }
+      }
 
       /* 玩家：位置回地图中心，回满血，给一小段无敌（免得一进来就被贴脸） */
       var p = game.player;
@@ -323,12 +351,16 @@
       index = Math.max(0, Math.min(Math.floor(index || 0), VS.Levels.count() - 1));
 
       if (index > 0) {
+        Game.startLevel(game, index);
+
+        /* 注意：fresh 关（第二关）会在 startLevel 里**换一个全新的玩家**，
+           所以保底构筑必须在这之后再发，发早了会被换掉。 */
         var p = game.player;
         for (var i = 1; i < 12; i++) VS.Player.grantLevel(p);   // 到 Lv.12
         for (var u = 0; u < 3; u++) VS.Weapons.upgrade(p, C.PLAYER.START_WEAPON);
         VS.Weapons.add(p, 'nova');
         VS.Pets.choose(game.pets, 'faerie', game);
-        Game.startLevel(game, index);
+        p.hp = p.maxHp;
       }
 
       game.state = STATE.PLAYING;
@@ -452,7 +484,8 @@
           kills: game.player.kills,
           playerLevel: game.player.level,
           pet: VS.Pets.statusText(game.pets),
-          nextLabel: last ? '' : VS.Levels.label(game.level + 1)
+          nextLabel: last ? '' : VS.Levels.label(game.level + 1),
+          nextFresh: last ? false : VS.Levels.isFresh(game.level + 1)
         });
       } else {
         /* 没有面板就兜底：直接进下一关 / 直接结算，别卡死 */

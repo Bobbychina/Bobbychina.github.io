@@ -373,12 +373,15 @@
       id: 2,
       name: '第二关',
       subtitle: '柠檬深渊',
-      duration: 720,                     // 12:00 通关（大概版）
+      duration: 720,                     // 12:00 通关
+      /* 和第二关的**第一关没有任何关系**：进去以后从 1 级重新开始，
+         不带第一关的等级/武器/增益/宠物（见 Game.startLevel 的 def.fresh 分支）。 */
+      fresh: true,
       bosses: [
         {
           at: 180, type: 'lemonPig', name: '柠檬猪',
           tip: '柠 檬 猪 · 第 二 关', sub: '酸液池会留在地上，别站在里面',
-          reward: 'levelUp'
+          reward: 'firstBoss'          // 重新开始 → 宠物也重新三选一
         },
         {
           at: 480, type: 'boss', name: '尸潮之王', hpMul: 1.15,
@@ -391,12 +394,31 @@
           reward: 'levelUp'
         }
       ],
-      hpMul: 1.60,                       // 怪更肉
-      dmgMul: 1.35,                      // 打得更疼
-      speedMul: 1.10,                    // 略快（第一关已经压过速度曲线，这里只是小幅回补）
-      spawnMul: 0.85,                    // 刷得更密
+      /* 强度 = 第一关的 1.5 倍（血量 / 伤害都是 ×1.5） */
+      hpMul: 1.50,
+      dmgMul: 1.50,
+      speedMul: 1.08,                    // 速度只小幅回补（第一关已经压过速度曲线）
+      spawnMul: 0.90,                    // 刷得更密一点
       unlockMul: 0.35,                   // 暗影/巨魔/精英很早就出来
       typeBias: { wraith: 2.2, brute: 1.8, elite: 1.6, ghost: 1.4 },
+
+      /* 只在第二关生效的武器强化（站长点单：只加强环绕骨刃和腐化光环） */
+      weaponMul: { orbit: 1.5, garlic: 1.5 },
+
+      /* 地图机制：地上会自己冒柠檬酸池（范围中等、有预警、站进去持续掉血） */
+      hazards: {
+        interval: 7.5,     // 每隔多久冒一批
+        count: 2,          // 一批几滩
+        radius: 66,        // 半径："不要太大也别太小" —— 比 Boss 那滩(78)小一圈，比经验石吸附圈大
+        warn: 0.9,         // 冒出来之前的预警时间（先亮一圈，再喷）
+        life: 6.5,         // 存在几秒
+        tick: 0.5,         // 每几秒结算一次
+        damage: 9,         // 每次结算的伤害（比 Boss 的 12 低，因为它是持续存在的环境）
+        max: 9,            // 场上同时最多几滩（性能 + 不至于走不动路）
+        near: 150,         // 刷新在离玩家多远的圈内（太远没意义，太近没反应时间）
+        spread: 320        // 距离的随机上浮
+      },
+
       ground: 'ground_l2'
     }
   ];
@@ -546,12 +568,57 @@
         var s = this.stats(lv);
         return '伤害 ' + s.damage + ' · 间隔 ' + s.cooldown.toFixed(2) + 's · 半径 ' + Math.round(s.maxRadius);
       }
+    },
+
+    /* ---------------- 第二关专属武器（onlyFromLevel: 1 = 下标 1 = 第二关） ----------------
+       第一关抽不到，第二关"重新开始"以后才会进卡池。 */
+
+    acidSpray: {
+      id: 'acidSpray', name: '柠檬喷射器', icon: '☣', color: '#c7f24a',
+      desc: '朝最近的敌人抛出酸液，落地炸开一小滩腐蚀酸液，持续伤害站在里面的敌人。',
+      maxLevel: 8,
+      onlyFromLevel: 1,
+      stats: function (lv) {
+        return {
+          cooldown: Math.max(0.85, 2.6 - 0.22 * (lv - 1)),
+          damage: 6 + 3.2 * (lv - 1),        // 每次结算的伤害
+          radius: 44 + 5 * (lv - 1),
+          life: 3.0 + 0.25 * (lv - 1),
+          tick: 0.45,
+          range: 460
+        };
+      },
+      describe: function (lv) {
+        var s = this.stats(lv);
+        return '每 ' + s.tick.toFixed(2) + 's 造成 ' + VS.Utils.fixed(s.damage) +
+               ' 伤害 · 酸滩半径 ' + Math.round(s.radius) + ' · 持续 ' + s.life.toFixed(1) + 's';
+      }
+    },
+
+    chain: {
+      id: 'chain', name: '雷击链', icon: '⚡', color: '#ffe066',
+      desc: '周期性劈向最近的敌人，并沿着附近的敌人连锁跳跃。',
+      maxLevel: 8,
+      onlyFromLevel: 1,
+      stats: function (lv) {
+        return {
+          cooldown: Math.max(0.95, 2.9 - 0.24 * (lv - 1)),
+          damage: 11 + 5.5 * (lv - 1),
+          chains: 2 + Math.floor(lv / 2),    // 最多连几个
+          range: 320 + 18 * (lv - 1),        // 第一跳的搜索半径
+          jump: 150 + 6 * (lv - 1)           // 后续每一跳的最大距离
+        };
+      },
+      describe: function (lv) {
+        var s = this.stats(lv);
+        return '伤害 ' + s.damage + ' · 间隔 ' + s.cooldown.toFixed(2) + 's · 连锁最多 ' + s.chains + ' 个';
+      }
     }
   };
 
   /** 可用于"获取新武器"的清单（开局自带 bolt） */
   C.START_WEAPONS = ['bolt'];
-  C.NEW_WEAPON_POOL = ['garlic', 'orbit', 'nova'];
+  C.NEW_WEAPON_POOL = ['garlic', 'orbit', 'nova', 'acidSpray', 'chain'];
   C.MAX_WEAPONS = 4;
 
   /* ---------------- 升级增益 ----------------
@@ -614,6 +681,19 @@
       id: 'crit', name: '致命一击', icon: '✧', max: 5, weight: 7,
       desc: '暴击率 +8%（暴击造成 2 倍伤害）',
       apply: function (p) { p.critChance += 0.08; }
+    },
+
+    /* ---------------- 第二关专属增益（onlyFromLevel: 1） ---------------- */
+
+    {
+      id: 'acidResist', name: '酸液抗性', icon: '☣', max: 2, weight: 8, onlyFromLevel: 1,
+      desc: '受到的酸液伤害 -50%（Boss 的酸液弹与地上的柠檬酸池都算）',
+      apply: function (p) { p.acidResist = Math.min(1, (p.acidResist || 0) + 0.5); }
+    },
+    {
+      id: 'lifesteal', name: '嗜血', icon: '❦', max: 4, weight: 7, onlyFromLevel: 1,
+      desc: '每次击杀回复 0.8 点生命',
+      apply: function (p) { p.lifesteal = (p.lifesteal || 0) + 0.8; }
     }
   ];
 

@@ -218,23 +218,20 @@
   function firePools(state, b, game, R) {
     var P = R.pool;
     var p = game.player;
-    var world = game.world;
-    var pad = world.pad;
 
     for (var i = 0; i < P.count; i++) {
       var a = Math.random() * U.TAU;
       var d = P.dist * (0.35 + Math.random() * 0.85);
-      state.pools.push({
-        x: U.clamp(p.x + Math.cos(a) * d, pad + 30, world.w - pad - 30),
-        y: U.clamp(p.y + Math.sin(a) * d, pad + 30, world.h - pad - 30),
+      spawnPool(state, game, {
+        x: p.x + Math.cos(a) * d,
+        y: p.y + Math.sin(a) * d,
         radius: P.radius,
         life: P.life,
-        maxLife: P.life,
         tick: P.tick,
         damage: P.damage,
-        /* 错开每滩的首次结算，别几滩同时打一下把人秒了 */
-        acc: 0.35 + i * (P.gap || 0.12),
-        phase: Math.random() * U.TAU
+        side: 'enemy',
+        /* 错开每滩的首次结算 */
+        acc: 0.35 + i * (P.gap || 0.12)
       });
     }
 
@@ -294,11 +291,81 @@
 
   /* ---------------- 酸液池：站在里面持续掉血 ---------------- */
 
+  /* ---------------- 酸液池 ----------------
+     池子有两种立场：
+       side: 'enemy'  → 敌方的（Boss 吐的 / 第二关地图自己冒的），踩进去玩家掉血
+       side: 'player' → 玩家的（柠檬喷射器打的），站在里面的怪掉血
+     warn 是"预警时间"：先亮一圈，时间到了才真正开始伤人 —— 凭空出现太阴间。
+  ------------------------------------------------------------ */
+
+  /** 造一滩酸液（武器、Boss、地图机制都走这里，参数统一） */
+  function spawnPool(state, game, opt) {
+    var world = game.world;
+    var pad = world.pad || 0;
+    var pool = {
+      x: U.clamp(opt.x, pad + 24, world.w - pad - 24),
+      y: U.clamp(opt.y, pad + 24, world.h - pad - 24),
+      radius: opt.radius,
+      life: opt.life,
+      maxLife: opt.life,
+      tick: opt.tick,
+      damage: opt.damage,
+      side: opt.side || 'enemy',
+      warn: opt.warn || 0,
+      maxWarn: opt.warn || 0,
+      /* 错开每滩的首次结算，别几滩同时打一下把人秒了 */
+      acc: opt.acc === undefined ? (0.3 + Math.random() * 0.2) : opt.acc,
+      phase: Math.random() * U.TAU
+    };
+    state.pools.push(pool);
+    return pool;
+  }
+
+  /**
+   * 地图机制：第二关地上会自己冒柠檬酸池（配置在 C.LEVELS[i].hazards）。
+   * 刷在玩家周围一圈、带预警；Boss 战期间照常（它本来就是给玩家添乱的）。
+   */
+  function updateHazards(state, dt, game) {
+    var H = VS.Levels ? VS.Levels.hazards(game.level) : null;
+    if (!H) return;
+
+    var cap = H.max || 8;
+    if (state.pools.length >= cap) return;
+
+    state.hazardAcc = (state.hazardAcc || 0) + dt;
+    if (state.hazardAcc < H.interval) return;
+    state.hazardAcc = 0;
+
+    var p = game.player;
+    for (var i = 0; i < H.count; i++) {
+      if (state.pools.length >= cap) break;
+
+      var a = Math.random() * U.TAU;
+      var d = H.near + Math.random() * H.spread;
+      var x = p.x + Math.cos(a) * d;
+      var y = p.y + Math.sin(a) * d;
+
+      spawnPool(state, game, {
+        x: x, y: y,
+        radius: H.radius,
+        life: H.life,
+        tick: H.tick,
+        damage: H.damage,
+        side: 'enemy',
+        warn: H.warn
+      });
+      VS.Effects.burst(game.fx, x, y, '#c7f24a', 6, { speed: 90, life: 0.35, size: 2.4 });
+    }
+  }
+
+  /** 池子结算：玩家和怪都按时间 tick（帧率不影响伤害） */
   function updatePools(state, dt, game) {
     var list = state.pools;
     if (!list || !list.length) return;
 
     var p = game.player;
+    var grid = game.world.grid;
+    var found = state._poolHits || (state._poolHits = []);
 
     for (var i = list.length - 1; i >= 0; i--) {
       var z = list[i];
@@ -312,19 +379,36 @@
         continue;
       }
 
-      if (!p.alive || p.invuln > 0) continue;
+      /* 预警期：只亮不打 */
+      if (z.warn > 0) {
+        z.warn -= dt;
+        continue;
+      }
 
-      /* 站在池子里：每 tick 秒结算一次（按时间而不是按帧，帧率不会改变伤害） */
       z.acc += dt;
       if (z.acc < z.tick) continue;
 
-      if (U.circleHit(p.x, p.y, p.radius, z.x, z.y, z.radius)) {
+      if (z.side === 'player') {
+        /* 玩家的酸滩：烫站在里面的怪（走空间网格，别 O(池 × 怪) 硬扫） */
         z.acc = 0;
-        VS.Player.takeDamage(p, z.damage, game, z.x, z.y);
-        VS.Effects.burst(game.fx, p.x, p.y, '#d8f05a', 6, { speed: 110, life: 0.35, size: 2.6 });
-      } else if (z.acc > z.tick * 3) {
-        z.acc = z.tick;      // 没人踩的时候别把欠账攒起来
+        if (grid) {
+          grid.queryCircle(z.x, z.y, z.radius, found);
+          for (var k = 0; k < found.length; k++) {
+            var e = found[k];
+            if (e.dead || e.boss) continue;                 // Boss 不被酸滩烫，免得变成白嫖手段
+            if (!U.circleHit(e.x, e.y, e.radius, z.x, z.y, z.radius)) continue;
+            Enemies.hurt(game, e, z.damage, false, 0, 0);
+          }
+        }
+      } else if (p.alive && p.invuln <= 0) {
+        if (U.circleHit(p.x, p.y, p.radius, z.x, z.y, z.radius)) {
+          z.acc = 0;
+          VS.Player.takeDamage(p, z.damage, game, z.x, z.y, { acid: true });
+          VS.Effects.burst(game.fx, p.x, p.y, '#d8f05a', 6, { speed: 110, life: 0.35, size: 2.6 });
+        }
       }
+
+      if (z.acc > z.tick * 3) z.acc = z.tick;    // 没人踩的时候别把欠账攒起来
     }
   }
 
@@ -351,7 +435,7 @@
       }
 
       if (p.alive && U.circleHit(p.x, p.y, p.radius, s.x, s.y, s.r)) {
-        VS.Player.takeDamage(p, s.damage, game, s.x, s.y);
+        VS.Player.takeDamage(p, s.damage, game, s.x, s.y, { acid: true });
         VS.Effects.burst(game.fx, s.x, s.y, '#d8f05a', 12, { speed: 150, life: 0.45, size: 3 });
         U.swapRemove(list, i);
       }
@@ -549,6 +633,11 @@
     game.player.kills++;
     game.kills++;
 
+    /* 嗜血（第二关专属增益）：每次击杀回一点血。刻意不放音效/特效 —— 一秒杀几十只时会刷屏 */
+    if (game.player.lifesteal > 0 && game.player.alive) {
+      game.player.hp = Math.min(game.player.maxHp, game.player.hp + game.player.lifesteal);
+    }
+
     /* Boss 死亡：更大的爆炸、掉落一大把经验石、结算奖励 */
     if (e.boss) {
       var es = game.enemies;
@@ -729,6 +818,9 @@
 
     spawn: spawnEnemy,
     spawnBoss: spawnBoss,
+    spawnPool: spawnPool,
+    updateHazards: updateHazards,
+    updatePools: updatePools,
     summonMinions: summonMinions,
     updateSpawning: updateSpawning,
     kill: kill,
@@ -741,6 +833,7 @@
         updateBoss(state, dt, game);
         updateBossAttack(state, dt, game);
         updateShots(state, dt, game);
+        updateHazards(state, dt, game);
         updatePools(state, dt, game);
         prof.move += nowMs() - t;
 
@@ -767,6 +860,7 @@
       updateBoss(state, dt, game);
       updateBossAttack(state, dt, game);
       updateShots(state, dt, game);
+      updateHazards(state, dt, game);     // 地图机制：第二关的柠檬酸池
       updatePools(state, dt, game);
       updateSpawning(state, dt, game);
       moveAndCollide(state, dt, game);

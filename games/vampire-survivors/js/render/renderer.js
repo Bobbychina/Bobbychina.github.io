@@ -256,6 +256,7 @@
       Renderer.drawPets(ctx, r, game, time);
       Renderer.drawOrbit(ctx, game, time);
       Renderer.drawProjectiles(ctx, game, view, time);
+      Renderer.drawBolts(ctx, game, view);            // 雷击链的折线
       Renderer.drawBossShots(ctx, r, game, view);     // 敌方弹幕压在玩家弹幕之上
       Renderer.drawShots(ctx, game, view, time);      // 柠檬猪的酸液（enemies.shots）
       Renderer.drawParticles(ctx, game, view);
@@ -988,8 +989,9 @@
       }
     },
 
-    /* ---------------- 柠檬猪的酸液池 ----------------
-       画在怪物**下面**（先于敌人绘制），免得池子盖住站在里面的怪。 */
+    /* ---------------- 酸液池 ----------------
+       画在怪物**下面**（先于敌人绘制），免得池子盖住站在里面的怪。
+       两种立场用颜色区分：柠檬黄绿 = 敌方的（踩了掉血），青绿 = 玩家自己的（烫怪）。 */
 
     drawPools: function (ctx, game, view, time) {
       var pools = game.enemies && game.enemies.pools;
@@ -998,6 +1000,31 @@
       for (var i = 0; i < pools.length; i++) {
         var z = pools[i];
         if (!VS.World.isVisible(view, z.x, z.y, z.radius + 24)) continue;
+
+        /* 预警期（还没开始伤人）：只画一圈收缩的亮环，明确告诉玩家"这里要冒酸了" */
+        if (z.warn > 0) {
+          var wk = 1 - z.warn / (z.maxWarn || 1);
+          ctx.save();
+          ctx.globalAlpha = 0.35 + 0.45 * wk;
+          ctx.strokeStyle = '#e6ff9a';
+          ctx.lineWidth = 2.6;
+          ctx.setLineDash([6, 5]);
+          ctx.beginPath();
+          ctx.arc(z.x, z.y, z.radius * (1.5 - 0.5 * wk), 0, U.TAU);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 0.22;
+          ctx.fillStyle = '#c7f24a';
+          ctx.beginPath();
+          ctx.arc(z.x, z.y, Math.max(1, z.radius * 0.45 * wk), 0, U.TAU);
+          ctx.fill();
+          ctx.restore();
+          continue;
+        }
+
+        var mine = z.side === 'player';
+        var body = mine ? '#5fe0b0' : '#a8d92e';
+        var edge = mine ? '#b6fff0' : '#e6ff9a';
 
         /* 快消失时闪烁，提示"这块要没了" */
         var k = z.life / z.maxLife;
@@ -1008,14 +1035,14 @@
         /* 主体：半透明酸液 */
         ctx.save();
         ctx.globalAlpha = blink * 0.5;
-        ctx.fillStyle = '#a8d92e';
+        ctx.fillStyle = body;
         ctx.beginPath();
         ctx.ellipse(z.x, z.y, rr, rr * 0.86, 0, 0, U.TAU);
         ctx.fill();
 
-        /* 边沿：一圈更亮的柠檬色，方便一眼看清范围 */
+        /* 边沿：一圈更亮的颜色，方便一眼看清范围 */
         ctx.globalAlpha = blink * 0.9;
-        ctx.strokeStyle = '#e6ff9a';
+        ctx.strokeStyle = edge;
         ctx.lineWidth = 2.4;
         ctx.beginPath();
         ctx.ellipse(z.x, z.y, rr, rr * 0.86, 0, 0, U.TAU);
@@ -1023,7 +1050,7 @@
 
         /* 冒泡：三个随时间上浮的小点（纯几何，不用精灵） */
         ctx.globalAlpha = blink * 0.75;
-        ctx.fillStyle = '#f2ffd0';
+        ctx.fillStyle = mine ? '#e8fff8' : '#f2ffd0';
         for (var b = 0; b < 3; b++) {
           var t = (z.phase * 0.5 + b / 3) % 1;
           var bx = z.x + Math.cos(z.phase + b * 2.1) * rr * 0.5;
@@ -1031,6 +1058,45 @@
           ctx.beginPath();
           ctx.arc(bx, by, 2.6 * (1 - t * 0.5), 0, U.TAU);
           ctx.fill();
+        }
+        ctx.restore();
+      }
+    },
+
+    /* ---------------- 雷击链（第二关的 chain 武器） ----------------
+       只画折线：主闪电 + 更细更淡的一层，寿命 0.16 秒。 */
+
+    drawBolts: function (ctx, game, view) {
+      var bolts = game.weapons && game.weapons.bolts;
+      if (!bolts || !bolts.length) return;
+
+      for (var i = 0; i < bolts.length; i++) {
+        var b = bolts[i];
+        var k = b.life / b.maxLife;
+        var pts = b.pts;
+        if (!pts || pts.length < 2) continue;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, k)) * 0.9;
+        ctx.lineCap = 'round';
+
+        for (var pass = 0; pass < 2; pass++) {
+          ctx.strokeStyle = pass === 0 ? '#fff8c0' : '#ffe066';
+          ctx.lineWidth = pass === 0 ? 3.2 : 1.4;
+          ctx.beginPath();
+
+          for (var j = 0; j < pts.length - 1; j++) {
+            var x0 = pts[j].x, y0 = pts[j].y;
+            var x1 = pts[j + 1].x, y1 = pts[j + 1].y;
+            if (!VS.World.isVisible(view, (x0 + x1) / 2, (y0 + y1) / 2, 160)) continue;
+
+            ctx.moveTo(x0, y0);
+            /* 中间插一个抖动的点，才像闪电而不是直线 */
+            ctx.lineTo((x0 + x1) / 2 + (Math.random() - 0.5) * 18,
+                       (y0 + y1) / 2 + (Math.random() - 0.5) * 18);
+            ctx.lineTo(x1, y1);
+          }
+          ctx.stroke();
         }
         ctx.restore();
       }

@@ -278,7 +278,9 @@
       if (dom.lcSub) {
         dom.lcSub.textContent = info.last
           ? '所有关卡都打完了 · 看看这一局的成绩'
-          : ('下一关：' + (info.nextLabel || '') + ' · 构筑 / 等级 / 宠物都会带过去');
+          : ('下一关：' + (info.nextLabel || '') +
+             (info.nextFresh ? ' · 从 1 级重新开始，怪是这一关的 1.5 倍强度'
+                             : ' · 构筑 / 等级 / 宠物都带过去'));
       }
       if (dom.lcTime) dom.lcTime.textContent = U.formatTime(info.time || 0);
       if (dom.lcKills) dom.lcKills.textContent = U.group(info.kills || 0);

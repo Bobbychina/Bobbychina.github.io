@@ -59,6 +59,10 @@
         luck: 1,
         critChance: 0,
 
+        /* 第二关专属增益带来的属性 */
+        acidResist: 0,          // 酸液伤害减免（0~1）
+        lifesteal: 0,           // 每次击杀回血
+
         upgrades: {},           // 增益 id -> 已叠加层数
         weapons: [],            // [{ id, level, cd }]
 
@@ -150,10 +154,16 @@
 
     /**
      * 受伤：扣血 + 无敌帧 + 击退
+     * @param {object} [opt] { acid: true } 表示这是酸液伤害（吃"酸液抗性"的减免）
      * @returns {number} 实际扣掉的血量（0 表示被无敌帧挡下）
      */
-    takeDamage: function (p, amount, game, srcX, srcY) {
+    takeDamage: function (p, amount, game, srcX, srcY, opt) {
       if (!p.alive || p.invuln > 0) return 0;
+
+      /* 酸液伤害先过抗性（第二关专属增益，最多 -100%） */
+      if (opt && opt.acid && p.acidResist > 0) {
+        amount *= Math.max(0, 1 - p.acidResist);
+      }
 
       var dmg = Math.max(1, amount - p.armor);
       p.hp -= dmg;

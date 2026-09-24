@@ -241,9 +241,10 @@
 
   /* ---------------- 环绕骨刃 ---------------- */
 
-  function updateOrbit(state, dt, game, w) {
+  function updateOrbit(state, dt, game, w, stIn) {
     var p = game.player;
-    var st = C.WEAPONS.orbit.stats(w.level);
+    /* 等级数值由调用方算好传进来（要走 statsFor 才能吃到"第二关骨刃 ×1.5"） */
+    var st = stIn || statsFor(game, 'orbit', w.level);
     var count = st.count;
     var radius = st.radius * p.areaMul;
     var bladeR = st.bladeRadius;
@@ -339,6 +340,90 @@
     }
   }
 
+  /* ---------------- 关卡对武器的加成 ----------------
+     第二关：环绕骨刃 / 腐化光环 ×1.5（配置在 C.LEVELS[i].weaponMul）。
+     所有取值都从这里走，别在开火逻辑里直接 def.stats()，否则关卡加成一加就漏。 */
+
+  function statsFor(game, id, level) {
+    var def = C.WEAPONS[id];
+    if (!def) return null;
+    var st = def.stats(level);
+    var mul = VS.Levels ? VS.Levels.weaponMul(game.level, id) : 1;
+    if (mul !== 1) {
+      var out = {};
+      for (var k in st) if (Object.prototype.hasOwnProperty.call(st, k)) out[k] = st[k];
+      if (out.damage !== undefined) out.damage *= mul;
+      if (out.radius !== undefined) out.radius *= mul;
+      if (out.maxRadius !== undefined) out.maxRadius *= mul;
+      if (out.count !== undefined && mul >= 1.5) out.count += 0;   // 数量不动，只加伤害与范围
+      return out;
+    }
+    return st;
+  }
+
+  /* ---------------- 第二关专属：柠檬喷射器（往敌人脚下糊一滩酸） ---------------- */
+
+  function fireAcidSpray(game, w, st) {
+    var p = game.player;
+    var targets = nearestEnemies(game, p.x, p.y, 1, st.range * st.range);
+    if (targets.length === 0) return false;
+
+    var t = targets[0];
+    var roll = rollDamage(game, st.damage);
+
+    VS.Enemies.spawnPool(game.enemies, game, {
+      x: t.x, y: t.y,
+      radius: st.radius * p.areaMul,
+      life: st.life,
+      tick: st.tick,
+      damage: roll.dmg,
+      side: 'player',
+      warn: 0.25,                 // 很短的前摇：看得见"啪"一下落下来
+      acc: 0
+    });
+
+    VS.Effects.burst(game.fx, t.x, t.y, '#c7f24a', 12, { speed: 170, life: 0.45, size: 3 });
+    VS.Audio.play('shoot');
+    return true;
+  }
+
+  /* ---------------- 第二关专属：雷击链 ---------------- */
+
+  function fireChain(game, w, st) {
+    var p = game.player;
+    var hits = [];
+    var first = nearestEnemies(game, p.x, p.y, 1, st.range * st.range);
+    if (first.length === 0) return false;
+
+    var current = first[0];
+    var pts = [{ x: p.x, y: p.y }];
+
+    for (var i = 0; i < st.chains && current; i++) {
+      hits.push(current);
+      pts.push({ x: current.x, y: current.y });
+
+      var roll = rollDamage(game, st.damage);
+      VS.Enemies.hurt(game, current, roll.dmg, roll.crit, (current.x - p.x) * 0.05, (current.y - p.y) * 0.05);
+      VS.Effects.burst(game.fx, current.x, current.y, '#ffe066', 8, { speed: 150, life: 0.3, size: 2.8 });
+
+      /* 找下一跳：离当前目标最近、且没打过的 */
+      var next = null, bestD = st.jump * st.jump;
+      var list = game.enemies.list;
+      for (var k = 0; k < list.length; k++) {
+        var e = list[k];
+        if (e.dead || hits.indexOf(e) >= 0) continue;
+        var d = U.dist2(current.x, current.y, e.x, e.y);
+        if (d < bestD) { bestD = d; next = e; }
+      }
+      current = next;
+    }
+
+    /* 折线交给渲染层画（只存点 + 寿命，零额外开销） */
+    game.weapons.bolts.push({ pts: pts, life: 0.16, maxLife: 0.16 });
+    VS.Audio.play('nova');
+    return true;
+  }
+
   /* ---------------- 对外接口 ---------------- */
 
   var Weapons = {
@@ -347,6 +432,7 @@
       return {
         projectiles: [],
         novas: [],
+        bolts: [],            // 雷击链的折线（只存点，渲染层画）
         orbitAngle: 0,
         orbitBlades: [],
         auraPulse: null
@@ -356,6 +442,7 @@
     reset: function (state) {
       state.projectiles.length = 0;
       state.novas.length = 0;
+      state.bolts.length = 0;
       state.orbitBlades.length = 0;
       state.orbitAngle = 0;
       state.auraPulse = null;
@@ -404,7 +491,8 @@
           var def = C.WEAPONS[w.id];
           if (!def) continue;
 
-          var st = def.stats(w.level);
+          var st = statsFor(game, w.id, w.level);
+          if (!st) continue;
 
           if (w.id === 'bolt') {
             w.cd -= dt;
@@ -425,7 +513,19 @@
               tickGarlic(game, w, st);
             }
           } else if (w.id === 'orbit') {
-            updateOrbit(state, dt, game, w);
+            updateOrbit(state, dt, game, w, st);
+          } else if (w.id === 'acidSpray') {
+            w.cd -= dt;
+            if (w.cd <= 0) {
+              w.cd = st.cooldown / p.attackSpeedMul;
+              fireAcidSpray(game, w, st);
+            }
+          } else if (w.id === 'chain') {
+            w.cd -= dt;
+            if (w.cd <= 0) {
+              w.cd = st.cooldown / p.attackSpeedMul;
+              fireChain(game, w, st);
+            }
           }
         }
       }
@@ -433,6 +533,12 @@
       /* --- 已存在的实体继续推进（玩家死后也让它们飞完） --- */
       updateProjectiles(state, dt, game);
       updateNovas(state, dt, game);
+
+      /* 雷击折线只是视觉，寿命到了就丢 */
+      for (var b = state.bolts.length - 1; b >= 0; b--) {
+        state.bolts[b].life -= dt;
+        if (state.bolts[b].life <= 0) U.swapRemove(state.bolts, b);
+      }
 
       if (state.auraPulse) {
         state.auraPulse.life -= dt;
@@ -470,7 +576,10 @@
         out.push({ id: w.id, name: def.name, icon: def.icon, color: def.color, level: w.level });
       }
       return out;
-    }
+    },
+
+    /** 关卡加成后的等级数值（测试与调试用） */
+    _statsFor: statsFor
   };
 
   VS.register('Weapons', Weapons);
