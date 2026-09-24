@@ -325,8 +325,10 @@
       <th style="width:110px">差距</th></tr></thead><tbody id="resBody"></tbody></table>
     <div class="btnrow">
       <button class="btn" id="btnRestart">再 来 一 局 (R)</button>
+      <button class="btn ghost sm" id="btnMenu">🏁 返回主菜单 (M)</button>
       <button class="btn ghost sm" id="btnBoard2">🏆 官方排行榜</button>
     </div>
+    <p class="sub" style="font-size:12px;opacity:.72">想换赛道 / 换车 / 改 AI 难度：按 <b>M</b> 或点「返回主菜单」，不用刷新页面</p>
   </div>
 
   <div class="card" id="cardBoard" style="display:none">
@@ -348,7 +350,10 @@
   <div class="card" id="cardPause" style="display:none">
     <h2>已暂停</h2>
     <p class="sub">按 <kbd>Esc</kbd> 继续比赛，或按 <kbd>R</kbd> 重新开始</p>
-    <button class="btn ghost" id="btnResume">继 续</button>
+    <div class="btnrow">
+      <button class="btn ghost" id="btnResume">继 续</button>
+      <button class="btn ghost sm" id="btnMenu2">🏁 返回主菜单 (M)</button>
+    </div>
   </div>
 </div>
 
@@ -480,7 +485,9 @@ const CFG = {
     DRIFT_TURN_FOLLOW: 5.5,   // 漂移转向速率的自然频率 (大=更灵敏, 小=更柔和)
     DRIFT_TURN_MAX: 1.25,     // 漂移转向速率上限 rad/s (防止低速时原地打转)
     DRIFT_TURN_REF: 9.0,      // 计算转向能力时的速度下限 m/s
-    DRIFT_DRAG: 1.1,          // 漂移附加阻力 m/s² (很小 => 漂移几乎不掉速)
+    DRIFT_DRAG: 0.0,          // 漂移附加阻力 m/s² (2026-09-23: 1.1 → 0, 站长反馈"漂移像踩了刹车")
+    DRIFT_HOLD_ACC: 2.5,      // 漂移"保速"回补加速度 m/s²: 速度掉到入漂速度以下时往上补,
+                              // 上限就是入漂速度 => 掉速被抹平, 但变不成加速器(没法刷极速)
     DRIFT_BRAKE_MUL: 0.55,    // 漂移中刹车效果倍率 (漂移时点刹更柔和)
     DRIFT_EXIT_ALIGN: 2.8,    // 松开漂移键后"运动方向对齐车头"的速率 rad/s (柔和回正)
     DRIFT_EXIT_TIME: 0.55,    // 回正过程持续时长 s
@@ -553,7 +560,9 @@ const CFG = {
   AI_AIM_MARGIN: 4.2,       // 切弯心时离路缘留多少米 (太小会压草/撞墙)
   AI_LINE_BONUS: 0.06,      // 走线比中心线短 => 等效抓地加成 (0.18 = 弯速 +9%)
   AI_BRAKE_BONUS: 0.05,     // 刹车点可以再晚一点
-  AI_DRIFT_KAP: 1 / 45,     // 前方曲率大于这个值(半径 < 70m)时, AI 也按漂移键过弯
+  AI_DRIFT_KAP: 1 / 75,     // 前方曲率大于这个值(半径 < 75m)时, AI 也按漂移键过弯
+                            // (2026-09-23: 1/45 → 1/75 —— 漂移不再掉速后, 参考司机在更多弯里用了漂移,
+                            //   AI 只在发夹弯漂移就跟不上了; AI 漂移时转向需求已按 turnMul 除回来, 更安全)
   AI_DRIFT_MIN_SPEED: 22,   // 低于这个速度就不用漂移了
   AI_DIFFICULTY: 'normal',  // 'easy' 休闲 | 'normal' 标准 | 'hard' 硬核 (开场界面可切)
   AI_TUNE: {
@@ -3375,6 +3384,7 @@ function createVehicle(o) {
     driftLevel: 0,       // 0=轻点小角度档  1=长按大角度档 (平滑升降级)
     steerSmooth: 0,      // 方向输入的插值缓冲值 -1..1 (防猛甩头)
     driftDir: 1,         // 漂移方向记忆 (±1), 用于防外抛的基础转向
+    driftHoldV: 0,       // 漂移"保速"基准速度 m/s (入漂那一刻的速度, 掉速时回补到这)
     alignTimer: 0,       // 出弯回正剩余时间
     boostTimer: 0,       // 出弯小喷剩余时间
     slip: 0,             // 只读: 当前实际滑移角(用于显示/自检)
@@ -3453,6 +3463,8 @@ function stepVehicle(car, dt) {
     car.driftDir = sign(car.steerInput) || sign(car.yawRate) || 1;
     car.alignTimer = 0;
     car.boostTimer = 0;
+    /* 漂移"保速"基准: 入漂那一刻的速度 (2026-09-23, 见下面的回补逻辑) */
+    car.driftHoldV = Math.hypot(car.vx, car.vz);
   } else if (car.drifting) {
     if (wantDrift) {
       car.driftCoast = 0;                    // 按住时取消滑行倒计时
@@ -3521,6 +3533,16 @@ function stepVehicle(car, dt) {
     aLong -= sign(vLong) * rrD;
     if (car.onKerb) {
       aLong -= sign(vLong) * Math.min(PHYS.KERB_DRAG, Math.abs(vLong) / Math.max(dt, 1e-4));
+    }
+    /* --- 漂移"保速"(2026-09-23 站长反馈: 漂移不该像踩刹车) ---
+       漂移中额外阻力归零(DRIFT_DRAG=0), 并且速度掉到"入漂速度"以下时按 DRIFT_HOLD_ACC
+       往上补(踩刹车时除外) —— 一次漂移进出速度基本持平。
+       上限就是入漂速度(全程取最大值), 所以它补的是"漂移过程中掉的那部分",
+       不能把车推到比入漂更快 => 不是加速器, 也没法在直线上来回点漂移刷极速。 */
+    if (sp > car.driftHoldV) car.driftHoldV = sp;      // 漂移中本身加速了就抬高基准
+    if (C.DRIFT_HOLD_ACC > 0 && car.brake === 0 && Math.abs(car.driftTurn) > 0.10 &&
+      sp < car.driftHoldV - 0.05 && vLong > 0) {
+      aLong += Math.min(C.DRIFT_HOLD_ACC, (car.driftHoldV - sp) / Math.max(dt, 1e-4));
     }
     sp = Math.max(0, sp + aLong * dt);
 
@@ -5034,6 +5056,7 @@ function bindInput() {
         else if (G.state === 'finished') restartRace();
         break;
       case 'KeyR': restartRace(); break;
+      case 'KeyM': backToMenu(); break;      // 结算/暂停时回主菜单换图 (不用刷新页面)
       case 'KeyL': onlineTogglePanel(); break;
       case 'KeyT': {
         if (G.state !== 'intro') break;
@@ -5089,9 +5112,13 @@ function bindInput() {
   const b1 = document.getElementById('btnStart');
   const b2 = document.getElementById('btnRestart');
   const b3 = document.getElementById('btnResume');
+  const b4 = document.getElementById('btnMenu');
+  const b5 = document.getElementById('btnMenu2');
   if (b1) b1.addEventListener('click', function () { startRace(); }, false);
   if (b2) b2.addEventListener('click', function () { restartRace(); }, false);
   if (b3) b3.addEventListener('click', function () { togglePause(false); }, false);
+  if (b4) b4.addEventListener('click', function () { backToMenu(); }, false);
+  if (b5) b5.addEventListener('click', function () { backToMenu(); }, false);
   const btns = document.querySelectorAll('.tbtn');
   for (let i = 0; i < btns.length; i++) {
     (function (el) {
@@ -5249,7 +5276,7 @@ function resetCarRaceState(car) {
   car.steer = 0; car.yawRate = 0;
   car.driftKey = false; car.drifting = false; car.driftTime = 0; car.driftCoast = 0;
   car.driftTurn = 0; car.driftTurnVel = 0; car.driftSlip = 0; car.driftSlipVel = 0;
-  car.driftLevel = 0; car.steerSmooth = 0; car.driftDir = 1;
+  car.driftLevel = 0; car.steerSmooth = 0; car.driftDir = 1; car.driftHoldV = 0;
   car.alignTimer = 0; car.boostTimer = 0; car.slip = 0;
   car.stuckTimer = 0; car.recoverTimer = 0; car.bodyRoll = 0; car.bodyPitch = 0;
   car.wheelSpin = 0; car.hitFlash = 0; car.shake = 0; car.pos = 1; car.damage = 0;
@@ -5309,6 +5336,20 @@ function startRace() {
 function restartRace() {
   setupRace();
   startRace();
+}
+
+/** 回主菜单 (2026-09-23 修: 跑完一局只能刷新页面才能换图):
+    结算页与暂停页都能按 M/点按钮, 直接回到开场卡片换赛道/换车/改难度, 不用刷新 */
+function backToMenu() {
+  if (G.state !== 'finished' && G.state !== 'paused' && G.state !== 'intro') return;
+  G.state = 'intro';
+  setupRace();                 // 重新摆车 + 计时清零 + 内部已显示开场卡片
+  camReset(G.player);
+  updateTrackPickUI();
+  updateCarPickUI();
+  updateDiffPickUI();
+  uiLoadBest();                // 顺手刷新该赛道的历史最佳显示
+  uiFlash('已回到主菜单', '换赛道 / 换车 / 改 AI 难度都可以', '#8fe3ff', 1.6);
 }
 
 function togglePause(force) {
@@ -5627,7 +5668,7 @@ window.RACEGAME = {
   onlineTogglePanel: onlineTogglePanel, onlineRenderPanel: onlineRenderPanel, onlineAvailable: onlineAvailable,
   onlineAfterRace: onlineAfterRace, trackOrder: trackOrder,
   onlineDoRegister: onlineDoRegister, onlineDoLogin: onlineDoLogin,
-  showResults: showResults, finishRace: finishRace,
+  showResults: showResults, finishRace: finishRace, backToMenu: backToMenu,
   startNow: function () { startRace(); G.state = 'racing'; G.raceTime = 0; },
   restart: function () { restartRace(); },
   stepSim: function (seconds) {

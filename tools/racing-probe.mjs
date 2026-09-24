@@ -145,9 +145,37 @@ const board = await page.evaluate(async () => {
     hasRegBtn: !!document.getElementById('btnLbReg'), formText: form.slice(0, 120),
   };
 });
+/* 2b. 赛后/暂停回主菜单（2026-09-23 修: 以前跑完一局只能刷新页面换图）—— 走真实点击路径 */
+const menu = await page.evaluate(() => {
+  const R = window.RACEGAME;
+  const btn = document.getElementById('btnMenu');
+  const btn2 = document.getElementById('btnMenu2');
+  R.startNow();                                   // 直接开跑, 不用真等一圈
+  const racing = R.G.state;
+  /* 按 Esc 暂停 => 出现暂停卡片 => 点「返回主菜单」=> 应回到开场卡片 */
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+  const pauseCard = document.getElementById('cardPause');
+  const paused = !!pauseCard && pauseCard.style.display !== 'none' && R.G.state === 'paused';
+  if (btn2) btn2.click();
+  const startCard = document.getElementById('cardStart');
+  return {
+    hooked: typeof R.backToMenu === 'function',
+    hasResultBtn: !!btn && /返回主菜单/.test(btn.textContent),
+    hasPauseBtn: !!btn2,
+    racing, paused, after: R.G.state,
+    startVisible: !!startCard && startCard.style.display !== 'none',
+    cars: R.G.cars.length,
+  };
+});
+out.menu = menu;
+ok('结算卡片上有「返回主菜单」按钮（换图不用刷新页面）',
+  menu.hooked && menu.hasResultBtn, JSON.stringify(menu).slice(0, 160));
+ok('暂停 → 点「返回主菜单」→ 真的回到开场卡片（state=intro, 车阵重建）',
+  menu.racing === 'racing' && menu.paused && menu.after === 'intro' && menu.startVisible && menu.cars === 6,
+  JSON.stringify(menu).slice(0, 160));
+
 out.board = board;
-ok('面板打开后读到榜单（GET /api/score 公开只读）', board.ok && board.state === 'ok', JSON.stringify(board).slice(0, 180));
-ok('榜单渲染成表格行', board.rows >= 1, 'rows=' + board.rows);
+ok('面板打开后读到榜单（GET /api/score 公开只读）', board.ok && board.state === 'ok', JSON.stringify(board).slice(0, 180));ok('榜单渲染成表格行', board.rows >= 1, 'rows=' + board.rows);
 ok('未登录时面板给的是「注册云账号」入口（云账号=主路径）',
   board.hasRegBtn || /可以上榜/.test(board.formText),
   'hasRegBtn=' + board.hasRegBtn + ' form=' + board.formText.replace(/\s+/g, ' ').slice(0, 70));
