@@ -44,12 +44,18 @@ await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, dev
 await send('Emulation.setFocusEmulationEnabled', { enabled: true });
 await send('Page.navigate', { url });
 
-for (let i = 0; i < 80; i++) {
-  const r = await ev(`!!(window.VS && VS.PlayerSkins && document.getElementById('skinList'))`);
-  if (r === true) break;
+/* 等就绪：index.html 里的 #skinList 是静态的，但按钮由 main.js 的 renderSkinRow() 生成，
+   而它在 boot 里比 sprites.js 晚 —— 只等 PlayerSkins 会检查得太早
+   （线上实测过：#skinList 有 4 个子元素，但早查会读到 0 个，误报 FAIL）。
+   所以这里必须等到按钮真的出现。 */
+let uiReady = false;
+for (let i = 0; i < 90; i++) {
+  const r = await ev(`document.querySelectorAll('#skinList .skin-chip').length`);
+  if (r >= 2) { uiReady = true; break; }
   await sleep(400);
 }
-await sleep(1000);
+if (!uiReady) console.log('  WARN 等待皮肤按钮超时（45s），继续按当前 DOM 断言');
+await sleep(400);
 
 /* ① 图集里每个皮肤都有三方向的组 */
 const groups = await ev(`JSON.stringify({

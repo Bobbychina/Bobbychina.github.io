@@ -52,6 +52,38 @@ node tools/vs-perf.mjs        <cdpPort> <url> 6 100        # FPS + CPU 采样（
 
 一条命令跑全套：`powershell -File tools\reg-site.ps1`（共创游戏页 + 游戏厅 + 帧率体检，结果落盘）。
 
+> **这台机器上没有 `pwsh`**（外壳自己是 Windows PowerShell 5.1），所以 `.ps1` 一律用
+> `powershell -NoProfile -ExecutionPolicy Bypass -File <脚本>` 调，别写 `pwsh -File`。
+> 另外：**窗口最小化时 rAF 会被完全节流**，探针会假失败（计时器停在 `00:00`、19 项掉成 17 项）。
+> 用正常窗口跑，或在 CDP 里 `Emulation.setFocusEmulationEnabled { enabled: true }`。
+> 2026-09-25 踩过，记在这里省下一次排查。
+
+## 4b. 更新完直接上线（2026-09-25 起的约定）
+
+Alan 这边定了：**《吸血鬼幸存者》每次改完，验过就直接推到 `main` 上线**，
+不用等站长点头（玩法/数值/美术本来就是 Alan 的主场）。站点是 GitHub Pages，
+推 `main` 就是发布，没有额外构建步骤。
+
+```powershell
+# 在站点仓库根目录
+git add -A
+git commit -m "feat(vampire-survivors): …"
+powershell -NoProfile -File tools\vs-push.ps1        # 带重试的 push
+```
+
+`tools/vs-push.ps1` 为什么要有：这台机器到 `github.com:443` 是**间歇性**的
+（`git ls-remote` 能过、紧接着 `git fetch`/`push` 就 21 秒超时，没有代理）。
+脚本会重试 12 次、逐步放长间隔，并把 `http.lowSpeedLimit/lowSpeedTime` 放宽到
+1 KB/s / 120 s，避免正常慢速被误判成失败。**连续失败就先别反复推** ——
+把改动留在本地 commit 上，等网络好了再跑一次同一条命令即可。
+
+推完稳妥起见验一下线上（GitHub Pages 发布有几十秒延迟）：
+
+```powershell
+node tools/vs-probe.mjs <cdpPort> "https://bobbychina.github.io/games/vampire-survivors/?v=<随便>" <截图目录>
+```
+
+
 > **量 TTK / 调数值前先看这条**（2026-09-23 踩过）：`tools/vs-boss-probe.mjs` 里的机器人玩家是「重心逃逸」，
 > 不打缠斗约束的话它会一路逃到弹幕外，同一套构筑两局能跑出 117 vs 203 DPS —— 量出来的是它逃跑多久，
 > 不是构筑 DPS。探针里现在加了「离 Boss 超 240px 就拉回来」的缠斗约束，数字才稳（实测 196~203 DPS）。
