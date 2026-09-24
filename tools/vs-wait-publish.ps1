@@ -1,16 +1,25 @@
 # Wait for GitHub Pages to publish the new build: poll the live atlas file
-# until it carries this round's markers (PlayerSkins + deco_l1).
+# until it carries the markers of the NEWEST build.
+# NOTE: never key the criterion on something an older build already had --
+# PlayerSkins/deco_l1 existed since the 2026-09-25 09:xx build, so keying on
+# them reported "published" while the site was still serving the old bytes.
+# Key on the newest markers: the level-2 exclusive monsters (acidhusk).
 # Keep this file ASCII-only (Windows PowerShell 5.1 encoding quirks).
 #
-# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File tools\vs-wait-publish.ps1 [maxSeconds]
+# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File tools\vs-wait-publish.ps1 [maxSeconds] [marker] [expectBytes]
 
-param([int]$MaxSeconds = 600)
+param(
+  [int]$MaxSeconds = 600,
+  [string]$Marker = 'acidhusk',
+  [int]$ExpectBytes = 0
+)
 
 $url = 'https://bobbychina.github.io/games/vampire-survivors/js/render/sprites.js'
 $start = Get-Date
 Write-Output "waiting for Pages to publish:"
 Write-Output "  $url"
-Write-Output "criterion: file contains PlayerSkins and deco_l1"
+Write-Output "criterion: contains '$Marker'"
+if ($ExpectBytes -gt 0) { Write-Output "           and byte size == $ExpectBytes" }
 Write-Output ""
 
 while (((Get-Date) - $start).TotalSeconds -lt $MaxSeconds) {
@@ -19,12 +28,12 @@ while (((Get-Date) - $start).TotalSeconds -lt $MaxSeconds) {
   try {
     $r = Invoke-WebRequest "$url`?ts=$ts" -UseBasicParsing -TimeoutSec 45
     $len = $r.RawContentLength
-    $hasSkins = $r.Content -match 'PlayerSkins'
-    $hasDeco = $r.Content -match 'deco_l1'
-    Write-Output ("[{0,4}s] {1} bytes  PlayerSkins={2}  deco_l1={3}" -f $elapsed, $len, $hasSkins, $hasDeco)
-    if ($hasSkins -and $hasDeco) {
+    $hasMarker = $r.Content -match [regex]::Escape($Marker)
+    $sizeOk = ($ExpectBytes -le 0) -or ($len -eq $ExpectBytes)
+    Write-Output ("[{0,4}s] {1} bytes  marker={2}  sizeOk={3}" -f $elapsed, $len, $hasMarker, $sizeOk)
+    if ($hasMarker -and $sizeOk) {
       Write-Output ""
-      Write-Output "PUBLISHED: live site serves the new build"
+      Write-Output "PUBLISHED: live site serves the newest build"
       exit 0
     }
   } catch {
