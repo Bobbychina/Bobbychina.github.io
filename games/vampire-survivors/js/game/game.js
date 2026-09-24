@@ -313,6 +313,36 @@
       if (game.deps.audio) game.deps.audio.play('click');
     },
 
+    /**
+     * 从第 N 关直接开跑（关卡选择还没做，先给开始面板一个"预览第二关"按钮）。
+     * 跳关时补一套能打的构筑 —— 第二关的怪是 ×1.6 血 ×1.35 伤害，光着进去就是送死。
+     */
+    startAt: function (game, index) {
+      Game.newRun(game);
+
+      index = Math.max(0, Math.min(Math.floor(index || 0), VS.Levels.count() - 1));
+
+      if (index > 0) {
+        var p = game.player;
+        for (var i = 1; i < 12; i++) VS.Player.grantLevel(p);   // 到 Lv.12
+        for (var u = 0; u < 3; u++) VS.Weapons.upgrade(p, C.PLAYER.START_WEAPON);
+        VS.Weapons.add(p, 'nova');
+        VS.Pets.choose(game.pets, 'faerie', game);
+        Game.startLevel(game, index);
+      }
+
+      game.state = STATE.PLAYING;
+
+      if (game.deps.audio) game.deps.audio.unlock();
+      if (game.deps.panels) game.deps.panels.hideAll();
+      if (game.deps.hud) {
+        game.deps.hud.show();
+        game.deps.hud.update(game);
+      }
+      if (game.deps.audio) game.deps.audio.play('click');
+      return game;
+    },
+
     /** 摄像机跟随（开局立即就位） */
     snapCamera: function (game) {
       VS.World.snapCamera(game.world, game.player.x, game.player.y, viewW(game), viewH(game));

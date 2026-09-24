@@ -64,6 +64,7 @@
         startBest: el('startBest'),
         startLevels: el('startLevels'),
         startBtn: el('startBtn'),
+        previewL2Btn: el('previewL2Btn'),
 
         luLevel: el('luLevel'),
         luCards: el('luCards'),
@@ -101,6 +102,7 @@
                     dom.panelLevelClear, dom.panelPause, dom.panelGameOver];
 
       bindClick(dom.startBtn, function () { if (cb.onStart) cb.onStart(); });
+      bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(1); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
       bindClick(dom.resumeBtn, function () { if (cb.onResume) cb.onResume(); });
       bindClick(dom.pauseRestartBtn, function () { if (cb.onRestart) cb.onRestart(); });

@@ -78,6 +78,7 @@
     /* ---- 面板 ---- */
     var panels = VS.Panels.init({
       onStart: function () { VS.Game.start(game); },
+      onPreviewLevel: function (index) { VS.Game.startAt(game, index); },
       onRetry: function () { VS.Game.start(game); },
       onResume: function () { VS.Game.resume(game); },
       onRestart: function () { VS.Game.start(game); },
