@@ -616,6 +616,7 @@ const BLADE_SHAPE = [
    =========================================================== */
 
 const decoArt = require('./deco-art.js');
+const enemyArt = require('./enemy-art.js');
 
 /* 把 deco-art.js 里的组名映射成图集里的组名与精灵前缀 */
 const DECO_THEME_MAP = [
@@ -676,35 +677,40 @@ function makePeriodicNoise(S, cells) {
  */
 
 const BIOMES = {
-  /* 第一关 · 血色荒野：焦土、锈红、灰烬、碎骨 */
+  /* 第一关 · 血色荒野：焦土、锈红、灰烬、碎骨
+     配色原则（2026-09-25 修"地面一直闪"）：底色与所有点缀色都挤在一个**窄**的
+     亮度/彩度区间里。原来 grainPale 比底色亮近 3 倍、逐像素铺开，镜头一动
+     每个像素都在跳 → 视觉上就是"地面在闪"。现在最亮的石子也只比底色高一点。 */
   waste: {
-    base: [43, 30, 28],        // 底色（暗焦红棕）
-    tintLo: [26, 16, 16],      // 低频起伏的暗端
-    tintHi: [38, 14, 12],      // 低频起伏的暖端
-    grainPale: [96, 78, 66],   // 碎石高光
-    grainDark: [22, 13, 14],   // 凹坑
-    rubble: [66, 52, 47],
-    rubbleHi: [104, 84, 74],
-    ash: [58, 46, 43],         // 灰烬斑
-    crack: [20, 11, 12],       // 裂缝
-    ember: [188, 96, 46],      // 余烬点
-    boneCol: [166, 152, 124],
-    features: { crack: 15, rubble: 34, ash: 26, ember: 22 }
+    base: [40, 29, 27],        // 底色（暗焦红棕）
+    tintLo: [30, 21, 20],      // 低频起伏的暗端
+    tintHi: [46, 33, 29],      // 低频起伏的暖端
+    grainPale: [62, 48, 43],   // 小石受光（只比底色亮一点）
+    grainDark: [30, 20, 19],   // 凹坑
+    rubble: [54, 41, 38],
+    rubbleHi: [72, 55, 49],
+    ash: [51, 39, 37],         // 灰烬斑
+    crack: [26, 17, 16],       // 裂缝
+    ember: [140, 78, 42],      // 余烬点（暗一点，别像霓虹）
+    boneCol: [126, 114, 96],
+    features: { crack: 12, rubble: 30, ash: 22, ember: 14 }
   },
-  /* 第二关 · 柠檬深渊：酸沼、柠檬黄绿、毒性苔斑 */
+  /* 第二关 · 柠檬深渊：酸沼、苔斑
+     原来 base 是 (44,50,22) 的鲜黄绿，整屏铺开太艳、太"荧光"。
+     现在压暗 + 降饱和到偏灰的橄榄色，让点缀物（柠檬、酸晶）自己跳出来。 */
   abyss: {
-    base: [44, 50, 22],
-    tintLo: [26, 34, 12],
-    tintHi: [40, 44, 14],
-    grainPale: [104, 118, 44],
-    grainDark: [22, 29, 11],
-    rubble: [62, 74, 30],
-    rubbleHi: [104, 122, 48],
-    ash: [74, 86, 30],         // 苔斑
-    crack: [20, 26, 9],
-    ember: [196, 226, 74],     // 酸光点
-    boneCol: [150, 156, 120],
-    features: { crack: 8, rubble: 20, ash: 40, ember: 30 }
+    base: [38, 40, 25],        // 底色（暗橄榄）
+    tintLo: [28, 31, 20],
+    tintHi: [44, 44, 28],
+    grainPale: [58, 60, 38],
+    grainDark: [27, 30, 18],
+    rubble: [50, 53, 33],
+    rubbleHi: [66, 70, 45],
+    ash: [48, 51, 32],         // 苔斑
+    crack: [24, 26, 15],
+    ember: [126, 142, 62],     // 酸光点（压暗，原来是 (196,226,74) 太扎眼）
+    boneCol: [116, 120, 94],
+    features: { crack: 7, rubble: 18, ash: 34, ember: 16 }
   }
 };
 
@@ -718,43 +724,74 @@ function makeBiomeGroundTile(kind) {
   const B = BIOMES[kind];
   const c = createCanvas(S, S);
 
+  /* 全部用低频 / 中频周期噪声。
+     【关键】不再用"逐像素 hash 颗粒"当质感 —— 那种噪声每个像素互相独立，
+     镜头平移 1 像素就等于整张图换了内容，看起来就是满屏闪。
+     改成空间连贯的噪声后，花纹是"成片"的，滚动时是干净的平移。 */
   const low = makePeriodicNoise(S, 3);    // 大尺度色块
-  const mid = makePeriodicNoise(S, 7);    // 中尺度斑驳
-  const fine = makePeriodicNoise(S, 19);  // 细颗粒
+  const mid = makePeriodicNoise(S, 6);    // 中尺度斑驳
+  const mid2 = makePeriodicNoise(S, 11);  // 次中尺度（轻微起伏，幅度很小）
 
   const mix = (a, b, t) => a + (b - a) * t;
 
-  /* --- 1. 底噪：三层周期噪声 + 逐像素颗粒 --- */
+  /* --- 1. 底色：三层连贯噪声，幅度都比原来小 --- */
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const a = low(x, y);
       const b = mid(x, y);
-      const f = fine(x, y);
-      const grain = hash2(x * 12.9898 + 3.7, y * 78.233 + 1.3);
+      const b2 = mid2(x, y);
 
-      /* 低频在两个端点色之间插值，决定这一块偏冷还是偏暖 */
-      const lo = mix(B.base[0], B.tintLo[0], a);
-      const lg = mix(B.base[1], B.tintLo[1], a);
-      const lb = mix(B.base[2], B.tintLo[2], a);
-      const hiT = a * (1 - b);
+      /* 低频决定这一块偏冷还是偏暖（暗端 / 暖端之间插值） */
+      const t = a * 0.65 + b * 0.35;
+      let outR = mix(B.tintLo[0], B.tintHi[0], t);
+      let outG = mix(B.tintLo[1], B.tintHi[1], t);
+      let outB = mix(B.tintLo[2], B.tintHi[2], t);
 
-      let outR = mix(lo, B.tintHi[0], hiT) * 0.55 + lo * 0.45;
-      let outG = mix(lg, B.tintHi[1], hiT) * 0.55 + lg * 0.45;
-      let outB = mix(lb, B.tintHi[2], hiT) * 0.55 + lb * 0.45;
-
-      /* 中尺度斑驳 + 细颗粒，幅度都压低，避免变成噪点地毯 */
-      const mod = (b - 0.5) * 16 + (f - 0.5) * 7;
+      /* 中频斑驳：±5 左右的柔和起伏，成片而不是逐像素 */
+      const mod = (b - 0.5) * 9 + (b2 - 0.5) * 4;
       outR += mod;
-      outG += mod * 0.96;
-      outB += mod * 0.86;
-
-      if (grain > 0.972) { outR = mix(outR, B.grainPale[0], 0.85); outG = mix(outG, B.grainPale[1], 0.85); outB = mix(outB, B.grainPale[2], 0.85); }
-      else if (grain > 0.93) { outR += 7; outG += 7; outB += 6; }
-      else if (grain < 0.045) { outR = mix(outR, B.grainDark[0], 0.8); outG = mix(outG, B.grainDark[1], 0.8); outB = mix(outB, B.grainDark[2], 0.8); }
+      outG += mod * 0.97;
+      outB += mod * 0.9;
 
       setPixel(c, x, y, [clamp255(outR), clamp255(outG), clamp255(outB), 255]);
     }
   }
+
+  /* --- 2. 小石子：聚簇的两三像素团，带一点点受光，比底色亮得有限 ---
+     用格子撒点 + 局部连贯，而不是逐像素随机，所以滚动时是"石头在走"而不是"在闪"。 */
+  const pebble = (seed) => {
+    const cx = hash2(seed * 3.1, 7.7) * S;
+    const cy = hash2(11.3, seed * 5.9) * S;
+    const n = 2 + Math.floor(hash2(seed * 1.7, seed * 9.1) * 3);
+
+    for (let i = 0; i < n; i++) {
+      const ox = Math.round((hash2(seed * 2.3 + i, i * 4.1) - 0.5) * 6);
+      const oy = Math.round((hash2(i * 6.7, seed * 3.7 + i) - 0.5) * 6);
+      const px = ((Math.round(cx + ox) % S) + S) % S;
+      const py = ((Math.round(cy + oy) % S) + S) % S;
+
+      for (let dy = 0; dy <= 1; dy++) {
+        for (let dx = 0; dx <= 1; dx++) {
+          /* 去掉右下角那一格，做出不规则的"小石"而不是方点 */
+          if (dx === 1 && dy === 1 && hash2(seed + dx, dy) > 0.5) continue;
+          const qx = ((px + dx) % S + S) % S;
+          const qy = ((py + dy) % S + S) % S;
+          const lit = (dy === 0);
+          const col = lit ? B.grainPale : B.rubble;
+          setPixel(c, qx, qy, [col[0], col[1], col[2], 255]);
+        }
+      }
+      /* 石下压一道暗边（只压一格，做出厚度） */
+      const sy = ((py + 2) % S + S) % S;
+      const cur = getPixel(c, px, sy);
+      setPixel(c, px, sy, [
+        clamp255(mix(cur[0], B.grainDark[0], 0.5)),
+        clamp255(mix(cur[1], B.grainDark[1], 0.5)),
+        clamp255(mix(cur[2], B.grainDark[2], 0.5)),
+        255
+      ]);
+    }
+  };
 
   /* --- 2. 裂缝：先画整条折线，再补一层更暗的核心，做出"缝"的厚度 --- */
   const drawCrack = (seed, len, thick, col, spread) => {
@@ -773,25 +810,6 @@ function makeBiomeGroundTile(kind) {
       y += Math.sin(ang);
       x = ((x % S) + S) % S;
       y = ((y % S) + S) % S;
-    }
-  };
-
-  /* --- 3. 碎石：带高光的团块，逐块大小不同 --- */
-  const drawRubble = (seed) => {
-    const cx = hash2(seed * 2.1, 11.3) * S;
-    const cy = hash2(7.9, seed * 4.3) * S;
-    const rad = 1.6 + hash2(seed * 5.1, seed * 1.3) * 2.6;
-
-    for (let dy = -4; dy <= 4; dy++) {
-      for (let dx = -4; dx <= 4; dx++) {
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d > rad) continue;
-        const px = ((Math.round(cx + dx) % S) + S) % S;
-        const py = ((Math.round(cy + dy) % S) + S) % S;
-        const lit = (dy < -rad * 0.25) && d < rad * 0.8;   // 上缘受光
-        const col = lit ? B.rubbleHi : B.rubble;
-        setPixel(c, px, py, [col[0], col[1], col[2], 255]);
-      }
     }
   };
 
@@ -848,8 +866,8 @@ function makeBiomeGroundTile(kind) {
   for (let i = 0; i < F.crack; i++) {
     drawCrack(i + 1, 26 + Math.floor(hash2(i * 1.3, 4.4) * 34), 1, B.crack, 0.55);
   }
-  /* 碎石 */
-  for (let i = 0; i < F.rubble; i++) drawRubble(shuffle(i, 97) + 1);
+  /* 小石子：聚簇、低对比（代替原来的 drawRubble 大团块） */
+  for (let i = 0; i < F.rubble; i++) pebble(shuffle(i, 97) + 1);
   /* 灰烬 / 苔斑 */
   for (let i = 0; i < F.ash; i++) drawBlotch(shuffle(i, 89) + 1);
   /* 亮点 */
@@ -1054,6 +1072,23 @@ function buildAll() {
   addSprite('ghost_0', buildSprite('ghost_0', GHOST_BODY, PAL_GHOST));
   addSprite('ghost_1', buildSprite('ghost_1', GHOST_BODY_2, PAL_GHOST));
   addGroup('ghost', ['ghost_0', 'ghost_1']);
+
+  /* --- 第二关专属怪物（美术源在 tools/enemy-art.js） ---
+     第一关和第二关原来共用上面那批人形怪，走进去打起来一模一样。
+     这里给「柠檬深渊」补 3 只酸适应的怪，精灵名统一加 e2_ 前缀
+     （避免和第一关的同名怪撞名被 addSprite 的重复检查拦下），
+     但**动画组名就是怪物 id** —— 渲染层是拿怪的 type 直接查 SpriteGroups 的。 */
+  const l2Enemies = enemyArt.level2;
+  Object.keys(l2Enemies).forEach(function (id) {
+    const def = l2Enemies[id];
+    const frames = def.frames || [def.rows];
+    const names = frames.map(function (rows, i) {
+      const n = 'e2_' + id + '_' + i;
+      addSprite(n, buildSprite(n, rows, def.pal));
+      return n;
+    });
+    addGroup(id, names);
+  });
 
   /* --- 子弹 --- */
   const BOLT_0 = [
@@ -1702,7 +1737,10 @@ function main() {
   const actors = Object.keys(sprites).filter(n =>
     n.startsWith('player_') || groups['bat'].includes(n) || groups['ghost'].includes(n) ||
     ['zombie_0', 'zombie_1', 'skeleton_0', 'skeleton_1', 'wraith_0', 'wraith_1',
-     'brute_0', 'brute_1', 'elite_0', 'elite_1'].includes(n));
+     'brute_0', 'brute_1', 'elite_0', 'elite_1'].includes(n) ||
+    Object.keys(enemyArt.level2).some(function (id) {
+      return groups[id] && groups[id].indexOf(n) !== -1;
+    }));
 
   const fx = groups['bolt'].concat(groups['boom'], groups['spark']);
   const world = ['ground'].concat(groups['deco'], groups['gem'], ['heart', 'blade']);

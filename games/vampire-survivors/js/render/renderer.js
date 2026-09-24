@@ -24,7 +24,9 @@
     bat: 2, zombie: 2, skeleton: 2, ghost: 2, wraith: 2,
     brute: 3, elite: 4,
     boss: 4,           // 24px 原始 -> 96px，配合 radius 44 的碰撞圆
-    lemonPig: 4        // 同上：24px -> 96px，配合 radius 50 的碰撞圆
+    lemonPig: 4,       // 同上：24px -> 96px，配合 radius 50 的碰撞圆
+    /* 第二关专属的三只酸怪（美术见 tools/enemy-art.js），16px 原始 -> 32px */
+    acidhusk: 2, sporebat: 2, toxicshaman: 2
   };
   var PLAYER_SCALE = 2;        // 20×24 原始 -> 40×48 屏幕像素
   /* 皮肤：图集里每个皮肤一套 player_<skin>_<dir> 组（见 tools/player-art.js 的 SKINS）。
@@ -228,24 +230,32 @@
       var cam = game.world.camera;
       var dpr = r.dpr;
 
-      /* 屏幕震动 */
+      /* 屏幕震动。取整：亚像素抖动会让地面贴图与实体错开不到 1px，看起来像"画面在抖" */
       var shake = game.shake || 0;
       var sx = 0, sy = 0;
       if (shake > 0.01) {
-        sx = (Math.random() - 0.5) * shake * 2;
-        sy = (Math.random() - 0.5) * shake * 2;
+        sx = Math.round((Math.random() - 0.5) * shake * 2);
+        sy = Math.round((Math.random() - 0.5) * shake * 2);
       }
+
+      /* 相机取整一次，地面 / 世界实体 / 世界边缘线全部共用这一对整数。
+         【2026-09-25 修「走动时地面一直闪」】原来地面用的是**未取整**的 cam，
+         而世界实体走 Math.round(-cam)，两者相差不到 1px 且每帧变 → 地面贴图
+         相对画面上的东西来回挪半个像素，走动时就一直闪。
+         像素画游戏必须让相机落在这个整数网格上，谁都不能再用小数。 */
+      r.camX = Math.round(cam.x);
+      r.camY = Math.round(cam.y);
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, r.w, r.h);
 
       /* --- 1. 地面贴图（屏幕空间平铺，纹理锚定世界坐标） --- */
-      Renderer.drawGround(ctx, r, game, cam.x - sx, cam.y - sy);
+      Renderer.drawGround(ctx, r, game, r.camX - sx, r.camY - sy);
 
       /* --- 2. 世界空间实体 --- */
       ctx.save();
-      ctx.translate(Math.round(-cam.x + sx), Math.round(-cam.y + sy));
+      ctx.translate(-r.camX + sx, -r.camY + sy);
 
       var view = VS.World.viewRect(game.world, 120);
 
@@ -271,7 +281,7 @@
       ctx.restore();
 
       /* --- 3. 屏幕层 --- */
-      Renderer.drawWorldEdge(ctx, r, game, cam);
+      Renderer.drawWorldEdge(ctx, r, game, { x: r.camX - sx, y: r.camY - sy });
       Renderer.drawScreenFx(ctx, r, game, time);
       Renderer.drawJoystick(ctx, r);
     },
@@ -306,6 +316,12 @@
        结论：不值 —— 瓶颈是"每帧光栅化的像素总量 + 整屏合成"，不是这一处的填充方式。 */
     drawGround: function (ctx, r, game, camX, camY) {
       var world = game.world;
+
+      /* 相机必须落在整数像素上：贴图相位是 cam % TS，小数相位会让纹理相对
+         世界实体来回挪半个像素（走动时地图像在闪）。
+         调用方已经取过整，这里再兜一次底，防止以后有人从别处传小数进来。 */
+      camX = Math.round(camX);
+      camY = Math.round(camY);
 
       /* 世界矩形换算到屏幕坐标后与屏幕求交 */
       var x0 = Math.max(0, -camX);
@@ -593,8 +609,10 @@
           var pick = U.hash2(cx + 91.3, cy - 57.1);
           var name = names[Math.floor(pick * names.length) % names.length];
 
-          var px = cx * cell + U.hash2(cx + 13.7, cy + 29.1) * (cell - 28) + 14;
-          var py = cy * cell + U.hash2(cx - 7.3, cy + 41.9) * (cell - 28) + 14;
+          /* 位置取整：像素画必须落在整数像素上，
+             否则 20×20 的装饰物每帧被重采样，边缘会"爬"出闪烁感 */
+          var px = Math.round(cx * cell + U.hash2(cx + 13.7, cy + 29.1) * (cell - 28) + 14);
+          var py = Math.round(cy * cell + U.hash2(cx - 7.3, cy + 41.9) * (cell - 28) + 14);
 
           if (px < 8 || py < 8 || px > world.w - 8 || py > world.h - 8) continue;
 

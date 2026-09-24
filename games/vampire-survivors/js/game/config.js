@@ -110,6 +110,34 @@
       color: '#ffcc44', edge: '#fff0b8', shape: 'blob',
       minTime: 240, weight: 1.3, elite: true
     },
+
+    /* ---------------- 第二关「柠檬深渊」专属怪物 ----------------
+       2026-09-25：原来两关共用上面这批人形怪（同一套模板换色），
+       走进去两关打起来长得一模一样。这里补 3 只"酸适应"的怪：
+       美术在 tools/enemy-art.js（16×16、两帧），组名 = 这里的 id。
+       onlyFromLevel: 1 表示**第二关及以后**才会进抽取池
+       （和 C.WEAPONS / C.UPGRADES / C.PETS 同一个字段口径，
+        敌人这一侧由 Enemies.pickType 读 VS.Levels.allows 把关）。
+       数值按第二关的乘区（hp ×1.30 / dmg ×1.50 / speed ×1.08）配，
+       定位分别是"中坚肉盾 / 快而脆的骚扰 / 后期法系"。 */
+    acidhusk: {
+      id: 'acidhusk', name: '蚀酸腐尸',
+      hp: 64, speed: 50, radius: 15, damage: 16, xp: 4,
+      color: '#7d9440', edge: '#a8bd5c', shape: 'blob',
+      minTime: 90, weight: 8, onlyFromLevel: 1
+    },
+    sporebat: {
+      id: 'sporebat', name: '孢蝠',
+      hp: 30, speed: 128, radius: 10, damage: 12, xp: 3,
+      color: '#c2d84a', edge: '#e2f07a', shape: 'bat',
+      minTime: 60, weight: 8, onlyFromLevel: 1
+    },
+    toxicshaman: {
+      id: 'toxicshaman', name: '腐沼祭司',
+      hp: 110, speed: 70, radius: 14, damage: 20, xp: 9,
+      color: '#5e7430', edge: '#c2d84a', shape: 'ghost',
+      minTime: 210, weight: 5, onlyFromLevel: 1
+    },
     /* Boss：由 C.BOSS.SCHEDULE 定时单独投放，不参与常规抽取
        （minTime=Infinity 保证 pickType 永远不会选到它） */
     /* Boss 本体（加强版）：血量 3200 → 4000（**这是基础值**，实际还要乘难度曲线 HP_CURVE：
@@ -408,7 +436,12 @@
       speedMul: 1.08,                    // 速度只小幅回补（第一关已经压过速度曲线）
       spawnMul: 0.90,                    // 刷得更密一点
       unlockMul: 0.35,                   // 暗影/巨魔/精英很早就出来
-      typeBias: { wraith: 2.2, brute: 1.8, elite: 1.6, ghost: 1.4 },
+      /* 第二关专属的三只酸怪加权：这一关就是要"柠檬深渊的怪"当主角，
+         但也保留第一关那几只的偏置（关卡不是把旧怪全换掉，是换一拨主力）。 */
+      typeBias: {
+        wraith: 2.2, brute: 1.8, elite: 1.6, ghost: 1.4,
+        acidhusk: 2.4, sporebat: 2.0, toxicshaman: 1.6
+      },
 
       /* 玩家技能伤害（2026-09-23 站长点单：怪血有点厚，所有技能小幅加强）
          —— 加在**武器的伤害数值**上，六件武器一起吃到（statsFor 里统一施加）：

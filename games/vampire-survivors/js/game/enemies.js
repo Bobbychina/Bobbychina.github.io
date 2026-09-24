@@ -32,20 +32,27 @@
    * 依权重抽一个已解锁的怪物类型。
    * 阶段可以通过 typeBias 给某类怪加权（尸潮阶段就是靠这个让僵尸特别多）；
    * 关卡还能再叠一层：第二关 unlockMul 0.35 让暗影/巨魔/精英很早就出场。
+   *
+   * 关卡专属怪：`def.onlyFromLevel` 与武器/增益/宠物是同一个字段口径
+   * （0 起的关卡下标，1 = 第二关及以后），一律走 VS.Levels.allows 判断 ——
+   * 第二关的三只酸怪（蚀酸腐尸 / 孢蝠 / 腐沼祭司）就是靠它挡在第一关外面。
+   * 注意：这里挡的是**抽取池**，minTime 的解锁时间照旧按 unlockMul 缩放。
    */
   function pickType(t, levelIndex) {
     var ids = [];
     var weights = [];
-    var unlock = VS.Levels ? VS.Levels.unlockMul(levelIndex || 0) : 1;
+    var lv = levelIndex || 0;
+    var unlock = VS.Levels ? VS.Levels.unlockMul(lv) : 1;
 
     for (var id in C.ENEMY_TYPES) {
       if (!Object.prototype.hasOwnProperty.call(C.ENEMY_TYPES, id)) continue;
       var def = C.ENEMY_TYPES[id];
       if (def.boss) continue;            // Boss 单独投放，不进常规池
+      if (VS.Levels && !VS.Levels.allows(lv, def)) continue;   // 关卡专属怪：第一关抽不到
       if (t < def.minTime * unlock) continue;
 
       var w = def.weight * VS.Phases.typeBias(t, id) *
-              (VS.Levels ? VS.Levels.typeBias(levelIndex || 0, id) : 1);
+              (VS.Levels ? VS.Levels.typeBias(lv, id) : 1);
       if (w <= 0) continue;
 
       ids.push(id);
@@ -826,6 +833,9 @@
 
     spawn: spawnEnemy,
     spawnBoss: spawnBoss,
+    /* 抽怪只读入口：探针 / 平衡测量台要按关卡统计"到底会刷出什么"，
+       别让它们各自复刻一遍抽取规则（复刻的那份一旦和这里不一致就会骗人）。 */
+    pickType: pickType,
     spawnPool: spawnPool,
     updateHazards: updateHazards,
     updatePools: updatePools,
