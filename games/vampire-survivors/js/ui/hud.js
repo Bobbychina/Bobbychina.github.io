@@ -166,6 +166,12 @@
       var sig = '';
       for (var i = 0; i < list.length; i++) sig += list[i].id + list[i].level + '|';
 
+      /* 环绕骨刃那一格要显示当前形态（E 键切换），所以形态也进签名 */
+      var orbitName = (VS.Weapons.has(p, 'orbit') && VS.Weapons.orbitMode)
+        ? VS.Weapons.orbitMode(game.orbitMode).name
+        : '';
+      sig += '#' + orbitName;
+
       /* 宠物那一格也跟着走：猪神的复活次数会变，所以一起进签名 */
       var pet = game.pets;
       var petText = (VS.Pets && VS.Pets.statusText) ? VS.Pets.statusText(pet) : '';
@@ -178,10 +184,15 @@
         var html = '';
         for (var j = 0; j < list.length; j++) {
           var w = list[j];
-          html += '<span class="wslot">' +
+          /* 骨刃那格把等级换成"形态 + E"，玩家一眼知道能按 E 切 */
+          var tail = (w.id === 'orbit' && orbitName)
+            ? '<span class="lv orbit-mode">' + orbitName + ' <b>E</b></span>'
+            : '<span class="lv">Lv' + w.level + '</span>';
+
+          html += '<span class="wslot' + (w.id === 'orbit' ? ' orbit' : '') + '">' +
                     '<span style="color:' + w.color + '">' + w.icon + '</span>' +
                     '<span class="nm">' + w.name + '</span>' +
-                    '<span class="lv">Lv' + w.level + '</span>' +
+                    tail +
                   '</span>';
         }
 

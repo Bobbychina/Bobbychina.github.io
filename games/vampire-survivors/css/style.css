@@ -237,6 +237,18 @@ body {
 .wslot.pet .ico { font-size: 13px; line-height: 1; }
 .wslot.pet .nm { color: var(--pet-accent, var(--gold)); font-weight: 700; }
 
+/* 环绕骨刃那一格：把等级换成「形态 + E」，提示可以按 E 切换范围 */
+.wslot.orbit .orbit-mode { color: #ffd166; font-weight: 700; }
+.wslot.orbit .orbit-mode b {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  background: rgba(255, 209, 102, .18);
+  border: 1px solid rgba(255, 209, 102, .5);
+}
+
 /* ===================== 覆盖层 ===================== */
 
 #overlays {

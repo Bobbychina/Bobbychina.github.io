@@ -216,6 +216,7 @@
         pendingPetSelect: false,
         petChoices: [],
         draftCards: 0,         // 跳关预览时"还要自己选几张卡"
+        orbitMode: 0,          // 环绕骨刃的形态下标（E 键切换，见 C.ORBIT_MODES）
         failedClear: false,    // 时间到但没打死最终 Boss
         failReason: ''
       };
@@ -506,6 +507,29 @@
       if (game.pendingPetSelect && !VS.Pets.chosen(game.pets)) {
         Game.openPetSelect(game);
       }
+    },
+
+    /* ---------------- 环绕骨刃：E 键切换范围 ----------------
+       只有拥有环绕骨刃时才生效；切换后立刻给一次反馈（横幅 + 音效 + 特效）。
+       半径与转速的换算在 Weapons.statsFor 里，游戏状态只存一个下标（game.orbitMode）。 */
+
+    toggleOrbitRange: function (game) {
+      var p = game.player;
+      if (!p || !VS.Weapons.has(p, 'orbit')) return false;
+
+      var list = C.ORBIT_MODES || [];
+      if (list.length < 2) return false;
+
+      game.orbitMode = ((game.orbitMode || 0) + 1) % list.length;
+      var mode = list[game.orbitMode];
+
+      if (game.deps.audio) game.deps.audio.play('click');
+      VS.Effects.burst(game.fx, p.x, p.y, '#ffd166', 14, { speed: 190, life: 0.5, size: 3 });
+      if (game.deps.panels && game.deps.panels.showBanner) {
+        game.deps.panels.showBanner('环绕骨刃 · ' + mode.name, mode.tip);
+      }
+      if (game.deps.hud) game.deps.hud.update(game);
+      return true;
     },
 
     /* ---------------- 关卡推进 ---------------- */

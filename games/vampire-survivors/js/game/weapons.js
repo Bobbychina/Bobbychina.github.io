@@ -385,7 +385,23 @@
       if (w.schoolRange && out.range !== undefined) out.range *= 1 + w.schoolRange;
     }
 
+    /* 环绕骨刃的"范围形态"（E 键切换）：只动半径与转速，伤害不变 */
+    if (id === 'orbit' && game && game.orbitMode !== undefined) {
+      var om = orbitMode(game.orbitMode);
+      if (out.radius !== undefined) out.radius *= om.radiusMul;
+      if (out.spin !== undefined) out.spin *= om.spinMul;
+    }
+
     return out;
+  }
+
+  /** 取环绕骨刃的形态定义（下标越界会被夹住） */
+  function orbitMode(index) {
+    var list = C.ORBIT_MODES || [{ id: 'close', radiusMul: 1, spinMul: 1 }];
+    var i = Math.floor(index || 0);
+    if (i < 0) i = 0;
+    if (i >= list.length) i = list.length - 1;
+    return list[i];
   }
 
   /* ---------------- 第二关专属：柠檬喷射器（往敌人脚下糊一滩酸） ---------------- */
@@ -606,7 +622,10 @@
     },
 
     /** 关卡加成后的等级数值（测试与调试用） */
-    _statsFor: statsFor
+    _statsFor: statsFor,
+
+    /** 环绕骨刃当前的形态（UI 用） */
+    orbitMode: orbitMode,
   };
 
   VS.register('Weapons', Weapons);

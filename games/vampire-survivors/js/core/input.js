@@ -85,6 +85,14 @@
       }
       return;
     }
+    if (k === 'e' || k === 'E') {
+      /* 环绕骨刃的"切换范围"（按一次切一次，同样防连发） */
+      if (!keys.__orbitHeld) {
+        keys.__orbitHeld = true;
+        if (handlers.onToggleOrbit) handlers.onToggleOrbit();
+      }
+      return;
+    }
     if (k === ' ' || k === 'Enter' || k === 'Spacebar') {
       if (handlers.onConfirm) handlers.onConfirm();
       return;
@@ -99,6 +107,7 @@
     keys[k] = false;
     if (e.code) keys[e.code] = false;
     if (k === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.__dashHeld = false;
+    if (k === 'e' || k === 'E') keys.__orbitHeld = false;
     recomputeAxis();
   }
 
@@ -180,13 +189,17 @@
 
     init: function (opts) {
       opts = opts || {};
+      /* 注意：这里是白名单，下面 onKeyDown 里用到的每个回调都必须列进来，
+         漏掉一个就等于那个键完全没反应（onToggleOrbit / onDash 都栽过）。 */
       handlers = {
         onPause: opts.onPause,
         onMute: opts.onMute,
         onChoice: opts.onChoice,
         onConfirm: opts.onConfirm,
         onAnyKey: opts.onAnyKey,
-        onTouchStart: opts.onTouchStart
+        onTouchStart: opts.onTouchStart,
+        onDash: opts.onDash,
+        onToggleOrbit: opts.onToggleOrbit
       };
       surface = opts.surface || null;
 
