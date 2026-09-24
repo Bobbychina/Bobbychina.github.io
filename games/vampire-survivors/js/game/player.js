@@ -160,9 +160,12 @@
     takeDamage: function (p, amount, game, srcX, srcY, opt) {
       if (!p.alive || p.invuln > 0) return 0;
 
-      /* 酸液伤害先过抗性（第二关专属增益，最多 -100%） */
+      /* 酸液伤害先过抗性（第二关专属增益 / 柠檬猪宠物，最多 -100%）。
+         注意：完全免疫时**直接返回 0** —— 不能掉进下面的 Math.max(1, ...) 保底，
+         否则"免疫酸液"还是每跳掉 1 点血。 */
       if (opt && opt.acid && p.acidResist > 0) {
         amount *= Math.max(0, 1 - p.acidResist);
+        if (amount <= 0) return 0;
       }
 
       var dmg = Math.max(1, amount - p.armor);

@@ -77,13 +77,15 @@
         <li>存活满 <b>3 分钟</b>后，击杀有 <b>5%</b> 概率掉落<b>金色经验球</b>（一颗顶 100 颗）</li>
         <li>打死 <b>5 分钟</b>的 Boss 有奖励：<b>等级 +1</b> 并<b>三选一宠物</b>；之后金球概率升到 <b>20%</b></li>
         <li><b>10 分钟</b>第二只 Boss <b>柠檬猪</b>登场：扇形酸液 / 环形酸液 / 地上留<b>酸液池</b>三种轮着来</li>
-        <li><b>15 分钟</b>过关进<b>第二关</b>：<b>从 1 级重来</b>，怪的血量/伤害 ×1.5，地上会冒<b>柠檬酸池</b>，还有<b>新武器</b>与<b>新增益</b></li>
+        <li>升级卡里新增<b>流派增益</b>：拿到某件武器后，会出现"缺什么补什么"的专属卡（腐化光环→吸血+范围，环绕骨刃→+1 骨刃+转速……）</li>
+        <li><b>15 分钟</b>过关进<b>第二关</b>：<b>从 1 级重来</b>、怪的血量伤害 ×1.5、没有喘息时间，地上会冒<b>柠檬酸池</b>，还有<b>新武器/新增益/新宠物</b></li>
+        <li>第二关 <b>12:00</b> 刷最终 Boss，<b>15:00 前必须打死它</b>，否则这一局无法通关</li>
         <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Shift</kbd> <b>闪避</b>（短暂无敌）· <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
       </ul>
       <div class="phases">
         <div><b>0–2 分</b><span>正常</span></div>
         <div class="ph-horde"><b>2–4 分</b><span>尸潮 · 僵尸暴增</span></div>
-        <div class="ph-rest"><b>4–5 分</b><span>停止刷怪 · 捡经验</span></div>
+        <div class="ph-rest"><b>4–5 分</b><span>第一关歇口气</span></div>
         <div class="ph-boss"><b>5 分</b><span>尸潮之王 · 送宠物</span></div>
         <div class="ph-boss"><b>10 分</b><span>柠檬猪 · 三种酸液</span></div>
       </div>
@@ -100,8 +102,8 @@
     </section>
 
     <section class="panel" id="panel-petselect" hidden>
-      <h2>宠物三选一</h2>
-      <p class="sub">击杀尸潮之王的奖励 · <b>等级 +1</b> · 只能选一次，永久生效</p>
+      <h2>宠物选择</h2>
+      <p class="sub">击杀尸潮之王的奖励 · <b>等级 +1</b> · 只能选一次，永久生效（第二关会多一只专属宠物）</p>
       <div class="cards pet-cards" id="petCards"></div>
       <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
     </section>
@@ -131,6 +133,7 @@
 
     <section class="panel" id="panel-gameover" hidden>
       <h2 class="dead" id="goTitle">你已阵亡</h2>
+      <p class="sub go-reason" id="goReason" hidden></p>
       <div class="result">
         <div class="big" id="goTime">00:00</div>
         <div class="newbest" id="goNewBest" hidden>★ 新纪录 ★</div>

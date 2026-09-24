@@ -47,10 +47,10 @@
     "acid": { w: 8, h: 8, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAPklEQVR42mNggAIVY9b/yJgBGYAEjn/yQsFwRTDJT/8vgDGGImQFWE3BZjxOa7BKIju0/5AOGGNIonsVWQwAlUptzbpllPYAAAAASUVORK5CYII=" },
     "pet_faerie_0": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAY0lEQVR42mNgoCXgV5H4D8Jka172fQMYk2wIsmaSDYFpFjJWgmuGsYkyBJvtZLuCZM2wUMdlAN5YAUns//wfjHEZgCyPUzM2Q3DJU88Air1AlUCkWkpENuT/tzNgTFGGIqQZAAXZLzj3PxOhAAAAAElFTkSuQmCC" },
     "pet_faerie_1": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAZklEQVR42mNgoCXgV5H4D8Jka172fQMYk2wIsmaSDYFpFjJWgmuGsYkyBJvtZLuCJM2wEIdhbAYgYwzN+z//B2NCBiCrw9CMLIEtGrGqpdgAir1AlUCkakpENuT/tzNgTFGGIqQZAA84L/AVS+n0AAAAAElFTkSuQmCC" },
-    "pet_wolf_0": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAYklEQVR42mNgoBYQkVT6D8JkqQMJXHv0DozxGYJTHboEPkzQAGIxbQz4fzHtPz7DQHIgNQTDAJ8BeF2AHlDYDEBWizcMcIU+0YFIsQH0jUZSDcGa3AnFAHrY4M1p2BTgkgMA0k0AzXEzKtUAAAAASUVORK5CYII=" },
-    "pet_wolf_1": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR42mNgoAYQkVT6D8JkqQcxrj16B8bEGIKhHl2AGIxhIbIgsRjFtVQz4P/FtP/4DAPJgdTgdQEhA/C6AD2QsBmArBZvGOAKeaIDkWIDwIEaGwvGtI9GUg3BmuQJxQB62OA0AF+GwqYGAPrtAY/+r4sQAAAAAElFTkSuQmCC" },
     "pet_pig_0": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAa0lEQVR42mNgoCbQZhf7D8JkyYMk/m85AcbYFBGSx1CADeM0AFmSWIxiCLrp+DThNcCaSwanIdjU4PQCPgMIeoHiMADjD1+wY6ID8cMXiF+x0DC1tHMBWWFAqiF48wOhhIQvs2EYhI6xqQUADRTwIB2a1rsAAAAASUVORK5CYII=" },
     "pet_pig_1": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAaElEQVR42mNgoBbQZhf7D8JkqQMJ/N9yAozxGYJTHboEPkzQAGIxXhfg04TXAGsuGZyGYFOD0wv4DKB9GIDxhy/YMdGB+OELxK9YaJha2rmArDAg1RCsyR1bcsWmEWemQ5dAzwO41AEAbcX3yod0eaoAAAAASUVORK5CYII=" },
+    "pet_lemonPig_0": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAb0lEQVR42mNgoCdY8SD+PwhjldRSYf0Pwrg0g+T+P/QFYwx1eCXR5IkyABsm2gBiMYoh6C7ApwmvAdb6DAQNAKnB6wLkcMDFJ8qA/38foGCyDKjKEoDT9HUBydFIqiFYkzy2kMalGWeeQU66xMoBACZkto5EauQbAAAAAElFTkSuQmCC" },
+    "pet_lemonPig_1": { w: 16, h: 16, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAb0lEQVR42mNgoCdY8SD+PwhjSGipsP4HYUIGgNT8f+gLxnD1WAUJaMZrAD6M1QBsphODcRqAzzCc3oVJWOszEDQApIagF9D9THIYgPl/H6BgsgyoyhKA0/R1AcnRSKohWFMstpDGpRmvAYTyA7oaALIbuTKAKKXTAAAAAElFTkSuQmCC" },
     "lemonPig_0": { w: 24, h: 24, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAmUlEQVR42mNgGExgxYP4/yBMNQO1VFj/gzC58gQN///QF4yxGUJInmQLsGGyLUDWTCwm2hJyDCfaEkoMJ2gJuuHo4YzPQGx6CUaqtT4D0RagqyVoAc19QJN4wGYBrvSPKz+QHET//z4gCpMVRMgWVGUJYBiKLEaxBTTxAc3jgC65edCVRzQtUWlaJ1Cl2qS64egVO64kTEg/AAkcu0ITnF62AAAAAElFTkSuQmCC" },
     "lemonPig_1": { w: 24, h: 24, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAnElEQVR42mNgGExgxYP4/yBMNQO1VFj/gzC58gQN///QF4yxGUJInmQLsGGyLUDWTCwm2hJyDCfaEkoMJ2gJuuHo4YzPQGx6CUaqtT4D0RagqyVoAc19QJN4wGYBrvSPKz+QHET//z4gCpMVRMgWVGUJYBiKLEaxBTTxAc3jgC65edCVRzQtUWlaJ1Cl2qS64dgq9+OfvMCYlMoeAMRAtJY8nwn9AAAAAElFTkSuQmCC" },
     "heart": { w: 10, h: 10, uri: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAL0lEQVR42mNgIBVoswv8B2FcfLjgf99cMIYpQOZjVYiOyVOISzGGIlxuJcn3tAMAHk1SYxqZYWwAAAAASUVORK5CYII=" },
@@ -93,14 +93,14 @@
     "bolt": ["bolt_0", "bolt_1", "bolt_0", "bolt_1"],
     "gem": ["gem_0", "gem_1", "gem_2"],
     "pet_faerie": ["pet_faerie_0", "pet_faerie_1"],
-    "pet_wolf": ["pet_wolf_0", "pet_wolf_1"],
     "pet_pig": ["pet_pig_0", "pet_pig_1"],
+    "pet_lemonPig": ["pet_lemonPig_0", "pet_lemonPig_1"],
     "lemonPig": ["lemonPig_0", "lemonPig_1"],
     "boom": ["boom_0", "boom_1", "boom_2", "boom_3", "boom_4", "boom_5"],
     "spark": ["spark_0", "spark_1", "spark_2", "spark_3"],
     "deco": ["deco_rock", "deco_bones", "deco_grass", "deco_mushroom", "deco_skull", "deco_grave", "deco_stump", "deco_bush"]
   };
 
-  VS.SpriteInfo = { count: 63, pngBytes: 18709 };
+  VS.SpriteInfo = { count: 63, pngBytes: 18725 };
 
 })(window.VS = window.VS || {});

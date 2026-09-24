@@ -124,6 +124,31 @@
       weights.push(up.weight);
     }
 
+    /* --- 流派增益（2026-09-23 新增） ---
+       已经拥有的武器各自带一张"流派"卡，思路是**缺什么补什么**：
+       腐化光环补吸血+范围、环绕骨刃补刃数+转速……（定义在 C.WEAPONS[x].school） */
+    for (i = 0; i < p.weapons.length; i++) {
+      var w2 = p.weapons[i];
+      var wdef2 = C.WEAPONS[w2.id];
+      if (!wdef2 || !wdef2.school) continue;
+
+      var stacks = w2.school || 0;
+      if (stacks >= wdef2.school.max) continue;
+
+      pool.push({
+        kind: 'school',
+        id: w2.id,
+        name: wdef2.school.name,
+        icon: wdef2.school.icon,
+        color: wdef2.school.color,
+        desc: wdef2.school.short + '<br><span class="school-note">' +
+              wdef2.name + ' 的流派增益</span>',
+        tag: stacks > 0 ? ('流派 Lv ' + stacks + ' → ' + (stacks + 1)) : '流派增益',
+        isSchool: true
+      });
+      weights.push(11);
+    }
+
     var out = [];
     var guard = 0;
     while (out.length < 3 && pool.length > 0 && guard++ < 50) {
@@ -143,6 +168,14 @@
       VS.Weapons.upgrade(p, c.id);
     } else if (c.kind === 'weapon-new') {
       VS.Weapons.add(p, c.id);
+    } else if (c.kind === 'school') {
+      /* 流派增益：层数记在武器上，具体效果由武器自己的 school.apply 决定 */
+      var wdef = C.WEAPONS[c.id];
+      var w = VS.Weapons.get(p, c.id);
+      if (wdef && wdef.school && w) {
+        w.school = (w.school || 0) + 1;
+        wdef.school.apply(p, w, game);
+      }
     } else {
       var up = findUpgrade(c.id);
       if (up) VS.Player.applyUpgrade(p, up);
@@ -182,7 +215,9 @@
         player: null,
         pendingPetSelect: false,
         petChoices: [],
-        draftCards: 0          // 跳关预览时"还要自己选几张卡"
+        draftCards: 0,         // 跳关预览时"还要自己选几张卡"
+        failedClear: false,    // 时间到但没打死最终 Boss
+        failReason: ''
       };
 
       /* 吃到经验石时由拾取模块回调到这里 */
@@ -487,14 +522,30 @@
       return n;
     },
 
-    /** 本关时间到：弹过关面板（最后一关则是通关） */
+    /** 本关时间到：符合通关条件就弹过关面板，否则判负（最后一关则是通关结算） */
     clearLevel: function (game) {
+      game.time = game.levelDef.duration;
+
+      /* 通关条件：某些关要求"最终 Boss 必须被打死"（C.LEVELS[i].clearRule）。
+         15:00 时它还活着 → 这一局无法通关，直接按失败结算。 */
+      var need = VS.Levels.requiredBosses(game.level).length;
+      var got = game.enemies.requiredKilled || 0;
+      if (VS.Levels.clearRule(game.level) === 'killFinalBoss' && got < need) {
+        var boss = game.enemies.boss;
+        Game.endRun(game, {
+          failedClear: true,
+          reason: boss && !boss.dead
+            ? ('时间到 · 「' + (boss.name || '最终 Boss') + '」还活着，无法通关')
+            : '时间到 · 没能击杀最终 Boss，无法通关'
+        });
+        return;
+      }
+
       game.state = STATE.LEVELCLEAR;
 
       /* 注意：这里**不要**把本关时长并进 totalTime —— 此刻 game.time 还是本关时长，
          runTime() = totalTime + time 会把它算两遍（面板上会显示成 30:00）。
          并账放在 nextLevel()：真正离开这一关的时候再加。 */
-      game.time = game.levelDef.duration;
 
       var last = VS.Levels.isLast(game.level);
 
@@ -595,7 +646,7 @@
       }
 
       game.state = STATE.PETSELECT;
-      game.petChoices = VS.Pets.list();
+      game.petChoices = VS.Pets.list(game.level);   // 宠物也按关卡过滤（柠檬猪只有第二关有）
 
       if (game.deps.audio) game.deps.audio.play('level');
       if (game.deps.hud) game.deps.hud.update(game);
@@ -672,6 +723,8 @@
       opt = opt || {};
       game.state = STATE.GAMEOVER;
       game.victory = !!opt.victory;
+      game.failedClear = !!opt.failedClear;      // 时间到但没打死最终 Boss
+      game.failReason = opt.reason || '';
 
       /* 一局的总时长：打完的关卡 + 本关已经过的时间。
          第一关就死了的话就等于第一关的时间，和以前的口径一致。 */
@@ -720,6 +773,8 @@
           stage: game.level + 1,
           stageLabel: VS.Levels.label(game.level),
           victory: game.victory,
+          failedClear: game.failedClear,
+          reason: game.failReason,
           isNewBest: isNewBest
         });
       }

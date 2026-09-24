@@ -85,6 +85,7 @@
         pauseRestartBtn: el('pauseRestartBtn'),
 
         goTitle: el('goTitle'),
+        goReason: el('goReason'),
         goTime: el('goTime'),
         goBest: el('goBest'),
         goNewBest: el('goNewBest'),
@@ -168,14 +169,16 @@
       var html = '';
       for (var i = 0; i < currentChoices.length; i++) {
         var c = currentChoices[i];
-        // 卡片主色：新武器=青，武器升级=金，增益=紫
+        // 卡片主色：新武器=青，武器升级=金，增益=紫，流派=跟着武器自身配色
         var accent = c.color || (c.kind === 'buff' ? '#b58cff' : '#7ee0ff');
 
-        html += '<div class="card" data-index="' + i + '" style="--card-accent:' + accent + '">' +
+        html += '<div class="card' + (c.isSchool ? ' school' : '') + '" data-index="' + i +
+                  '" style="--card-accent:' + accent + '">' +
                   '<div class="ico">' + c.icon + '</div>' +
                   '<div class="nm">' + c.name + '</div>' +
                   '<div class="ds">' + c.desc + '</div>' +
-                  (c.tag ? '<div class="tag' + (c.isNew ? ' new' : '') + '">' + c.tag + '</div>' : '') +
+                  (c.tag ? '<div class="tag' + (c.isNew ? ' new' : (c.isSchool ? ' school' : '')) + '">' +
+                           c.tag + '</div>' : '') +
                   '<div class="key">按 ' + (i + 1) + ' 选择</div>' +
                 '</div>';
       }
@@ -313,10 +316,22 @@
     showGameOver: function (r) {
       if (!dom) return;
 
-      /* 通关和阵亡是同一个面板，只有标题和副信息不同 */
+      /* 通关 / 阵亡 / 时间到但没打死最终 Boss —— 三种结局共用一个面板 */
       if (dom.goTitle) {
-        dom.goTitle.textContent = r.victory ? '通 关 ！' : '你已阵亡';
-        dom.goTitle.className = r.victory ? 'clear' : 'dead';
+        if (r.victory) {
+          dom.goTitle.textContent = '通 关 ！';
+          dom.goTitle.className = 'clear';
+        } else if (r.failedClear) {
+          dom.goTitle.textContent = '没 能 通 关';
+          dom.goTitle.className = 'dead';
+        } else {
+          dom.goTitle.textContent = '你已阵亡';
+          dom.goTitle.className = 'dead';
+        }
+      }
+      if (dom.goReason) {
+        dom.goReason.textContent = r.reason || '';
+        dom.goReason.hidden = !r.reason;
       }
       if (dom.goTime) dom.goTime.textContent = U.formatTime(r.time);
       if (dom.goBest) dom.goBest.textContent = U.formatTime(r.best);

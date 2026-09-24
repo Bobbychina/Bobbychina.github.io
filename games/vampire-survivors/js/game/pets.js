@@ -1,10 +1,11 @@
 /* ===========================================================
-   宠物：打完第一只 Boss 后三选一
+   宠物：打完第一只 Boss 后选一只
    -----------------------------------------------------------
    小精灵  ：每秒额外回复 10 点生命（直接加进玩家的 regen）
-   德国的狼：每秒射出 4 颗飞弹 + 移动速度 +20%
    死亡猪神：每 2 分钟积攒一次复活；受到致命伤时自动消耗，
              回复一半生命并无敌 5 秒
+   柠檬猪  ：只有第二关能选 —— 免疫所有柠檬酸液伤害，最大生命直接变 250
+             （2026-09-23 删掉了原来的「德国的狼」）
 
    这一层只改玩家/游戏状态，不碰渲染与 DOM。
    =========================================================== */
@@ -27,7 +28,6 @@
       return {
         id: null,          // 已选宠物（null = 还没选）
         x: 0, y: 0,        // 视觉位置（跟在玩家侧后方，由渲染层用）
-        wolfCd: 0,         // 狼的开火计时
         pigTimer: 0,       // 猪神的充能计时
         pigCharges: 0      // 已积攒的复活次数
       };
@@ -37,20 +37,34 @@
       state.id = null;
       state.x = 0;
       state.y = 0;
-      state.wolfCd = 0;
       state.pigTimer = 0;
       state.pigCharges = 0;
     },
 
     def: def,
-    list: function () { return C.PETS; },
+
+    /**
+     * 当前关卡能选的宠物（`onlyFromLevel` 把关：柠檬猪只有第二关有）。
+     * @param {number} [levelIndex] 关卡下标；不传就返回全部
+     */
+    list: function (levelIndex) {
+      var all = C.PETS || [];
+      if (levelIndex === undefined || !VS.Levels) return all;
+
+      var out = [];
+      for (var i = 0; i < all.length; i++) {
+        if (VS.Levels.allows(levelIndex, all[i])) out.push(all[i]);
+      }
+      return out.length ? out : all;
+    },
+
     has: function (state, id) { return !!state && state.id === id; },
     chosen: function (state) { return !!(state && state.id); },
 
     /**
      * 选定宠物并立刻结算"一次性"效果
-     * （小精灵的回复、狼的移速是常驻属性，在这里直接改玩家；
-     *   狼的开火和猪神的充能是每帧逻辑，放在 update 里）
+     * （小精灵的回血、柠檬猪的血量上限与酸液免疫都是常驻属性，在这里直接改玩家；
+     *   猪神的充能是每帧逻辑，放在 update 里）
      */
     choose: function (state, id, game) {
       if (!state || state.id) return false;      // 只能选一次
@@ -63,12 +77,15 @@
 
       if (id === 'faerie') {
         p.regen += C.PET.FAERIE_REGEN;
-      } else if (id === 'wolf') {
-        p.speed *= C.PET.WOLF_SPEED_MUL;
-        state.wolfCd = 0;
       } else if (id === 'pig') {
         state.pigTimer = 0;
         state.pigCharges = 1;                    // 选的时候先送一次，不然要等 2 分钟才有意义
+      } else if (id === 'lemonPig') {
+        /* 柠檬猪：免疫所有柠檬酸液 + 最大生命直接变成 250 */
+        p.acidResist = C.PET.LEMON_ACID_RESIST;
+        p.maxHp = C.PET.LEMON_MAX_HP;
+        p.hp = p.maxHp;
+        p.healFlash = 0.6;
       }
 
       /* 出场特效 */
@@ -95,17 +112,6 @@
       state.y = VS.Utils.damp(state.y, ty, 8, dt);
 
       if (!state.id) return;
-
-      /* --- 德国的狼：每秒 4 发飞弹（每 0.25 秒一发，打最近的敌人） --- */
-      if (state.id === 'wolf') {
-        state.wolfCd -= dt;
-        if (state.wolfCd <= 0) {
-          state.wolfCd = 1 / C.PET.WOLF_SHOTS_PER_SEC;
-          if (p.alive && VS.Weapons.firePetBolt) {
-            VS.Weapons.firePetBolt(game, state.x, state.y);
-          }
-        }
-      }
 
       /* --- 死亡猪神：每 2 分钟攒一次复活 --- */
       if (state.id === 'pig') {

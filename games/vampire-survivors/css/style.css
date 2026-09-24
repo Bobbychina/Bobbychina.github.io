@@ -487,6 +487,23 @@ kbd {
 }
 .card .tag.new { color: var(--cyan); background: rgba(126, 224, 255, .12); border-color: rgba(126, 224, 255, .35); }
 
+/* 流派增益：金色描边 + 斜向条纹，和普通增益一眼分开 */
+.card .tag.school {
+  color: #ffe9a8;
+  background: rgba(255, 209, 102, .16);
+  border-color: rgba(255, 209, 102, .55);
+}
+.card.school {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 209, 102, .07) 0 8px, rgba(0, 0, 0, 0) 8px 16px),
+    linear-gradient(180deg, #1d2130, #0e131c);
+}
+.card.school .nm { color: var(--card-accent, var(--gold)); }
+.school-note { color: var(--dim2); font-size: 11.5px; }
+
+/* 结算面板上"为什么没通关"那一行 */
+.go-reason { color: #ffb4b4 !important; }
+
 .card .key { margin-top: 9px; font-size: 10px; color: var(--dim2); letter-spacing: .5px; }
 
 /* ===================== 宠物三选一 =====================

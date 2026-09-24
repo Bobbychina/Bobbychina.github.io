@@ -353,8 +353,9 @@
      · typeBias  额外权重（让某一关"某种怪特别多"）
      · ground    地面底图精灵名（每关一张，零每帧开销，见 tools/gen-sprites.js）
 
-     第二关目前是**大概版**：怪物更强更早、地面换成柠檬色调、三只 Boss，
-     时长 12 分钟。要调手感直接改这张表就行（数值都在这一处）。
+     第二关：节奏和第一关**同一套逻辑**（2:00 尸潮 / 3:00 金球 / 5:00 第一只 Boss），
+     区别只有三点：没有 4:00–5:00 的喘息时间、10:00 不刷 Boss（但超级经验从 10:00 开始掉）、
+     12:00 刷最终 Boss 且**必须打死**才能通关（15:00 时它还活着 = 这一局无法通关）。
   ---------------------------------------- */
 
   C.LEVELS = [
@@ -373,25 +374,25 @@
       id: 2,
       name: '第二关',
       subtitle: '柠檬深渊',
-      duration: 720,                     // 12:00 通关
+      duration: 900,                     // 15:00 结算：最终 Boss 死了才算通关
       /* 和第二关的**第一关没有任何关系**：进去以后从 1 级重新开始，
          不带第一关的等级/武器/增益/宠物（见 Game.startLevel 的 def.fresh 分支）。 */
       fresh: true,
+      /* 没有喘息时间：4:00–5:00 的休整阶段照常刷怪 */
+      noRest: true,
+      /* 通关条件：12:00 的最终 Boss 必须被打死 */
+      clearRule: 'killFinalBoss',
       bosses: [
         {
-          at: 180, type: 'lemonPig', name: '柠檬猪',
-          tip: '柠 檬 猪 · 第 二 关', sub: '酸液池会留在地上，别站在里面',
-          reward: 'firstBoss'          // 重新开始 → 宠物也重新三选一
+          at: 300, type: 'boss', name: '尸潮之王',
+          tip: '尸 潮 之 王 降 临', sub: '和第一关同一个节拍 · 单挑时间',
+          reward: 'firstBoss'          // 重新开始 → 宠物重新三选一
         },
         {
-          at: 480, type: 'boss', name: '尸潮之王', hpMul: 1.15,
-          tip: '尸 潮 之 王 · 再 临', sub: '它记得你',
-          reward: 'levelUp'
-        },
-        {
-          at: 690, type: 'lemonPig', name: '柠檬猪 · 暴走', hpMul: 1.45,
-          tip: '柠 檬 猪 · 暴 走', sub: '最后一战',
-          reward: 'levelUp'
+          at: 720, type: 'lemonPig', name: '柠檬猪 · 最终形态', hpMul: 1.6,
+          tip: '柠 檬 猪 · 最 终 形 态', sub: '15:00 之前必须打死它，否则无法通关',
+          reward: 'levelUp',
+          requireKill: true            // ← 通关条件挂在这一条上
         }
       ],
       /* 强度 = 第一关的 1.5 倍（血量 / 伤害都是 ×1.5） */
@@ -423,7 +424,10 @@
     }
   ];
 
-  /* ---------------- 宠物（打完第一只 Boss 三选一） ---------------- */
+  /* ---------------- 宠物（打完第一只 Boss 三选一） ----------------
+     `onlyFromLevel` 控制哪几关能抽到（0 起：第二关 = 1）。
+     2026-09-23 改：删掉「德国的狼」，第二关加入「柠檬猪」。
+  ---------------------------------------- */
 
   C.PETS = [
     {
@@ -432,25 +436,26 @@
       detail: '生命回复 +10/秒'
     },
     {
-      id: 'wolf', name: '德国的狼', icon: '🐺', color: '#d6e2ee',
-      desc: '每秒射出 4 颗飞弹，移动速度 +20%',
-      detail: '每秒 4 发 · 移速 +20%'
-    },
-    {
       id: 'pig', name: '死亡猪神', icon: '🐷', color: '#ffb4c8',
       desc: '每 2 分钟积攒一次复活：致命伤时自动消耗，回复一半生命并无敌 5 秒',
       detail: '每 2 分钟 +1 次复活'
+    },
+    {
+      id: 'lemonPig', name: '柠檬猪', icon: '🍋', color: '#e3d84a',
+      onlyFromLevel: 1,                     // 只有第二关能选
+      desc: '免疫所有柠檬酸液伤害（Boss 的酸液弹、地上的酸池都不怕），并且最大生命直接变成 250',
+      detail: '酸液免疫 · 血量 250'
     }
   ];
 
   C.PET = {
     FAERIE_REGEN: 10,            // 小精灵：每秒额外回血（3 → 10，站长嫌弱）
-    WOLF_SPEED_MUL: 1.20,        // 德国的狼：移速倍率
-    WOLF_SHOTS_PER_SEC: 4,       // 德国的狼：每秒飞弹数
     PIG_CHARGE_INTERVAL: 120,    // 死亡猪神：每多少秒攒一次复活
     PIG_MAX_CHARGES: 3,          // 最多攒几次
     PIG_REVIVE_HP: 0.5,          // 复活回复最大生命的比例
-    PIG_REVIVE_INVULN: 5         // 复活后的无敌秒数
+    PIG_REVIVE_INVULN: 5,        // 复活后的无敌秒数
+    LEMON_ACID_RESIST: 1,        // 柠檬猪：酸液伤害免疫（1 = 100% 减免）
+    LEMON_MAX_HP: 250            // 柠檬猪：把最大生命直接顶到 250
   };
 
   /* ---------------- 掉落 ---------------- */
@@ -485,6 +490,16 @@
   /* ---------------- 武器 ----------------
      每个武器：stats(level) 返回该等级下的数值；
      describe(level) 返回卡片上显示的一行说明。
+
+     school（流派增益，2026-09-23 新增）：
+       拥有这把武器之后，升级卡池里会多出一张"流派"卡 —— 思路是**缺什么补什么**：
+         bolt      缺清群 → 穿透 + 暴击
+         garlic    贴脸才有用 → 吸血 + 范围
+         orbit     数量少、转速慢 → +1 骨刃 + 转速
+         nova      空窗期长 → 半径 + 冷却
+         acidSpray 伤害低 → 酸滩伤害 + 持续时间
+         chain     连得短 → 连锁数 + 搜索半径
+     数值改在 statsFor() 里统一施加（见 weapons.js），加新武器别忘了给 school。
   ------------------------------------------- */
 
   C.WEAPONS = {
@@ -507,6 +522,15 @@
         var s = this.stats(lv);
         return '伤害 ' + s.damage + ' · 间隔 ' + s.cooldown.toFixed(2) + 's · 弹数 ' + s.count +
                (s.pierce > 1 ? ' · 穿透 ' + s.pierce : '');
+      },
+      /* 流派：飞弹缺的是"清群"，所以补穿透 + 暴击 */
+      school: {
+        name: '贯穿强化', icon: '✦', color: '#7fd8ff', max: 3,
+        short: '飞弹穿透 +1 · 暴击率 +7%',
+        apply: function (p, w) {
+          w.schoolPierce = (w.schoolPierce || 0) + 1;
+          p.critChance += 0.07;
+        }
       }
     },
 
@@ -526,6 +550,15 @@
       describe: function (lv) {
         var s = this.stats(lv);
         return '每 ' + s.tick.toFixed(2) + 's 造成 ' + VS.Utils.fixed(s.damage) + ' 伤害 · 半径 ' + Math.round(s.radius);
+      },
+      /* 流派：光环要贴脸才有用，所以补"站得住"（吸血）+ 范围 */
+      school: {
+        name: '腐蚀蔓延', icon: '◉', color: '#9ae66e', max: 3,
+        short: '吸血 +1.2/次击杀 · 光环范围 +12%',
+        apply: function (p, w) {
+          p.lifesteal += 1.2;
+          w.schoolArea = (w.schoolArea || 0) + 0.12;
+        }
       }
     },
 
@@ -548,6 +581,15 @@
       describe: function (lv) {
         var s = this.stats(lv);
         return '伤害 ' + VS.Utils.fixed(s.damage) + ' · 数量 ' + s.count + ' · 半径 ' + Math.round(s.radius);
+      },
+      /* 流派：骨刃缺"数量"和"转速"，所以各补一档 */
+      school: {
+        name: '利刃回旋', icon: '✜', color: '#ffd166', max: 3,
+        short: '骨刃 +1 把 · 旋转速度 +10%',
+        apply: function (p, w) {
+          w.schoolBlades = (w.schoolBlades || 0) + 1;
+          w.schoolSpeed = (w.schoolSpeed || 0) + 0.10;
+        }
       }
     },
 
@@ -567,6 +609,15 @@
       describe: function (lv) {
         var s = this.stats(lv);
         return '伤害 ' + s.damage + ' · 间隔 ' + s.cooldown.toFixed(2) + 's · 半径 ' + Math.round(s.maxRadius);
+      },
+      /* 流派：新星空窗期长，所以补半径 + 冷却 */
+      school: {
+        name: '冲击共振', icon: '❂', color: '#ff6b6b', max: 3,
+        short: '新星半径 +12% · 间隔 -10%',
+        apply: function (p, w) {
+          w.schoolArea = (w.schoolArea || 0) + 0.12;
+          w.schoolCd = (w.schoolCd || 0) + 0.10;
+        }
       }
     },
 
@@ -592,6 +643,15 @@
         var s = this.stats(lv);
         return '每 ' + s.tick.toFixed(2) + 's 造成 ' + VS.Utils.fixed(s.damage) +
                ' 伤害 · 酸滩半径 ' + Math.round(s.radius) + ' · 持续 ' + s.life.toFixed(1) + 's';
+      },
+      /* 流派：喷射器缺"伤害"，所以补酸滩伤害 + 持续时间（等于多烫几下） */
+      school: {
+        name: '腐蚀扩散', icon: '☣', color: '#c7f24a', max: 3,
+        short: '酸滩伤害 +25% · 持续时间 +0.6s',
+        apply: function (p, w) {
+          w.schoolDmg = (w.schoolDmg || 0) + 0.25;
+          w.schoolLife = (w.schoolLife || 0) + 0.6;
+        }
       }
     },
 
@@ -612,6 +672,15 @@
       describe: function (lv) {
         var s = this.stats(lv);
         return '伤害 ' + s.damage + ' · 间隔 ' + s.cooldown.toFixed(2) + 's · 连锁最多 ' + s.chains + ' 个';
+      },
+      /* 流派：雷击缺"够得着"，所以补连锁数 + 搜索半径 */
+      school: {
+        name: '连锁过载', icon: '⚡', color: '#ffe066', max: 3,
+        short: '连锁目标 +1 · 搜索半径 +15%',
+        apply: function (p, w) {
+          w.schoolChains = (w.schoolChains || 0) + 1;
+          w.schoolRange = (w.schoolRange || 0) + 0.15;
+        }
       }
     }
   };

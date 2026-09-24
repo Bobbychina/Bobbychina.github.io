@@ -243,8 +243,8 @@
 
   function updateOrbit(state, dt, game, w, stIn) {
     var p = game.player;
-    /* 等级数值由调用方算好传进来（要走 statsFor 才能吃到"第二关骨刃 ×1.5"） */
-    var st = stIn || statsFor(game, 'orbit', w.level);
+    /* 等级数值由调用方算好传进来（要走 statsFor 才能吃到关卡加成与流派加成） */
+    var st = stIn || statsFor(game, 'orbit', w.level, w);
     var count = st.count;
     var radius = st.radius * p.areaMul;
     var bladeR = st.bladeRadius;
@@ -340,25 +340,49 @@
     }
   }
 
-  /* ---------------- 关卡对武器的加成 ----------------
+  /* ---------------- 关卡加成 + 流派加成 ----------------
      第二关：环绕骨刃 / 腐化光环 ×1.5（配置在 C.LEVELS[i].weaponMul）。
-     所有取值都从这里走，别在开火逻辑里直接 def.stats()，否则关卡加成一加就漏。 */
+     流派增益：层数记在武器对象上（w.school + w.schoolXxx），**这里是唯一施加点** ——
+     开火逻辑一律走 statsFor，不要再直接 def.stats()，否则加成一加就漏。 */
 
-  function statsFor(game, id, level) {
+  function statsFor(game, id, level, weapon) {
     var def = C.WEAPONS[id];
     if (!def) return null;
-    var st = def.stats(level);
-    var mul = VS.Levels ? VS.Levels.weaponMul(game.level, id) : 1;
+
+    var src = def.stats(level);
+    var w = weapon || null;
+    var mul = (game && VS.Levels) ? VS.Levels.weaponMul(game.level, id) : 1;
+
+    var out = src;
+    if (mul !== 1 || (w && w.school)) {
+      out = {};
+      for (var k in src) if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
+    }
+
+    /* 关卡倍率：只放伤害与范围，数量不动 */
     if (mul !== 1) {
-      var out = {};
-      for (var k in st) if (Object.prototype.hasOwnProperty.call(st, k)) out[k] = st[k];
       if (out.damage !== undefined) out.damage *= mul;
       if (out.radius !== undefined) out.radius *= mul;
       if (out.maxRadius !== undefined) out.maxRadius *= mul;
-      if (out.count !== undefined && mul >= 1.5) out.count += 0;   // 数量不动，只加伤害与范围
-      return out;
     }
-    return st;
+
+    /* 流派加成：每个字段独立判断，加新流派只要在 config 的 school.apply 里改一个字段 */
+    if (w && w.school) {
+      if (w.schoolPierce && out.pierce !== undefined) out.pierce += w.schoolPierce;
+      if (w.schoolBlades && out.count !== undefined) out.count += w.schoolBlades;
+      if (w.schoolChains && out.chains !== undefined) out.chains += w.schoolChains;
+      if (w.schoolArea) {
+        if (out.radius !== undefined) out.radius *= 1 + w.schoolArea;
+        if (out.maxRadius !== undefined) out.maxRadius *= 1 + w.schoolArea;
+      }
+      if (w.schoolDmg && out.damage !== undefined) out.damage *= 1 + w.schoolDmg;
+      if (w.schoolCd && out.cooldown !== undefined) out.cooldown *= Math.max(0.3, 1 - w.schoolCd);
+      if (w.schoolLife && out.life !== undefined) out.life += w.schoolLife;
+      if (w.schoolSpeed && out.spin !== undefined) out.spin *= 1 + w.schoolSpeed;
+      if (w.schoolRange && out.range !== undefined) out.range *= 1 + w.schoolRange;
+    }
+
+    return out;
   }
 
   /* ---------------- 第二关专属：柠檬喷射器（往敌人脚下糊一滩酸） ---------------- */
@@ -491,7 +515,7 @@
           var def = C.WEAPONS[w.id];
           if (!def) continue;
 
-          var st = statsFor(game, w.id, w.level);
+          var st = statsFor(game, w.id, w.level, w);
           if (!st) continue;
 
           if (w.id === 'bolt') {

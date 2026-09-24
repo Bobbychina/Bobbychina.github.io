@@ -103,6 +103,28 @@
     return (d && d.hazards) || null;
   }
 
+  /** 这一关有没有"喘息时间"（noRest = 4:00–5:00 的休整阶段照常刷怪） */
+  function noRest(index) {
+    var d = def(index);
+    return !!(d && d.noRest);
+  }
+
+  /** 通关条件（'killFinalBoss' = 最终 Boss 必须打死；没配就是"撑到时间到"） */
+  function clearRule(index) {
+    var d = def(index);
+    return (d && d.clearRule) || 'survive';
+  }
+
+  /** 这一关里"必须击杀"的 Boss 条目（没配就返回空数组） */
+  function requiredBosses(index) {
+    var list = bosses(index) || [];
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].requireKill) out.push(list[i]);
+    }
+    return out;
+  }
+
   /** UI 用的一行名字，例如「第一关 · 血色荒野」 */
   function label(index) {
     var d = def(index);
@@ -124,6 +146,9 @@
     allows: allows,
     weaponMul: weaponMul,
     hazards: hazards,
+    noRest: noRest,
+    clearRule: clearRule,
+    requiredBosses: requiredBosses,
     label: label,
     list: function () { return C.LEVELS || []; }
   };

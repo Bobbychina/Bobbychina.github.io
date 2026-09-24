@@ -450,11 +450,13 @@
     /*
      * 两段"完全不刷怪"的时间：
      *   1) 休整阶段（4:00–5:00）：让玩家专心把地上的经验捡干净
+     *      —— 但 `C.LEVELS[i].noRest` 的关（第二关）**没有喘息时间**，这一段照常刷
      *   2) Boss 战期间：直到 Boss 死亡，场上只有它一个
      * 注意是"停止刷新"，场上已有的怪不会凭空消失，仍然要打掉。
      */
     var bossAlive = !!(state.boss && !state.boss.dead);
-    if (VS.Phases.noSpawn(t) || (bossAlive && C.BOSS.PAUSE_SPAWN)) {
+    var restHere = VS.Phases.noSpawn(t) && !(VS.Levels && VS.Levels.noRest(game.level));
+    if (restHere || (bossAlive && C.BOSS.PAUSE_SPAWN)) {
       state.spawnAcc = 0;   // 清掉欠账，恢复刷怪时才不会一次涌出一大批
       return;
     }
@@ -671,6 +673,11 @@
         /* 第二关起的 Boss：等级 +1（宠物已经选过了） */
         game.onBossReward();
       }
+
+      /* 「必须击杀」的 Boss：记一笔，15:00 的通关判定要看它 */
+      if (e.bossEntry && e.bossEntry.requireKill) {
+        es.requiredKilled = (es.requiredKilled || 0) + 1;
+      }
       return;
     }
 
@@ -728,6 +735,7 @@
         bossIndex: 0,                  // 时间表指针：下一只要投放的是第几条（每关重置）
         bossCount: 0,                  // 已经投放了几只
         bossesKilled: 0,               // 已经打死了几只
+        requiredKilled: 0,             // 打死了几只"必须击杀"的 Boss（通关判定用）
         firstBossDefeated: false,      // 第一只 Boss 是否已击杀（金球掉率分档要用，跨关保留）
         _pt: { x: 0, y: 0 }            // 复用的生成点对象
       };
