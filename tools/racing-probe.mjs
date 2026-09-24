@@ -129,7 +129,7 @@ ok('注入了 /games/auth-config.js', env.cfg);
 ok('注入了 /games/account.js 且账号库已加载', env.acct);
 ok('注入了 /mac-block.js（站点 macOS 拦截）', env.mac);
 ok('游戏引擎已启动（window.RACEGAME）', env.game);
-ok('6 条赛道都在', env.tracks.length === 6, env.tracks.join('/'));
+ok('10 条赛道都在（含 4 条特技赛道）', env.tracks.length === 10, env.tracks.join('/'));
 ok('9 款车型都在', env.cars.length === 9, env.cars.join('/'));
 ok('云后端地址已配（api + pages.dev 中继）', !!env.api && !!env.relay, env.api + ' / ' + env.relay);
 ok('排行榜判定为可用', env.onlineAvailable);
