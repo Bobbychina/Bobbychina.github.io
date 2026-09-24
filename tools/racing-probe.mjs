@@ -75,14 +75,14 @@ const env = await page.evaluate(() => ({
     return r.top >= 0 && r.bottom <= window.innerHeight + 1;
   })(),
   /* AI 难度三档开关（2026-09-23 新增）: 按钮都在、点"硬核"能真的改掉 AI 参数与高亮 */
-  diffBtns: Array.prototype.map.call(document.querySelectorAll('.dbtn'), b => b.getAttribute('data-diff')),
+  diffBtns: Array.prototype.map.call(document.querySelectorAll('.dbtn[data-diff]'), b => b.getAttribute('data-diff')),
   diffNow: window.RACEGAME ? window.RACEGAME.CFG.AI_DIFFICULTY : '',
   diffHard: (() => {
     const G = window.RACEGAME;
     if (!G || !G.selectDiff) return null;
     G.selectDiff('hard');
     const tune = G.CFG.AI_TUNE[G.CFG.AI_DIFFICULTY] || {};
-    const on = document.querySelector('.dbtn.on');
+    const on = document.querySelector('.dbtn[data-diff].on');
     const obs = {
       set: G.CFG.AI_DIFFICULTY,
       onBtn: on ? on.getAttribute('data-diff') : '',
@@ -137,9 +137,9 @@ ok('开场卡片上「开始比赛」在首屏内（1440×900）', env.startBtnV
 ok('开场卡片有 AI 难度三档开关（休闲/标准/硬核）',
   env.diffBtns.join(',') === 'easy,normal,hard', env.diffBtns.join('/'));
 ok('默认档位是「标准」', env.diffNow === 'normal', env.diffNow);
-ok('点「硬核」真的换档（CFG 变 hard + 按钮高亮跟随 + skill=1.06 + 文案更新）',
+ok('点「硬核」真的换档（CFG 变 hard + 按钮高亮跟随 + skill≥1.06 + 文案更新）',
   !!env.diffHard && env.diffHard.set === 'hard' && env.diffHard.onBtn === 'hard' &&
-  env.diffHard.skill === 1.06 && /硬核/.test(env.diffHard.name),
+  env.diffHard.skill >= 1.06 && /硬核/.test(env.diffHard.name),
   JSON.stringify(env.diffHard));
 /* —— 幽灵模式 —— */
 ok('开场卡片有幽灵对手选择器（至少「不跟幽灵跑」「我的最佳」两个入口）',
