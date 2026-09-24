@@ -257,6 +257,49 @@ out.ghostApi = ghostApi;
 ok('云后端已上线 /api/ghost（查不存在的名字 → ghost:null，公开只读）',
   ghostApi.status === 200 && ghostApi.ok === true && ghostApi.ghost === null,
   JSON.stringify(ghostApi).slice(0, 170));
+
+/* 2d. 幽灵模式端到端（站长反馈"幽灵模式无法生效"后补的真实驾驶验证）:
+       注入一条本机幽灵 → 选「我的最佳」→ 发车 → 过起点线 → 幽灵必须出现且位置在推进 */
+const ghostRun = await page.evaluate(() => {
+  const R = window.RACEGAME;
+  if (!R.ghostEncode || !R.Ghost) return { skipped: '这个版本还没有幽灵模块' };
+  const track = R.CFG.TRACK_MODE, T = R.TRACK;
+  const s0 = Math.round(T.len * 0.3);
+  const t = [], x = [], z = [], yw = [];
+  for (let i = 0; i <= 30; i++) {
+    const g = R.ellipseAt(R.tOfS(s0 + i * 8));
+    t.push(i * 200); x.push(g.x); z.push(g.z); yw.push(Math.atan2(g.tx, g.tz));
+  }
+  const data = R.ghostEncode({ model: 'gt', lapMs: 6000, t: t, x: x, z: z, yaw: yw });
+  window.localStorage.setItem('racing3d.ghost.v1.' + track,
+    JSON.stringify({ track: track, lap: 6000, model: 'gt', data: data }));
+  R.ghostSetPick('mine');
+  const loaded = !!(R.Ghost.play && R.Ghost.mesh);
+  R.startNow();
+  const p = R.G.player;
+  const g = R.ellipseAt(R.tOfS(T.len - 20));            // 放到起点线前 20 m
+  p.x = g.x; p.z = g.z; p.yaw = Math.atan2(g.tx, g.tz);
+  p.vx = Math.sin(p.yaw) * 40; p.vz = Math.cos(p.yaw) * 40;
+  const pr = R.projectTrack(p.x, p.z);
+  p.lastS = pr.s; p.prog = pr.s; p.t = pr.t;
+  p.nextSplit = 0; p.lapStartTime = 0; p.lap = 0;
+  R.KEY.accel = true;
+  let visible = false, pose0 = null, moved = 0;
+  for (let i = 0; i < 260; i++) {
+    R.stepSim(R.CFG.FIXED_DT);
+    if (R.Ghost.mesh && R.Ghost.mesh.visible) visible = true;
+    if (R.Ghost.pose) {
+      if (!pose0) pose0 = { x: R.Ghost.pose.x, z: R.Ghost.pose.z };
+      else moved = Math.hypot(R.Ghost.pose.x - pose0.x, R.Ghost.pose.z - pose0.z);
+    }
+  }
+  R.KEY.accel = false;
+  return { loaded: loaded, visible: visible, moved: +moved.toFixed(1), pose: !!R.Ghost.pose, lap: p.lap, state: R.G.state };
+});
+out.ghostRun = ghostRun;
+ok('幽灵端到端：本机幽灵装得上、发车后真的在跑（模型可见 + 位置在推进）',
+  !!ghostRun.loaded && ghostRun.visible && ghostRun.pose && ghostRun.moved > 20,
+  JSON.stringify(ghostRun));
 ok('未登录时面板给的是「注册云账号」入口（云账号=主路径）',
   board.hasRegBtn || /可以上榜/.test(board.formText),
   'hasRegBtn=' + board.hasRegBtn + ' form=' + board.formText.replace(/\s+/g, ' ').slice(0, 70));

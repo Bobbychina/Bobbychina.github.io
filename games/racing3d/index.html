@@ -272,6 +272,10 @@
       <button class="tbtn" data-track="city">城市街道赛<span>柏油街道 · 直角弯 + 连续 S 弯</span></button>
       <button class="tbtn" data-track="dune">沙漠沙丘拉力<span>沙地路面 · 沙丘起伏 · 流畅高速弯</span></button>
       <button class="tbtn" data-track="alpine">雪山盘山道<span>窄路土道 · 3 个发夹弯 · 大落差</span></button>
+      <button class="tbtn" data-track="jumps">跳台峡谷<span>4 个跳台 · 真的会飞出去再落地</span></button>
+      <button class="tbtn" data-track="skyway">云端高架<span>爬升到 20 m 高空 · 落差跳台</span></button>
+      <button class="tbtn" data-track="ice">冰湖竞速<span>抓地 55% · 长滑漂移 · 宽弯高速</span></button>
+      <button class="tbtn" data-track="kart">小巷卡丁<span>12 m 窄路 · 连续 90° 弯 · 3 圈</span></button>
     </div>
     <p class="sub" id="trackDesc" style="font-size:12px;opacity:.8;margin-top:2px">210 × 132 m 椭圆 · 两个高速长弯</p>
     <div class="cars">
@@ -301,7 +305,7 @@
       <div><kbd>D</kbd><span>向右转向</span></div>
       <div><kbd>空格</kbd><span>漂移 (轻点贴弯 · 长按大甩尾)</span></div>
       <div><kbd>C</kbd><span>切换相机视角</span></div>
-      <div><kbd>1</kbd>~<kbd>6</kbd><span>切赛道 (或 <kbd>T</kbd> 循环)</span></div>
+      <div><kbd>1</kbd>~<kbd>9</kbd><kbd>0</kbd><span>切赛道 (或 <kbd>T</kbd> 循环)</span></div>
       <div><kbd>Q</kbd><kbd>E</kbd><span>换车 · </span><kbd>R</kbd><span>重开</span></div>
     </div>
     <div class="btnrow">
@@ -415,6 +419,8 @@ const CFG = {
   SKY_RADIUS: 2400,         // 天空球半径
   FOG_NEAR: 430,            // 雾开始距离
   FOG_FAR: 1650,            // 雾完全遮挡距离
+  GRAVITY: 14.0,            // 重力加速度 m/s² (跳台/高架赛道用; 14 是"街机手感"的折中:
+                            //   真实 9.8 会飘得没边, 20 以上跳台就飞不起来了)
 
   /* ======================= 车辆尺寸 (双门轿跑) ======================= */
   CAR: {
@@ -1269,6 +1275,110 @@ const TRACK_DEFS = {
       { p: [-100, 240], r: 44 },   // 7  盘山顶 · 长下坡起点
       { p: [-100, 0], r: 40 }      // 8  长下坡末端, 回到起点直道
     ]
+  },
+
+  /* ============ 2026-09-24 新增 4 条"特技向"赛道（TrackMania 味道）============
+     引擎这轮补了三件事, 才撑得起下面这些图:
+       ① def.profile: 自定义高度剖面 [{u,h}]（u = 归一化弧长 0~1）—— 可以造跳台/断崖/高架,
+          之前只有正弦土坡 hill:{amp,waves,phase}
+       ② 离地物理: 路面掉得比车快时车会**真的飞出去**（重力抛物线 + 落地冲击减速）, 不再是"粘"在路面上
+       ③ def.groundMode / def.grip: 地面可以是"谷底平地"(不打洞不跟随), 路面可以是低抓地(冰面) */
+  /* ---- 跳台峡谷: 4 个大跳台, 飞出去再落地 ---- */
+  jumps: {
+    name: '跳台峡谷',
+    desc: '4 个跳台 · 飞出 40~80 m 再落地 · 长直道 + 宽弯',
+    mode: 'circuit', width: 24, seg: 900, laps: 2,
+    surface: 'dirt', ground: 'dirt', kerb: 'dirt', groundMode: 'floor',
+    /* 起跳台: 28 m 内抬升 6 m(约 21% 坡), 顶上一小段平唇, 然后**断崖式下降** =>
+       40 m/s 冲上去 vy≈8 m/s, 按 GRAVITY=14 能飞 ~45 m; 60 m/s 能飞 ~65 m */
+    profile: [
+      { u: 0.000, h: 0 }, { u: 0.062, h: 0 }, { u: 0.076, h: 6.0 }, { u: 0.081, h: 6.0 },
+      { u: 0.088, h: 0 },
+      { u: 0.200, h: 0 }, { u: 0.226, h: 5.0 }, { u: 0.231, h: 5.0 }, { u: 0.238, h: 0 },
+      { u: 0.430, h: 0 }, { u: 0.458, h: 6.5 }, { u: 0.463, h: 6.5 }, { u: 0.470, h: 0 },
+      { u: 0.690, h: 0 }, { u: 0.716, h: 5.5 }, { u: 0.721, h: 5.5 }, { u: 0.728, h: 0 },
+      { u: 0.880, h: 0 }, { u: 0.906, h: 3.0 }, { u: 0.911, h: 3.0 }, { u: 0.918, h: 0 },
+      { u: 1.000, h: 0 }
+    ],
+    verts: [
+      { p: [0, 0], r: 48 },        // 0  起点/终点 (底边 560 m 直道)
+      { p: [560, 0], r: 48 },      // 1
+      { p: [560, 360], r: 52 },    // 2  宽右手弯
+      { p: [0, 360], r: 48 },      // 3  顶边直道 (跳台 3)
+      { p: [-60, 180], r: 60 }     // 4  左侧半圆弯 (闭合回 v0)
+    ]
+  },
+
+  /* ---- 冰湖竞速: 低抓地 + 长滑, 靠提前打方向 ---- */
+  ice: {
+    name: '冰湖竞速',
+    desc: '冰面抓地只有 55% · 长滑漂移 · 宽弯高速',
+    mode: 'circuit', width: 26, seg: 820, laps: 2,
+    surface: 'ice', ground: 'snow', kerb: 'ice', groundMode: 'floor',
+    grip: 0.55,                   // 冰面: 抓地只有柏油的 55%（AI 的目标速度也跟着降）
+    /* 冰湖上是平的 —— 没有起伏, 地面就是一块整平面(不打洞/不跟随) */
+    verts: [
+      { p: [0, 0], r: 78 },        // 0  起点/终点 (底边直道)
+      { p: [340, 0], r: 72 },
+      { p: [500, 165], r: 80 },    // 2  大半径高速弯
+      { p: [500, 425], r: 80 },
+      { p: [340, 590], r: 72 },
+      { p: [0, 590], r: 72 },
+      { p: [-160, 425], r: 80 },
+      { p: [-160, 165], r: 80 }
+    ]
+  },
+
+  /* ---- 云端高架: 一路爬升到 20 m 高空, 在"谷底平地"上方飞驰 ---- */
+  skyway: {
+    name: '云端高架',
+    desc: '爬升到 20 m 高空 · 高架大弯 + 落差跳台 · 谷底平地',
+    mode: 'circuit', width: 20, seg: 880, laps: 2,
+    surface: 'asphalt', ground: 'grass', kerb: 'asphalt', groundMode: 'floor',
+    /* 全程高架: 从起点爬升到 20 m, 空中绕一圈, 最后一段落差 12 m 冲回起点 */
+    profile: [
+      { u: 0.00, h: 0 }, { u: 0.06, h: 2.0 }, { u: 0.16, h: 12.0 }, { u: 0.24, h: 20.0 },
+      { u: 0.30, h: 20.0 }, { u: 0.335, h: 24.0 }, { u: 0.352, h: 24.0 }, { u: 0.365, h: 20.5 },
+      { u: 0.52, h: 20.0 }, { u: 0.60, h: 16.0 }, { u: 0.66, h: 20.0 },
+      { u: 0.80, h: 20.0 }, { u: 0.835, h: 24.5 }, { u: 0.848, h: 24.5 }, { u: 0.862, h: 18.0 },
+      { u: 0.94, h: 6.0 }, { u: 1.00, h: 0 }
+    ],
+    verts: [
+      { p: [0, 0], r: 56 },        // 0  起点/终点 (地面段)
+      { p: [260, 0], r: 56 },
+      { p: [440, 110], r: 62 },    // 2  爬坡后第一个高空大弯
+      { p: [470, 320], r: 66 },
+      { p: [320, 470], r: 60 },
+      { p: [0, 520], r: 58 },
+      { p: [-300, 450], r: 62 },
+      { p: [-435, 250], r: 66 },
+      { p: [-350, 50], r: 58 },
+      { p: [-135, 0], r: 56 }      // 9  落差段, 冲回起点
+    ]
+  },
+
+  /* ---- 小巷卡丁: 窄路(12 m) + 连续 90° 弯, 考走线 ---- */
+  kart: {
+    name: '小巷卡丁',
+    desc: '12 m 窄路 · 连续 90° 弯 · 2 圈短程缠斗',
+    mode: 'circuit', width: 12, seg: 700, laps: 2,
+    surface: 'asphalt', ground: 'grass', kerb: 'asphalt', groundMode: 'floor',
+    /* 梳子形: 上下两排 90° 弯来回折 + 一条顶部长直道 */
+    verts: [
+      { p: [0, 0], r: 34 },        // 0  起点/终点
+      { p: [300, 0], r: 34 },      // 1
+      { p: [300, 70], r: 34 },     // 2
+      { p: [120, 70], r: 34 },     // 3
+      { p: [120, 140], r: 34 },    // 4
+      { p: [300, 140], r: 34 },    // 5
+      { p: [300, 210], r: 34 },    // 6
+      { p: [120, 210], r: 34 },    // 7
+      { p: [120, 280], r: 34 },    // 8
+      { p: [300, 280], r: 34 },    // 9
+      { p: [300, 350], r: 38 },    // 10
+      { p: [-140, 350], r: 44 },   // 11  顶部长直道 (490 m)
+      { p: [-140, 0], r: 40 }      // 12  左侧长直道, 回到起点
+    ]
   }
 };
 
@@ -1483,6 +1593,30 @@ function trackHeightAtS(s) {
   return c0 + (c1 - c0) * f;
 }
 
+/** 自定义高度剖面: def.profile = [{u, h}] (u = 归一化弧长 0~1, 必须首尾闭合)
+    分段 smoothstep 插值: 控制点之间平滑, 但**相邻控制点靠得越近坡度越陡** ——
+    起跳台的"平唇 + 断崖"就是靠两个靠得很近的控制点做出来的 (路面直接掉下去, 车会飞) */
+function profileH(def, u) {
+  const p = def.profile;
+  u = u - Math.floor(u);
+  for (let i = 0; i < p.length - 1; i++) {
+    const a = p[i], b = p[i + 1];
+    if (u >= a.u && u <= b.u) {
+      const t = (b.u > a.u) ? (u - a.u) / (b.u - a.u) : 0;
+      const s = t * t * (3 - 2 * t);          // smoothstep
+      return a.h + (b.h - a.h) * s;
+    }
+  }
+  return p[p.length - 1].h;
+}
+
+/** 剖面的最大落差 (用来判断要不要开地形跟随) */
+function profileAmp(p) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < p.length; i++) { lo = Math.min(lo, p[i].h); hi = Math.max(hi, p[i].h); }
+  return Math.max(0, hi - lo);
+}
+
 /** 由参数 t 求弧长 (查表线性插值) */
 function sOfT(t) {
   const N = TRACK.N;
@@ -1528,6 +1662,8 @@ function buildTrackData() {
   TRACK.halfW = def.width * 0.5;
   TRACK.wallLat = TRACK.halfW + CFG.KERB_WIDTH;
   TRACK.surface = def.surface || 'asphalt';
+  /* 路面抓地系数 (冰面 0.55 之类): 物理与 AI 都乘这个数 */
+  TRACK.grip = def.grip || 1;
   TRACK.def = def;
   /* 护栏碰撞边界必须跟随赛道宽度更新 (两条赛道宽度不同) */
   PHYS.WALL_LIMIT = TRACK.wallLat - CFG.CAR.WALL_MARGIN;
@@ -1560,9 +1696,13 @@ function buildTrackData() {
   }
   TRACK.len = TRACK.arc[N];
 
-  /* ---- 土坡起伏: h(s) 是弧长的整周期函数, 因此整圈天然首尾闭合 ---- */
-  const hill = def.hill;
-  if (hill) {
+  /* ---- 高度剖面: h(s) 是弧长的整周期函数(首尾天然闭合) ----
+     两种来源: hill = 正弦土坡(老赛道) / profile = 自定义控制点(跳台/高架, 支持断崖式落差) */
+  const hill = def.hill, prof = def.profile;
+  if (prof && prof.length > 1) {
+    for (let i = 0; i <= N; i++) TRACK.cy[i] = profileH(def, TRACK.arc[i] / TRACK.len);
+    TRACK.cy[N] = TRACK.cy[0];
+  } else if (hill) {
     for (let i = 0; i <= N; i++) {
       const s = TRACK.arc[i];
       TRACK.cy[i] = hill.amp * Math.sin(2 * Math.PI * hill.waves * s / TRACK.len + hill.phase);
@@ -1571,10 +1711,15 @@ function buildTrackData() {
   } else {
     for (let i = 0; i <= N; i++) TRACK.cy[i] = 0;
   }
-  TRACK.hillAmp = hill ? hill.amp : 0;
-  /* ---- 地形模式: 赛道有起伏 => 地面改用跟随路面的高度场 ---- */
+  TRACK.hillAmp = prof ? profileAmp(prof) : (hill ? hill.amp : 0);
+  /* ---- 地面模式 ----
+     terrain: 地面跟随路面起伏(老赛道; 地面网格 + 远景平面挖洞)
+     floor:   地面就是一块整平面(冰湖/高架这种"平的或飞在天上"的赛道) ——
+              高架赛道如果让地面跟着路面爬到 20 m, 就成了"土山把桥包住", 所以必须用 floor */
   GROUND.base = CFG.GROUND_Y;
-  GROUND.ready = TRACK.hillAmp > 0.01;
+  GROUND.ready = (def.groundMode === 'floor') ? false : (TRACK.hillAmp > 0.01);
+  /* 高架赛道: 地面压低一点, 让桥"飞"得更明显 */
+  if (def.groundMode === 'floor' && TRACK.hillAmp > 6) GROUND.base = CFG.GROUND_Y - 2.0;
   if (GROUND.ready) {
     GROUND.r0 = TRACK.wallLat + CFG.WALL_THICK + CFG.GROUND_FOLLOW;
     GROUND.r1 = GROUND.r0 + CFG.GROUND_FALL;
@@ -2110,8 +2255,12 @@ function buildWorld(scene) {
     root.add(terr);
   }
 
-  /* ---- 沥青路面 ---- */
-  const roadMat = new THREE.MeshLambertMaterial({ map: isDirt ? TEX.dirtRoad : TEX.asphalt });
+  /* ---- 路面: 柏油 / 泥土 / 冰面(2026-09-24 新增, 用雪地贴图 + 高光偏蓝, 一眼看出是冰) ---- */
+  const ROAD_TEX = { dirt: TEX.dirtRoad, ice: TEX.snow, asphalt: TEX.asphalt };
+  const roadMat = new THREE.MeshLambertMaterial({
+    map: ROAD_TEX[def.surface] || TEX.asphalt,
+    color: def.surface === 'ice' ? 0xd8ecff : 0xffffff
+  });
   const road = new THREE.Mesh(ribbonGeom(-halfW, halfW, 0, 0, 8, 8), roadMat);
   road.receiveShadow = true;
   road.name = 'road';
@@ -2119,7 +2268,8 @@ function buildWorld(scene) {
 
   /* ---- 路肩 (红白条, 内外各一条, 由内向外微微抬起) ---- */
   const kerbMat = new THREE.MeshLambertMaterial({
-    map: (def.kerb === 'dirt') ? TEX.dirtKerb : TEX.kerb, side: THREE.DoubleSide
+    map: (def.kerb === 'dirt') ? TEX.dirtKerb : TEX.kerb, side: THREE.DoubleSide,
+    color: def.surface === 'ice' ? 0xdcefff : 0xffffff
   });
   const kerbOuter = new THREE.Mesh(ribbonGeom(halfW, halfW + kerbW, CFG.KERB_IN_Y, CFG.KERB_OUT_Y, 2, 2), kerbMat);
   const kerbInner = new THREE.Mesh(ribbonGeom(-halfW - kerbW, -halfW, CFG.KERB_OUT_Y, CFG.KERB_IN_Y, 2, 2), kerbMat);
@@ -3448,6 +3598,9 @@ function createVehicle(o) {
     steerSmooth: 0,      // 方向输入的插值缓冲值 -1..1 (防猛甩头)
     driftDir: 1,         // 漂移方向记忆 (±1), 用于防外抛的基础转向
     driftHoldV: 0,       // 漂移"保速"基准速度 m/s (入漂那一刻的速度, 掉速时回补到这)
+    vy: 0,               // 垂直速度 m/s (跳台起飞/落地用)
+    airborne: false,     // 是否在空中(跳台/高架起飞)
+    landImpact: 0,       // 上一次落地的冲击速度(自检/特效用)
     alignTimer: 0,       // 出弯回正剩余时间
     boostTimer: 0,       // 出弯小喷剩余时间
     slip: 0,             // 只读: 当前实际滑移角(用于显示/自检)
@@ -3477,6 +3630,7 @@ function placeVehicle(v, s, lat) {
   v.z = g.z + g.nz * lat;
   v.yaw = Math.atan2(g.tx, g.tz);
   v.vx = 0; v.vz = 0;
+  v.vy = 0; v.airborne = false;            // 摆车/传送时必须清掉离地状态, 否则会"从上一处继续掉"
   v.steer = 0; v.yawRate = 0;
   v.lat = lat; v.speed = 0; v.vLong = 0; v.vLat = 0;
   const pr = projectTrack(v.x, v.z);
@@ -3508,6 +3662,21 @@ function stepVehicle(car, dt) {
    *    按住 = 漂移中; 松开后不立刻回正, 而是继续"滑行"一小段(仍可打方向微调),
    *    滑行结束才真正退出并给小喷. 这样轻点手刹就能贴弯, 长按就能大甩尾.
    * ===================================================================== */
+  if (car.airborne) {
+    /* ==================== 空中分支 (跳台/高架起飞后) ====================
+       空中没有抓地: 方向盘几乎无效(只留一点姿态微调), 速度只吃风阻,
+       车头按已有的横摆继续转一点点 => 飞出去的时候看起来是"飘"着的 */
+    let spdA = Math.max(0, speed - C.DRAG * speed * speed * dt);
+    const k = spdA / Math.max(speed, 1e-6);
+    car.vx *= k; car.vz *= k;
+    car.yawRate *= 0.985;
+    car.yaw = wrapPi(car.yaw + car.yawRate * dt * 0.35 + clamp(car.steerInput, -1, 1) * 0.45 * dt);
+    car.x += car.vx * dt;
+    car.z += car.vz * dt;
+    car.drifting = false; car.driftKey = false;
+    car.driftSlip = 0; car.driftSlipVel = 0; car.driftTurn = 0; car.driftTurnVel = 0;
+    car.throttle = car.throttle || 0;
+  } else {
   const wantDrift = !!car.driftKey && vLong > C.DRIFT_MIN_SPEED;
   if (wantDrift && !car.drifting) {
     /* 入弯: 完全继承当前姿态(漂移角/转向速率), 方向盘缓冲从 0 开始建立
@@ -3614,8 +3783,9 @@ function stepVehicle(car, dt) {
            速度从 0 开始平滑建立, 位置/速度/加速度全部连续 => 不会有任何弹跳
            修外抛②: 只在"方向盘接近回中(|steerSmooth|<0.45)"时才叠一个沿漂移方向的基础转向,
            保证漂移中松手也继续沿弯道走; 满舵与反打区间与原逻辑逐位一致, 手感不变 --- */
+    /* 漂移转向能力同样吃路面抓地(冰上漂移要更早入弯) */
     const turnMax = Math.min(C.DRIFT_TURN_MAX,
-      C.LAT_ACC * turnMul / Math.max(sp, C.DRIFT_TURN_REF));
+      C.LAT_ACC * (TRACK.grip || 1) * turnMul / Math.max(sp, C.DRIFT_TURN_REF));
     if (Math.abs(car.steerInput) > 0.15) car.driftDir = sign(car.steerInput);
     let turnCmd = car.steerSmooth * turnMax;
     const sAbs = Math.abs(car.steerSmooth);
@@ -3674,7 +3844,9 @@ function stepVehicle(car, dt) {
     car.steer = approach(car.steer, steerTarget, steerRate);
 
     /* ---------- 2. 横摆角速度: 几何上限 与 抓地上限 取小 ---------- */
-    const latAccGrip = C.LAT_ACC *
+    /* 路面抓地系数(冰面 0.55): 冰上侧向极限直接砍半 => 真的会滑, 得提前打方向 */
+    const surfGrip = TRACK.grip || 1;
+    const latAccGrip = C.LAT_ACC * surfGrip *
       (spdAbs < C.LAT_SNAP ? lerp(C.LAT_ACC_LOW / C.LAT_ACC, 1, spdAbs / C.LAT_SNAP) : 1);
     const yawGeo = (vLong / C.WHEELBASE) * Math.tan(car.steer);
     /* 横摆"建立速度"同样随速度递减（2026-09-23）: 高速时车身要靠悬挂/轮胎逐步建立转向,
@@ -3728,6 +3900,7 @@ function stepVehicle(car, dt) {
     car.x += car.vx * dt;
     car.z += car.vz * dt;
   }
+  }   /* ← 空中分支 / 地面分支 的分界 (见第 0 节) */
 
   /* ---------- 7. 赛道坐标 / 进度 ---------- */
   const pr = projectTrack(car.x, car.z, car._ringIdx);
@@ -3740,16 +3913,59 @@ function stepVehicle(car, dt) {
   car.lat = pr.lat;
   car.t = pr.t;
   car.onKerb = Math.abs(pr.lat) > TRACK.halfW;
-  /* ---------- 贴地: 车身高度 + 沿坡面的俯仰角 ----------
-     只用车中心的高度会让车在坡上"水平着扎进地面"(前轮陷进去 / 后轮悬空)。
-     这里用轴距两端的高度差算出真实坡度, 让整车(含车轮)沿坡面倾斜, 四轮才贴地。 */
-  car.y = pr.h || 0;
-  if (TRACK.hillAmp > 0.0001) {
+  /* ---------- 贴地 / 起跳 / 落地 (2026-09-24 新增: 跳台与高架赛道需要真的"飞") ----------
+     规则很简单也很好用: 路面**往上**抬时车被粘在路面上(正常行驶),
+     路面开始**往下掉**时车不再跟着掉 —— 此时按重力做抛物线, 直到重新碰到路面。
+     起跳瞬间保留"跟随路面得到的垂直速度"(vy), 所以冲上跳台会自然飞出去。 */
+  const surf = trackHeightAtS(pr.s);
+  const prevY = car.y || 0;
+  if (car.airborne) {
+    car.vy -= CFG.GRAVITY * dt;
+    car.y += car.vy * dt;
+    if (car.y <= surf) {                       // 落地
+      const impact = Math.max(0, -car.vy);
+      car.y = surf; car.vy = 0; car.airborne = false;
+      car.slopePitch = (car.slopePitch || 0) * 0.35;   // 落地瞬间收敛俯仰, 免得"鼻子朝地"滑一段
+      if (impact > 4) {
+        /* 落地冲击: 速度损失 + 尘土 + 镜头抖动(越硬越明显), 但绝不把车拍停 */
+        const loss = clamp((impact - 4) * 0.010, 0, 0.22);
+        car.vx *= (1 - loss); car.vz *= (1 - loss);
+        car.hitFlash = Math.max(car.hitFlash, clamp(impact * 0.05, 0, 0.7));
+        car.shake = Math.max(car.shake, clamp(impact * 0.035, 0, 0.6));
+        car.landImpact = impact;
+        if (typeof fxLanding === 'function') fxLanding(car, impact);
+      }
+    }
+  } else {
+    /* 判"要不要起飞"不能看单帧高度差(路面是折线采样, 单帧斜率会抖 => 平缓土坡上也会误判起飞),
+       改成看**前方一小段**需要多快的下降速度: 只有路面掉得比"自由落体 + 3 m/s 余量"还快才起飞。
+       这样平缓起伏一直贴地, 而跳台平唇后 15 m 掉 6 m 那种断崖必起飞。 */
+    const vForward = Math.max(Math.abs(car.vLong), 4);
+    const ahead = clamp(1.5 + vForward * 0.10, 1.5, 6);
+    const desRate = (trackHeightAtS(pr.s + ahead) - surf) / (ahead / vForward);
+    const climb = (surf - prevY) / Math.max(dt, 1e-4);      // 跟随时需要的垂直速度
+    if (desRate < car.vy - 3.0) {
+      /* 路面掉得比自由落体还快 => 起飞: 带着刚才的上抛速度进入空中 */
+      car.airborne = true;
+      car.y = prevY;
+      car.vy = Math.max(car.vy, -2);
+    } else {
+      car.y = surf;
+      car.vy = damp(car.vy || 0, clamp(climb, -45, 45), 12, dt);
+    }
+  }
+  /* 俯仰角: 空中按速度矢量抬头/低头(看起来像真的在飞), 地面按坡面 */
+  if (TRACK.hillAmp > 0.0001 || car.airborne) {
     const hp = CFG.CAR.WHEELBASE * 0.5;
-    const hF = trackHeightAtS(pr.s + hp), hR = trackHeightAtS(pr.s - hp);
-    /* three.js 中 rotation.x 为正 => 车头下沉; 上坡(hF>hR)要抬头, 所以取负 */
-    const want = Math.atan2(hR - hF, CFG.CAR.WHEELBASE);
-    car.slopePitch = damp(car.slopePitch || 0, want, 14, dt);
+    let want;
+    if (car.airborne) {
+      want = -Math.atan2(car.vy, Math.max(8, Math.abs(car.vLong)));
+    } else {
+      const hF = trackHeightAtS(pr.s + hp), hR = trackHeightAtS(pr.s - hp);
+      /* three.js 中 rotation.x 为正 => 车头下沉; 上坡(hF>hR)要抬头, 所以取负 */
+      want = Math.atan2(hR - hF, CFG.CAR.WHEELBASE);
+    }
+    car.slopePitch = damp(car.slopePitch || 0, want, car.airborne ? 8 : 14, dt);
   } else if (car.slopePitch) {
     car.slopePitch = damp(car.slopePitch, 0, 14, dt);
   }
@@ -4203,6 +4419,30 @@ function fxUpdate(dt, cars, camera, renderer) {
   FX.markGeo.attributes.aAlpha.needsUpdate = true;
 }
 
+/** 落地冲击: 四个轮子同时炸一圈尘土(跳台/高架落地用, 冲击越大越猛) */
+function fxLanding(car, impact) {
+  if (!FX.inited) return;
+  const F = CFG.FX;                       // 注意: 上面的 F 是 fxUpdate 内的局部变量, 这里要自己取
+  const sp = Math.min(1, Math.max(0, (impact - 4) / 14));
+  const n = Math.round(10 + sp * 26);
+  const cy = car.y || 0;
+  for (let k = 0; k < n; k++) {
+    const a = rnd() * Math.PI * 2, r = 0.6 + rnd() * 2.4;
+    const vx = Math.cos(a) * (2 + sp * 6), vz = Math.sin(a) * (2 + sp * 6);
+    const dirt = (TRACK.surface === 'dirt' || TRACK.surface === 'ice');
+    const j = 0.9 + rnd() * 0.2;
+    if (dirt) {
+      fxSpawn(car.x + vx * 0.2, cy + 0.2, car.z + vz * 0.2, vx, 1.2 + rnd() * 2.0, vz,
+        F.DUST_SIZE * (1.1 + sp), F.DUST_GROW, F.DUST_LIFE * (0.7 + rnd() * 0.5),
+        0.70 * j, 0.62 * j, 0.48 * j, F.DUST_ALPHA);
+    } else {
+      fxSpawn(car.x + vx * 0.2, cy + 0.18, car.z + vz * 0.2, vx, 1.0 + rnd() * 1.8, vz,
+        F.SMOKE_SIZE * (1.0 + sp), F.SMOKE_GROW, F.SMOKE_LIFE * (0.6 + rnd() * 0.4),
+        0.88 * j, 0.88 * j, 0.90 * j, F.SMOKE_ALPHA);
+    }
+  }
+}
+
 /** 统计当前存活粒子与胎痕 (自检用) */
 function fxStats() {
   if (!FX.inited) return { alive: 0, maxAlpha: 0, marks: 0, maxSize: 0 };
@@ -4292,6 +4532,8 @@ function aiControl(car, cars, dt) {
       const pr = projectTrack(car.x, car.z);
       const g = trackAt(tOfS(pr.s));
       car.x = g.x; car.z = g.z;
+      car.y = trackHeightAtS(tOfS(pr.s));        // 救援传送: 高度/离地状态一起复位
+      car.vy = 0; car.airborne = false; car.slopePitch = 0;
       car.yaw = Math.atan2(g.tx, g.tz);
       car.vx = Math.sin(car.yaw) * 9; car.vz = Math.cos(car.yaw) * 9;
       car.yawRate = 0; car.steer = 0; car.steerSmooth = 0;
@@ -4314,10 +4556,16 @@ function aiControl(car, cars, dt) {
      2026-09-24 (v3): 目标速度改成"这台车自己的极限" ——
        profile 是按基准车(抓地 15.5)算的包线, 抓地更强的车按 √(grip) 放大, 极速更低的车按 vmax 缩回 */
   const spec = car.spec || CFG.CAR;
+  /* 低抓地(冰面): 看得更远、打得更柔、阻尼更大 —— 冰上最怕"甩过头再救" */
+  const lowGrip = (TRACK.grip || 1) < 0.9;
   const lookDist = clamp(CFG.AI_LOOKAHEAD_BASE + spd * CFG.AI_LOOKAHEAD_SPEED,
-    CFG.AI_LOOKAHEAD_MIN, CFG.AI_LOOKAHEAD_MAX);
+    CFG.AI_LOOKAHEAD_MIN, CFG.AI_LOOKAHEAD_MAX) * (lowGrip ? 1.35 : 1);
   const idxV = pathIndex(car.prog + lookDist * 0.55);
   let vTarget = TRACK.profile[idxV] * car.skill * tune.skill * car.paceK;
+  /* 冰面这类低抓地路面: 目标速度要降下来(AI 也会打滑)。
+     但不能照抄 √grip(0.74) —— AI 会提前打方向、不会乱给油, 实际能吃到的比"物理极限"多一点,
+     所以下限卡在 0.82, 否则冰湖上 AI 会慢到跑不完比赛 */
+  vTarget *= Math.max(0.85, Math.sqrt(TRACK.grip || 1));
 
   /* 轻微"人味": 目标速度缓慢波动 + 走线误差(难度越低越大, 看起来"手抖") */
   car.aiNoiseT -= dt;
@@ -4338,7 +4586,8 @@ function aiControl(car, cars, dt) {
   const idxA = pathIndex(car.prog + Math.max(12, spd * 0.55));
   const aimAhead = (TRACK.aim ? TRACK.aim[idxA] : 0) * (car.aimMul === undefined ? tune.aimMul : car.aimMul);
   const kAhead = TRACK.pk[idxA];
-  const wantDrift = tune.drift && kAhead > CFG.AI_DRIFT_KAP / Math.max(0.85, car.paceK) && spd > CFG.AI_DRIFT_MIN_SPEED;
+  /* 冰面(抓地 < 0.7)不漂移: 低抓地上漂移=失控打转, AI 会一直蹭墙脱困 */
+  const wantDrift = tune.drift && (TRACK.grip || 1) > 0.7 && kAhead > CFG.AI_DRIFT_KAP / Math.max(0.85, car.paceK) && spd > CFG.AI_DRIFT_MIN_SPEED;
   car.driftKey = !!wantDrift && !car.recoverTimer;
   /* 走线误差: 难度越低越"手抖"(缓慢飘移的横向偏差, 不是每帧抖 => 看起来像人在修方向) */
   car.lineErrT -= dt;
@@ -4351,7 +4600,8 @@ function aiControl(car, cars, dt) {
   /* ---------------- 2. 避让探测 (v3: 提前决定 + 不轻易刹车) ---------------- */
   /* 走线偏移(baseLane ±3.4) 叠上切弯心偏移(最多 halfW-margin) 会超过半宽,
      2026-09-23 实测: 三连回头弯里 AI 被自己的走线顶到护栏上卡住 => 统一按"离路缘留 margin"夹紧 */
-  const laneLim = Math.max(1.5, TRACK.halfW - CFG.AI_AIM_MARGIN);
+  /* 低抓地路面(冰面)把走线再收窄一点: 滑出去就没救了, 宁可慢也不要蹭墙 */
+  const laneLim = Math.max(1.5, TRACK.halfW - CFG.AI_AIM_MARGIN) * ((TRACK.grip || 1) < 0.9 ? 0.68 : 1);
   let laneCmd = clamp(car.baseLane + aimAhead + car.lineErr, -laneLim, laneLim);
   let speedCap = Infinity;
   const wallSafe = TRACK.halfW - 2.2;
@@ -4440,15 +4690,16 @@ function aiControl(car, cars, dt) {
      就会转过头撞内墙(实测发夹弯必卡) => 最后按当前倍率把总需求除回去, 走线不变、只换手法 */
   const C = car.spec || CFG.CAR;      // 车型差异化: 漂移倍率按这台车自己的规格算
   const turnMul = car.drifting ? lerp(C.DRIFT_TURN_MUL_LIGHT, C.DRIFT_TURN_MUL, car.driftLevel || 0) : 1;
-  const kp = CFG.AI_STEER_KP * (tune.steerMul === undefined ? 1 : tune.steerMul);
-  let steer = err * kp - car.yawRate * CFG.AI_STEER_KD;
+  const kp = CFG.AI_STEER_KP * (tune.steerMul === undefined ? 1 : tune.steerMul) * (lowGrip ? 0.72 : 1);
+  const kd = CFG.AI_STEER_KD * (lowGrip ? 1.7 : 1);
+  let steer = err * kp - car.yawRate * kd;
 
   /* 侧向偏差补偿: 把"目标走线方向"投影到车身右方向, 决定修正力度 */
   const latErr = car.lat - car.laneTarget;                 // >0 表示比目标走线更靠外
   const corrX = -gNow.nx * latErr, corrZ = -gNow.nz * latErr;
   const rvx = -Math.cos(car.yaw), rvz = Math.sin(car.yaw); // 车身右方向
   const side = corrX * rvx + corrZ * rvz;
-  steer -= clamp(side * CFG.AI_SIDESTEER * 0.085, -0.42, 0.42);
+  steer -= clamp(side * CFG.AI_SIDESTEER * 0.085 * (lowGrip ? 0.55 : 1), -0.42, 0.42);
 
   car.steerInput = clamp(steer / turnMul, -1, 1);
 }
@@ -5250,6 +5501,10 @@ function ghostEndLap(lapT, isBest, model) {
   /* 挂上待上传：等成绩提交成功后一起 POST（没登录/没网就留在本地） */
   Ghost.pending = { track: track, lap: r.lapMs, data: data };
   if (Ghost.pick === 'mine') ghostUseLocal();
+  /* 明说一句, 否则玩家根本不知道"刚才那圈被存成幽灵了" */
+  if (typeof uiFlash === 'function') {
+    uiFlash('已存下你的幽灵 ' + fmtTime(r.lapMs / 1000), '下一局可以选「我的最佳」跟它跑', '#8fe3ff', 2.2);
+  }
   return true;
 }
 
@@ -5368,7 +5623,24 @@ async function ghostFetch(name, track) {
     '&name=' + encodeURIComponent(name), { method: 'GET' }, false);
   if (!r.ok) { Ghost.state = '读不到幽灵：' + (r.err || '网络问题'); return false; }
   const gh = r.data && r.data.ghost;
-  if (!gh || !gh.data) { ghostDispose(); Ghost.state = name + ' 这条榜还没有幽灵数据'; return false; }
+  if (!gh || !gh.data) {
+    /* 榜上那个人（很可能是在幽灵功能上线之前跑的）没有幽灵数据:
+       不要就卡在这里 —— 有本地最佳就自动退回"跟自己跑", 并说清楚原因 */
+    const mine = ghostLoadLocal(tid);
+    if (mine) {
+      Ghost.pick = 'mine';
+      try { window.localStorage.setItem('racing3d.ghostPick', 'mine'); } catch (e2) { /* 忽略 */ }
+      const ok = ghostUseLocal();
+      /* 说明白发生了什么: 别让玩家以为"点了没反应" */
+      if (ok) Ghost.state = name + ' 这条榜还没有幽灵数据 → 已切到「我的最佳」（' +
+        fmtTime((mine.lap || 0) / 1000) + '）';
+      onlineRenderGhostPick();
+      return ok;
+    }
+    ghostDispose();
+    Ghost.state = name + ' 这条榜还没有幽灵数据（本机也还没有你的幽灵：先跑一圈刷新最佳）';
+    return false;
+  }
   const d = ghostDecode(gh.data);
   if (!d) { ghostDispose(); Ghost.state = name + ' 的幽灵数据解不开（版本不匹配）'; return false; }
   /* 以榜单上那条成绩为准(数据串里的 lapMs 只是录制时的兜底值) */
@@ -5376,8 +5648,7 @@ async function ghostFetch(name, track) {
   return ghostSet(d, gh.name || name);
 }
 
-/** 把这一局的幽灵传上去（成绩提交成功后调用；失败只是少一条幽灵，不挡玩法） */
-async function ghostPublish() {
+/** 把这一局的幽灵传上去（成绩提交成功后调用；失败只是少一条幽灵，不挡玩法） */async function ghostPublish() {
   if (!Ghost.pending) return { ok: false, err: '没有待上传的幽灵' };
   if (!onlineCanSubmit()) { Ghost.uploadNote = '没登录云账号，幽灵只存在本机'; return { ok: false, err: 'need_login' }; }
   const p = Ghost.pending;
@@ -5455,12 +5726,12 @@ function typingInField() {
 function bindInput() {
   window.addEventListener('keydown', function (e) {
     if (typingInField()) return;
-    /* 数字键 1~N 直接切到第 N 条赛道 (数量按 TRACK_DEFS 自动伸缩) */
-    const dm = /^Digit([1-9])$/.exec(e.code);
+    /* 数字键 1~9 + 0 => 第 10 条赛道 (数量按 TRACK_DEFS 自动伸缩) */
+    const dm = /^(?:Digit([1-9])|Digit0)$/.exec(e.code);
     if (dm) {
       if (G.state !== 'intro') return;            // 比赛中不响应切赛道
       const order = trackOrder();
-      const k = parseInt(dm[1], 10) - 1;
+      const k = dm[1] ? (parseInt(dm[1], 10) - 1) : 9;
       if (k < order.length && order[k] !== CFG.TRACK_MODE) selectTrack(order[k]);
       return;
     }
@@ -5712,6 +5983,7 @@ function resetCarRaceState(car) {
   car.driftKey = false; car.drifting = false; car.driftTime = 0; car.driftCoast = 0;
   car.driftTurn = 0; car.driftTurnVel = 0; car.driftSlip = 0; car.driftSlipVel = 0;
   car.driftLevel = 0; car.steerSmooth = 0; car.driftDir = 1; car.driftHoldV = 0;
+  car.vy = 0; car.airborne = false; car.landImpact = 0;   // 跳台/高架: 复位离地状态
   car.alignTimer = 0; car.boostTimer = 0; car.slip = 0;
   car.stuckTimer = 0; car.recoverTimer = 0; car.bodyRoll = 0; car.bodyPitch = 0;
   car.wheelSpin = 0; car.hitFlash = 0; car.shake = 0; car.pos = 1; car.damage = 0;
@@ -5830,6 +6102,9 @@ function updateLap(car) {
       if (isBest) uiFlash('NEW BEST  ' + fmtTime(lapT), '第 ' + car.lap + ' 圈 · 刷新最佳纪录', '#ffd76a', 2.4);
       else uiBanner('第 ' + car.lap + ' 圈   ' + fmtTime(lapT), '#bfe0ff');
       ghostEndLap(lapT, isBest, car.model);      // 幽灵: 刷新个人最佳就存下这一圈
+      /* 关键: **每一圈**都要重新开始录 —— 以前只在第一次过线时启动录制,
+         于是只有第 1 圈能变成幽灵, 第 2/3 圈跑出个人最佳反而存不下来(玩家会觉得"幽灵模式没生效") */
+      ghostBeginLap(car.model);
     }
     if (car.lap >= CFG.RACE_LAPS) {
       car.finished = true;
@@ -5924,6 +6199,7 @@ function simulate(dt) {
   if (G.player.lapStartTime > 0) {
     const lapT = G.raceTime - G.player.lapStartTime;
     ghostSample(dt, G.player, lapT);
+    if (Ghost.pose) Ghost.mesh.visible = true;     // 中途才选幽灵也要能立刻看到
     ghostUpdate(dt, lapT);
   } else if (Ghost.mesh) {
     Ghost.mesh.visible = false;      // 还没过起点线（发车格上）先别显示
