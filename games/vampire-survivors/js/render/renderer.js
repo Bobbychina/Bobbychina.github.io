@@ -36,6 +36,7 @@
   var HEART_SCALE = 2.2;
   var DECO_SCALE = 2;
   var DECO_CELL = 108;       // 装饰物按这个网格撒点
+  var DECO_DENSITY = 0.65;   // 网格里有装饰的比例上限（hash 超过它的格子留空）
 
   /* ---------------- 精灵绘制小工具 ---------------- */
 
@@ -558,11 +559,23 @@
     /* ---------------- 场景装饰 ---------------- */
 
     drawDecorations: function (ctx, game, view) {
-      var names = VS.SpriteGroups.deco;
+      /* 装饰物按关卡取组：第一关「血色荒野」用废墟焦土物件，第二关「柠檬深渊」用酸沼物件。
+         原来两关共用一个 'deco' 组，所以两张图的点缀一模一样 —— 现在按
+         C.LEVELS[i].deco / decoCell / decoDensity 走，取不到就退回通用组。 */
+      var group = null;
+      var cell = DECO_CELL;
+      var density = DECO_DENSITY;
+
+      if (VS.Levels && VS.Levels.deco) {
+        group = VS.Levels.deco(game.level);
+        cell = VS.Levels.decoCell(game.level);
+        density = VS.Levels.decoDensity(game.level);
+      }
+
+      var names = (group && VS.SpriteGroups[group]) || VS.SpriteGroups.deco;
       if (!names || !names.length) return;
 
       var world = game.world;
-      var cell = DECO_CELL;
 
       var cx0 = Math.floor(view.x0 / cell) - 1;
       var cx1 = Math.floor(view.x1 / cell) + 1;
@@ -571,8 +584,8 @@
 
       for (var cy = cy0; cy <= cy1; cy++) {
         for (var cx = cx0; cx <= cx1; cx++) {
-          // 约 65% 的格子有装饰，其余留空
-          if (U.hash2(cx * 1.7 + 0.5, cy * 2.3 + 0.9) > 0.65) continue;
+          // 超过密度阈值的格子留空，其余撒一个装饰
+          if (U.hash2(cx * 1.7 + 0.5, cy * 2.3 + 0.9) > density) continue;
 
           var pick = U.hash2(cx + 91.3, cy - 57.1);
           var name = names[Math.floor(pick * names.length) % names.length];

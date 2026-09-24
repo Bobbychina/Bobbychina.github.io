@@ -77,6 +77,24 @@
     return (d && d.ground) || 'ground';
   }
 
+  /** 这一关的装饰物精灵组名；没配就返回 null（渲染层退回通用组 'deco'） */
+  function deco(index) {
+    var d = def(index);
+    return (d && d.deco) || null;
+  }
+
+  /** 装饰物撒点网格边长（像素）；每关可以不一样，凑得密一点就更"满" */
+  function decoCell(index) {
+    var d = def(index);
+    return (d && d.decoCell !== undefined) ? d.decoCell : 108;
+  }
+
+  /** 装饰物密度：hash 阈值，越大越密（1 = 每格都有） */
+  function decoDensity(index) {
+    var d = def(index);
+    return (d && d.decoDensity !== undefined) ? d.decoDensity : 0.65;
+  }
+
   /** 这一关是不是"从 1 级重新开始"（不带上一关的构筑） */
   function isFresh(index) {
     var d = def(index);
@@ -148,6 +166,9 @@
     unlockMul: unlockMul,
     typeBias: typeBias,
     ground: ground,
+    deco: deco,
+    decoCell: decoCell,
+    decoDensity: decoDensity,
     isFresh: isFresh,
     allows: allows,
     weaponMul: weaponMul,

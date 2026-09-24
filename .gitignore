@@ -2,5 +2,8 @@
 .probe/
 node_modules/
 _*.log
+# 美术自检的产物：vs-art-dump.mjs / vs-ground-sheet.mjs 生成，本地目视用
+tools/art-dump/
+tools/preview/
 # 站长在本机部署 Worker 时的 wrangler 本地状态（含账号信息，绝不入库）
 .wrangler/

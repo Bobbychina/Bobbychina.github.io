@@ -342,7 +342,7 @@
 
   /* ---------------- 关卡加成 + 流派加成 ----------------
      三种加成**全部在这一个函数里施加**（所有武器、所有开火逻辑都从这里取数值）：
-       · 玩家技能伤害倍率 C.LEVELS[i].playerDmgMul —— 第二关所有技能 ×1.15
+       · 玩家技能伤害倍率 C.LEVELS[i].playerDmgMul —— 第二关所有技能 ×1.25
        · 单件武器的关卡倍率 C.LEVELS[i].weaponMul —— 第二关 orbit / garlic ×1.5
        · 流派增益：层数记在武器对象上（w.school + w.schoolXxx）
      开火逻辑一律走 statsFor，不要再直接 def.stats()，否则任何一条加成一加就漏。 */
