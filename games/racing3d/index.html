@@ -287,6 +287,8 @@
     </div>
     <p class="sub" id="carDesc" style="font-size:12px;opacity:.8;margin-top:5px">现实马路上常见的双门轿车造型</p>
     <p class="sub" style="font-size:12px;opacity:.8;margin-top:7px">AI 难度 <b id="diffName">标准</b> · <span id="diffDesc">会走内线也会漂移，正常速度</span></p>
+    <p class="sub" id="ghostState" style="font-size:12px;opacity:.8;margin-top:7px">幽灵对手：不跟幽灵跑（AI 照常）</p>
+    <div class="diffs" id="ghostPick"></div>
     <div class="diffs">
       <button class="dbtn" data-diff="easy">休 闲<i>慢半拍 · 不漂移</i></button>
       <button class="dbtn on" data-diff="normal">标 准<i>走线 + 漂移</i></button>
@@ -320,6 +322,7 @@
       <div>最高速度<b id="resTop">-</b></div>
     </div>
     <div id="resLb"></div>
+    <p class="sub" id="resGhost" style="font-size:12.5px;opacity:.85;margin-top:4px"></p>
     <table class="results"><thead><tr>
       <th style="width:64px">名次</th><th>车手</th><th style="width:120px">最快单圈</th>
       <th style="width:110px">差距</th></tr></thead><tbody id="resBody"></tbody></table>
@@ -565,10 +568,13 @@ const CFG = {
                             //   AI 只在发夹弯漂移就跟不上了; AI 漂移时转向需求已按 turnMul 除回来, 更安全)
   AI_DRIFT_MIN_SPEED: 22,   // 低于这个速度就不用漂移了
   AI_DIFFICULTY: 'normal',  // 'easy' 休闲 | 'normal' 标准 | 'hard' 硬核 (开场界面可切)
+  AI_LINE_ERR: 1.6,         // AI 走线误差幅度 m (基准; 再乘难度 noiseMul => 看起来像人在修方向)
+  /* 难度档 (2026-09-24 v3 重排): skill 整体节奏 / aimMul 切弯心力度 / drift 是否漂移 /
+     brakeMul 刹车果断度 / steerMul 转向增益 / noiseMul 走线误差(越大越"手抖") / launch 起步反应 */
   AI_TUNE: {
-    easy:   { skill: 0.90, aimMul: 0.40, drift: false, brakeMul: 0.85 },
-    normal: { skill: 1.00, aimMul: 1.00, drift: true,  brakeMul: 1.00 },
-    hard:   { skill: 1.06, aimMul: 1.20, drift: true,  brakeMul: 1.10 }
+    easy: { skill: 0.88, aimMul: 0.35, drift: false, brakeMul: 0.80, steerMul: 0.85, noiseMul: 1.9, launch: 0.55 },
+    normal: { skill: 1.00, aimMul: 1.00, drift: true, brakeMul: 1.00, steerMul: 1.00, noiseMul: 1.00, launch: 0.85 },
+    hard: { skill: 1.07, aimMul: 1.25, drift: true, brakeMul: 1.12, steerMul: 1.12, noiseMul: 0.45, launch: 1.00 }
   },
   AI_BRAKE: 17.0,           // AI 刹车减速度 m/s²
   AI_VMIN: 15.0,            // AI 最低目标速度 m/s
@@ -633,7 +639,63 @@ const CAR_CHOICE = {
   ai: ['pickup', 'classic', 'hyper', 'gt', 'rally']
 };
 
-/* 常用颜色 */
+/* ======================= 车型差异化 (2026-09-24) =======================
+   以前 9 款车只是"换皮"(物理包线完全一样, 开起来手感相同), 现在每款车有自己的
+   动力/极速/抓地/转向/漂移倍率 —— 同一台车在不同赛道的表现也会不一样。
+   倍率是相对 CFG.CAR 基准值(1.00 = 双门轿跑)的乘数:
+     POWER 发动机加速度 / VMAX 极速 / GRIP 侧向抓地上限 / STEER 最大转角
+     YAW 横摆响应 / BRAKE 制动 / DRIFT 漂移转向倍率 / ROLL 滚动阻力(越小越"轻快")
+   设计口径: 极速车弯道笨、弯道车直线慢、拉力车最全面但不极致;
+             最强(formula/hyper)与最弱(pickup)的单圈差距控制在 ~8% 以内, 免得选车就决定了名次。 */
+const CAR_SPECS = {
+  coupe:   { POWER: 1.00, VMAX: 1.00, GRIP: 1.00, STEER: 1.00, YAW: 1.00, BRAKE: 1.00, DRIFT: 1.00, ROLL: 1.00, note: '均衡基准：什么都不突出，也什么都不差' },
+  gt:      { POWER: 1.10, VMAX: 1.06, GRIP: 1.02, STEER: 0.95, YAW: 1.00, BRAKE: 1.05, DRIFT: 1.00, ROLL: 0.98, note: '大马力 GT：直线凶、转向偏沉，高速稳' },
+  super:   { POWER: 1.12, VMAX: 1.08, GRIP: 1.10, STEER: 1.08, YAW: 1.10, BRAKE: 1.10, DRIFT: 1.05, ROLL: 0.97, note: '中置超跑：全能快车，几乎没有短板' },
+  rally:   { POWER: 1.06, VMAX: 0.96, GRIP: 1.06, STEER: 1.10, YAW: 1.08, BRAKE: 1.05, DRIFT: 1.15, ROLL: 1.04, note: '拉力：抓地与漂移最好、极速最低，土路/雪山最强' },
+  formula: { POWER: 1.18, VMAX: 1.10, GRIP: 1.22, STEER: 1.15, YAW: 1.25, BRAKE: 1.15, DRIFT: 0.85, ROLL: 0.95, note: '方程式：抓地与响应最强，但漂移能力最差' },
+  muscle:  { POWER: 1.15, VMAX: 1.04, GRIP: 0.92, STEER: 0.90, YAW: 0.92, BRAKE: 0.95, DRIFT: 1.10, ROLL: 1.02, note: '肌肉车：直线猛、弯道笨，靠漂移救弯' },
+  pickup:  { POWER: 0.92, VMAX: 0.90, GRIP: 1.02, STEER: 0.92, YAW: 0.95, BRAKE: 0.98, DRIFT: 1.00, ROLL: 1.08, note: '皮卡：最慢但最稳，撞了也不容易失控' },
+  classic: { POWER: 0.96, VMAX: 0.94, GRIP: 0.94, STEER: 0.96, YAW: 0.98, BRAKE: 0.92, DRIFT: 0.95, ROLL: 1.00, note: '老爷车：动力一般、刹车偏软，靠走线弥补' },
+  hyper:   { POWER: 1.20, VMAX: 1.14, GRIP: 1.08, STEER: 1.02, YAW: 1.05, BRAKE: 1.12, DRIFT: 0.95, ROLL: 0.96, note: '电动超跑：起步与极速之王，弯道略逊超跑' }
+};
+
+/** 取某款车的规格倍率 (未知车型回落到基准) */
+function carSpecMul(id) { return CAR_SPECS[id] || CAR_SPECS.coupe; }
+
+/** 车规格的"综合实力" 0.9~1.2: 给 AI/选车界面用来估算这台车有多快 */
+function carPaceIndex(id) {
+  const m = carSpecMul(id);
+  return (m.POWER * 0.45 + m.VMAX * 0.30 + m.GRIP * 0.15 + m.STEER * 0.10);
+}
+
+/* 规格里哪些字段吃哪一档倍率 (没列到的字段原样透传, 例如车长/车宽/轴距等尺寸) */
+const CAR_SPEC_FIELDS = {
+  ENGINE_ACCEL: 'POWER', MAX_SPEED: 'VMAX',
+  LAT_ACC: 'GRIP', LAT_ACC_LOW: 'GRIP',
+  STEER_MAX_LOW: 'STEER', STEER_MAX_HIGH: 'STEER',
+  YAW_ACCEL: 'YAW', YAW_ACCEL_HIGH: 'YAW',
+  BRAKE_DECEL: 'BRAKE',
+  DRIFT_TURN_MUL: 'DRIFT', DRIFT_TURN_MUL_LIGHT: 'DRIFT',
+  ROLL_RESIST: 'ROLL'
+};
+
+/** 造一份"这台车的物理常量"：用 getter 实时读 CFG.CAR 再乘倍率 ——
+    这样运行时改 CFG.CAR(调参/测试)依然立刻生效, 同时每台车又是独立规格。
+    物理里统一写 `const C = car.spec || CFG.CAR;` 即可。 */
+function carSpecOf(id) {
+  const mul = carSpecMul(id);
+  const spec = { MODEL: id, MUL: mul };
+  Object.keys(CFG.CAR).forEach(function (k) {
+    const f = CAR_SPEC_FIELDS[k];
+    Object.defineProperty(spec, k, {
+      enumerable: true,
+      get: function () { return f ? CFG.CAR[k] * mul[f] : CFG.CAR[k]; }
+    });
+  });
+  return spec;
+}
+
+/** 常用颜色 */
 const PAL = {
   SKY_TOP: '#1d5fc4',
   SKY_MID: '#7fb6ea',
@@ -3371,6 +3433,7 @@ function createVehicle(o) {
   /* 起跑前先把环向下标定位到发车区, 避免第一帧投影全表搜索 */
   const v = {
     name: o.name, color: o.color, isAI: !!o.isAI, model: o.model || 'coupe',
+    spec: carSpecOf(o.model || 'coupe'),      // 这台车自己的物理常量(车型差异化)
     x: 0, z: 0, yaw: 0, vx: 0, vz: 0,
     steer: 0, steerInput: 0, yawRate: 0,
     throttle: 0, brake: 0,
@@ -3423,7 +3486,7 @@ function placeVehicle(v, s, lat) {
 
 /** 单步物理积分 */
 function stepVehicle(car, dt) {
-  const C = CFG.CAR;
+  const C = car.spec || CFG.CAR;      // 车型差异化: 每台车一套自己的物理常量
 
   /* --- 数值安全兜底: 万一出现 NaN, 拉回赛道中心 --- */
   if (!isFiniteNum(car.x) || !isFiniteNum(car.z) || !isFiniteNum(car.yaw)) {
@@ -4180,6 +4243,16 @@ function aiInit(car, index) {
   car.aiNoise = 0;
   car.aiNoiseT = rnd(0.2, 1.2);
   car.dodge = 0;
+  car.lineErr = 0;            // 走线误差(难度噪声), 缓慢漂移
+  car.lineErrT = rnd(0.5, 2.5);
+  car.passTimer = 0;          // >0 = 正在执行一次"决定好的超车", 期间不改主意
+  car.passSide = 0;
+  /* 这台车自己的节奏系数: 抓地决定弯速(profile 是弯速包线), 所以按 √(grip) 缩放目标速度;
+     极速/动力只影响"怎么开"(出弯给油快慢), 不整体抬高 AI 节奏 —— 免得选到超跑的 AI 直接碾压
+     (AI 之间的快慢仍然由 CFG.AI_SKILLS 决定, 车型只负责"性格") */
+  const spec = car.spec || CFG.CAR;
+  car.paceK = Math.sqrt(spec.LAT_ACC / CFG.CAR.LAT_ACC);
+  car.powerK = spec.ENGINE_ACCEL / CFG.CAR.ENGINE_ACCEL;   // 出弯加速能力
 }
 
 /** 当前难度档（开场界面可切；换档只影响之后新发的车与实时参数，不影响已有物理） */
@@ -4237,19 +4310,27 @@ function aiControl(car, cars, dt) {
   }
 
   /* ---------------- 1. 目标速度 ----------------
-     走线让实际半径比中心线大 => profile 里已经含了走线加成(AI_LINE_BONUS) */
+     走线让实际半径比中心线大 => profile 里已经含了走线加成(AI_LINE_BONUS)
+     2026-09-24 (v3): 目标速度改成"这台车自己的极限" ——
+       profile 是按基准车(抓地 15.5)算的包线, 抓地更强的车按 √(grip) 放大, 极速更低的车按 vmax 缩回 */
+  const spec = car.spec || CFG.CAR;
   const lookDist = clamp(CFG.AI_LOOKAHEAD_BASE + spd * CFG.AI_LOOKAHEAD_SPEED,
     CFG.AI_LOOKAHEAD_MIN, CFG.AI_LOOKAHEAD_MAX);
   const idxV = pathIndex(car.prog + lookDist * 0.55);
-  let vTarget = TRACK.profile[idxV] * car.skill * tune.skill;
+  let vTarget = TRACK.profile[idxV] * car.skill * tune.skill * car.paceK;
 
-  /* 轻微"人味": 目标速度缓慢波动 */
+  /* 轻微"人味": 目标速度缓慢波动 + 走线误差(难度越低越大, 看起来"手抖") */
   car.aiNoiseT -= dt;
   if (car.aiNoiseT <= 0) {
-    car.aiNoiseT = rnd(1.6, 3.8);
-    car.aiNoise = rnd(-0.022, 0.022);
+    car.aiNoiseT = rnd(1.4, 3.4);
+    car.aiNoise = rnd(-0.020, 0.020) * (tune.noiseMul === undefined ? 1 : tune.noiseMul);
   }
   vTarget *= (1 + car.aiNoise);
+  vTarget = Math.min(vTarget, spec.MAX_SPEED * 0.985);      // 别超过这台车的极速
+  /* 起步"冷胎期"(前 5 秒)收一点速度: 6 台车同时挤进第一个弯是 AI 卡墙的头号原因
+     (实测 diag-ai: 三连回头弯 11~14 秒在 s≈330m 一次挤掉 3 台车) */
+  const cold = G.raceTime < 5 ? 0.92 : 1;
+  vTarget *= cold;
 
   /* ---------------- 1b. 走线 + AI 漂移 ----------------
      · 走线: 前方 55m 的曲率决定"往哪边切", 提前把车摆到弯心内侧
@@ -4257,40 +4338,59 @@ function aiControl(car, cars, dt) {
   const idxA = pathIndex(car.prog + Math.max(12, spd * 0.55));
   const aimAhead = (TRACK.aim ? TRACK.aim[idxA] : 0) * (car.aimMul === undefined ? tune.aimMul : car.aimMul);
   const kAhead = TRACK.pk[idxA];
-  const wantDrift = tune.drift && kAhead > CFG.AI_DRIFT_KAP && spd > CFG.AI_DRIFT_MIN_SPEED;
+  const wantDrift = tune.drift && kAhead > CFG.AI_DRIFT_KAP / Math.max(0.85, car.paceK) && spd > CFG.AI_DRIFT_MIN_SPEED;
   car.driftKey = !!wantDrift && !car.recoverTimer;
+  /* 走线误差: 难度越低越"手抖"(缓慢飘移的横向偏差, 不是每帧抖 => 看起来像人在修方向) */
+  car.lineErrT -= dt;
+  if (car.lineErrT <= 0) {
+    car.lineErrT = rnd(1.2, 3.0);
+    const e = CFG.AI_LINE_ERR * (tune.noiseMul === undefined ? 1 : tune.noiseMul);
+    car.lineErr = rnd(-e, e);
+  }
 
-  /* ---------------- 2. 避让探测 ---------------- */
+  /* ---------------- 2. 避让探测 (v3: 提前决定 + 不轻易刹车) ---------------- */
   /* 走线偏移(baseLane ±3.4) 叠上切弯心偏移(最多 halfW-margin) 会超过半宽,
      2026-09-23 实测: 三连回头弯里 AI 被自己的走线顶到护栏上卡住 => 统一按"离路缘留 margin"夹紧 */
   const laneLim = Math.max(1.5, TRACK.halfW - CFG.AI_AIM_MARGIN);
-  let laneCmd = clamp(car.baseLane + aimAhead, -laneLim, laneLim);
+  let laneCmd = clamp(car.baseLane + aimAhead + car.lineErr, -laneLim, laneLim);
   let speedCap = Infinity;
-  const wallSafe = TRACK.halfW - 1.6;
+  const wallSafe = TRACK.halfW - 2.2;
+  /* 正在执行的超车: 1.2 秒内不改主意, 免得在两车之间来回摆 */
+  if (car.passTimer > 0) car.passTimer -= dt;
   for (let i = 0; i < cars.length; i++) {
     const o = cars[i];
     if (o === car) continue;
     const dS = o.prog - car.prog;
     const adS = Math.abs(dS);
-    if (adS > CFG.AI_AVOID_RANGE) continue;
+    if (adS > CFG.AI_AVOID_RANGE * 1.6) continue;
     const dLat = o.lat - car.lat;
-    if (Math.abs(dLat) > CFG.AI_AVOID_SIDE + 1.2) continue;
 
     if (dS > 0) {
-      /* --- 前方有车: 限速 + 变道 --- */
-      if (dS < CFG.AI_AVOID_GAP) {
-        speedCap = Math.min(speedCap, o.speed * 0.90 + 0.4);
-      } else {
-        const t = (dS - CFG.AI_AVOID_GAP) / (CFG.AI_AVOID_RANGE - CFG.AI_AVOID_GAP);
-        speedCap = Math.min(speedCap, o.speed + t * 7.5);
+      /* --- 前方有车 ---
+         注意: 判"同一条线上"要用**当前横向位置**(不是目标车道) ——
+         用目标车道判会让"正在变道的车"以为前车不在自己线上, 于是不减速直接顶上去 */
+      const sameLane = Math.abs(o.lat - car.lat) < CFG.AI_AVOID_SIDE + 0.4;
+      if (sameLane) {
+        /* 只在真的快追上时才收油: 距离越近收得越多, 但不会一脚踩死 */
+        const gapT = (dS - CFG.AI_AVOID_GAP) / Math.max(1, CFG.AI_AVOID_RANGE - CFG.AI_AVOID_GAP);
+        speedCap = Math.min(speedCap, o.speed + clamp(gapT, 0, 1) * 8.0);
+        if (dS < CFG.AI_AVOID_GAP) speedCap = Math.min(speedCap, o.speed * 0.94);
       }
-      if (Math.abs(dLat) < CFG.AI_AVOID_SIDE + 0.6) {
-        let dir = (car.lat >= o.lat) ? 1 : -1;
-        let want = car.lat + dir * CFG.AI_AVOID_DODGE;
-        if (Math.abs(want) > wallSafe) { dir = -dir; want = car.lat + dir * CFG.AI_AVOID_DODGE; }
-        laneCmd = clamp(want, -CFG.AI_LANE_MAX, CFG.AI_LANE_MAX);
+      /* --- 变道超车: 一次决定好往哪边, 短暂坚持(0.9s), 免得在两车之间来回摆
+             起步 5 秒内不抢线(冷胎期大家都挤在一起, 抢线=互相顶到墙上) --- */
+      const closeEnough = dS < CFG.AI_AVOID_RANGE * 0.85;
+      if (closeEnough && G.raceTime > 5 && Math.abs(dLat) < CFG.AI_AVOID_SIDE + 0.7) {
+        if (car.passTimer <= 0) {
+          /* 两侧余量: 选"更空"的那一边(考虑车道内其他车), 同分时按内外侧顺手 */
+          const roomL = car.lat + wallSafe, roomR = wallSafe - car.lat;
+          car.passSide = (roomL >= roomR) ? -1 : 1;
+          if (Math.abs(o.lat) > Math.abs(car.lat)) car.passSide = -sign(o.lat) || car.passSide;
+          car.passTimer = 0.9;
+        }
+        const want = clamp(o.lat + car.passSide * CFG.AI_AVOID_DODGE, -laneLim, laneLim);
+        laneCmd = clamp(want, -CFG.AI_LANE_MAX - 1.5, CFG.AI_LANE_MAX + 1.5);
       }
-    } else if (adS < 6.5 && Math.abs(dLat) < CFG.AI_AVOID_SIDE) {
+    } else if (adS < 7.5 && Math.abs(dLat) < CFG.AI_AVOID_SIDE) {
       /* --- 并排: 互相推开, 避免长时间剐蹭 --- */
       const dir = (car.lat >= o.lat) ? 1 : -1;
       const want = car.lat + dir * 1.6;
@@ -4299,38 +4399,49 @@ function aiControl(car, cars, dt) {
   }
   if (speedCap < vTarget) vTarget = speedCap;
 
-  /* ---------------- 3. 靠近护栏: 强制回中 ---------------- */
-  const latAbs = Math.abs(car.lat);
-  const edge = TRACK.halfW - 1.2;
-  if (latAbs > edge) {
-    const pull = car.lat - sign(car.lat) * (2.2 + (latAbs - edge) * 2.4);
-    laneCmd = clamp(pull, -CFG.AI_LANE_MAX - 2, CFG.AI_LANE_MAX + 2);
+  /* ---------------- 3. 护栏: 预判 0.35 秒后的横向位置, 提前收线 ----------------
+     (v3 新增: 旧版只看"当前"横向位置, 等贴到墙上再救就晚了 —— 这是 AI 蹭墙/卡住的主因) */
+  const latPred = car.lat + car.vLat * 0.35;
+  const edge = TRACK.halfW - 1.6;
+  if (Math.abs(latPred) > edge) {
+    const over = Math.abs(latPred) - edge;
+    const pull = car.lat - sign(latPred) * (2.0 + over * 2.2);
+    laneCmd = clamp(pull, -CFG.AI_LANE_MAX - 3, CFG.AI_LANE_MAX + 3);
   }
 
   car.laneTarget = damp(car.laneTarget, laneCmd, 2.6, dt);
   car.lane = car.laneTarget;
 
-  /* ---------------- 4. 油门 / 刹车 (不碰 driftKey: 漂移键在第 1b 步按弯道曲率决定) ---------------- */
+  /* ---------------- 4. 油门 / 刹车 ----------------
+     v3: 加 0.8 m/s 死区 —— 旧版在目标速度附近反复"点刹-给油", 看起来一抽一抽的 */
   const diff = vTarget - spd;
-  if (diff >= 0) {
-    car.throttle = clamp(diff / 7 + 0.22, 0.22, 1);
+  if (diff >= -0.8) {
+    car.throttle = clamp(diff / (6.5 / Math.max(0.9, car.powerK)) + 0.24, 0.24, 1);
     car.brake = 0;
   } else {
     car.throttle = 0;
-    car.brake = clamp(-diff / 4.5 * tune.brakeMul, 0.06, 1);
+    car.brake = clamp((-diff - 0.8) / 4.5 * tune.brakeMul, 0.05, 1);
+  }
+  /* 起步反应: 难度越低, 发车头 1.5 秒给油越犹豫(easy 档能被玩家抢到领先) */
+  if (tune.launch < 1 && G.raceTime < 1.5) {
+    car.throttle *= tune.launch + (1 - tune.launch) * (G.raceTime / 1.5);
   }
 
-  /* ---------------- 5. 纯追踪转向 ---------------- */
-  const idxT = pathIndex(car.prog + lookDist);
+  /* ---------------- 5. 纯追踪转向 ----------------
+     v3: 前视距离按前方曲率收缩 —— 长前视在发夹弯会"切进弯心内侧"(AI 卡墙的另一半原因) */
+  const kNow = Math.abs(TRACK.pk[pathIndex(car.prog + lookDist * 0.5)]);
+  const lookTurn = lookDist * (1 - 0.45 * clamp(kNow * 55, 0, 1));
+  const idxT = pathIndex(car.prog + lookTurn);
   const txp = TRACK.px[idxT] + TRACK.pnx[idxT] * car.laneTarget;
   const tzp = TRACK.pz[idxT] + TRACK.pnz[idxT] * car.laneTarget;
   const desiredYaw = Math.atan2(txp - car.x, tzp - car.z);
   const err = wrapPi(desiredYaw - car.yaw);
   /* 漂移时物理会给车头额外乘一个转向倍率(轻点1.20/长按1.65) —— AI 若照旧要同样的转向量
      就会转过头撞内墙(实测发夹弯必卡) => 最后按当前倍率把总需求除回去, 走线不变、只换手法 */
-  const C = CFG.CAR;
+  const C = car.spec || CFG.CAR;      // 车型差异化: 漂移倍率按这台车自己的规格算
   const turnMul = car.drifting ? lerp(C.DRIFT_TURN_MUL_LIGHT, C.DRIFT_TURN_MUL, car.driftLevel || 0) : 1;
-  let steer = err * CFG.AI_STEER_KP - car.yawRate * CFG.AI_STEER_KD;
+  const kp = CFG.AI_STEER_KP * (tune.steerMul === undefined ? 1 : tune.steerMul);
+  let steer = err * kp - car.yawRate * CFG.AI_STEER_KD;
 
   /* 侧向偏差补偿: 把"目标走线方向"投影到车身右方向, 决定修正力度 */
   const latErr = car.lat - car.laneTarget;                 // >0 表示比目标走线更靠外
@@ -4497,7 +4608,8 @@ function uiInit() {
     resTop: id('resTop'), resBody: id('resBody'),
     trackName: id('trackName'), trackDesc: id('trackDesc'),
     carName: id('carName'), carDesc: id('carDesc'),
-    diffName: id('diffName'), diffDesc: id('diffDesc')
+    diffName: id('diffName'), diffDesc: id('diffDesc'),
+    resGhost: id('resGhost')
   };
   /* 读取历史最佳 (file:// 下 localStorage 可能被拒绝, 必须容错) */
   uiLoadBest();
@@ -4577,7 +4689,9 @@ function uiUpdate(car, state, raceTime, position, totalCars) {
   const e = UI.e;
   const kmh = Math.max(0, car.speed * 3.6);
   e.speed.textContent = Math.round(kmh);
-  e.bar.style.width = clamp(kmh / (CFG.CAR.MAX_SPEED * 3.6) * 100, 0, 100).toFixed(1) + '%';
+  /* 速度条按**这台车**的极速刻度 (车型差异后, 超跑与皮卡的表底不一样) */
+  const vmax = ((car && car.spec) ? car.spec.MAX_SPEED : CFG.CAR.MAX_SPEED) * 3.6;
+  e.bar.style.width = clamp(kmh / vmax * 100, 0, 100).toFixed(1) + '%';
 
   e.lap.textContent = Math.min(CFG.RACE_LAPS, car.lap + (car.finished ? 0 : 1)) + ' / ' + CFG.RACE_LAPS;
   let cur = 0;
@@ -4730,6 +4844,7 @@ async function onlineFetchBoard(trackId) {
     Online.msg = onlineErrText(r);
   }
   if (Online.panelOpen) onlineRenderPanel();
+  onlineRenderGhostPick();     // 榜上有名字了 => 幽灵选择器可以列出"榜上前 3 名"
   return r;
 }
 
@@ -4964,11 +5079,49 @@ async function onlineAfterRace() {
       ' <button class="btn ghost" id="btnResLbShow" style="padding:4px 10px;margin-left:6px">看完整榜</button>';
     const b = document.getElementById('btnResLbShow');
     if (b) b.addEventListener('click', function () { onlineTogglePanel(true); }, false);
+    /* 成绩上榜成功 => 顺手把这一圈的幽灵也传上去（别人就能跟你的幽灵跑） */
+    if (Ghost.pending && Ghost.pending.lap === Math.round(lap * 1000)) {
+      ghostPublish().then(function () {
+        if (Ghost.uploadNote) line.innerHTML += ' <span class="dim">· ' + onlineEsc(Ghost.uploadNote) + '</span>';
+      });
+    }
   } else {
     line.innerHTML = '<span class="dim">' + String(Online.lastSubmit || r.err || '上传失败').slice(0, 90) + '</span>' +
       ' <button class="btn ghost" id="btnResLbRetry" style="padding:4px 10px;margin-left:6px">重试 / 看榜</button>';
     const b = document.getElementById('btnResLbRetry');
     if (b) b.addEventListener('click', function () { onlineTogglePanel(true); }, false);
+  }
+}
+
+/** 开场卡片上的「幽灵对手」选择器：不跟幽灵跑 / 我的最佳 / 官方榜前 3 名 */
+function onlineRenderGhostPick() {
+  const box = document.getElementById('ghostPick');
+  if (!box) return;
+  const mine = Ghost.best || ghostLoadLocal(onlineTrackId());
+  const items = [{ id: 'off', name: '不跟幽灵跑', sub: '只有 5 台 AI' }];
+  items.push({ id: 'mine', name: '我的最佳', sub: mine ? onlineFmt(mine.lap) : '本机还没纪录' });
+  const list = (Online.board || []).slice(0, 3);
+  for (let i = 0; i < list.length; i++) {
+    const row = list[i];
+    if (!row || !row.name) continue;
+    items.push({ id: row.name, name: row.name, sub: '官方榜 P' + (i + 1) + ' · ' + onlineFmt(row.lap) });
+  }
+  let html = '';
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    html += '<button class="dbtn' + (Ghost.pick === it.id ? ' on' : '') + '" data-ghost="' +
+      onlineEsc(it.id) + '">' + onlineEsc(it.name) + '<i>' + onlineEsc(it.sub) + '</i></button>';
+  }
+  box.innerHTML = html;
+  const btns = box.querySelectorAll('.dbtn');
+  for (let i = 0; i < btns.length; i++) {
+    (function (el) {
+      el.addEventListener('click', function () { ghostSetPick(el.getAttribute('data-ghost')); }, false);
+    })(btns[i]);
+  }
+  const st = document.getElementById('ghostState');
+  if (st) {
+    st.textContent = '幽灵对手：' + (Ghost.state || (Ghost.pick === 'off' ? '不跟幽灵跑（AI 照常）' : Ghost.pick));
   }
 }
 
@@ -4995,6 +5148,277 @@ function onlineRefreshHud() {
   el.textContent = Online.recordLap > 0
     ? '官方最快单圈（' + onlineTrackName() + '）：' + onlineFmt(Online.recordLap)
     : '官方榜还没读到 —— 点「排行榜」看看';
+}
+
+/* ===== 78_ghost.js ===== */
+/* ===========================================================================
+ * 78_ghost.js —— 幽灵车（跟排行榜上的人 / 自己的最佳单圈跑）
+ *
+ *  数据格式（Compact ASCII，服务端按 1~24000 字符校验）:
+ *      g1|<车型id>|<单圈毫秒>|<t>,<x>,<z>,<yaw>;<t>,<x>,<z>,<yaw>;...
+ *      · t   = 相对本圈起点的毫秒整数（10 Hz 采样 => 100 的倍数）
+ *      · x/z = 世界坐标厘米整数（2 位小数精度）
+ *      · yaw = 车头弧度 × 1000 的整数
+ *  一圈 50~70 秒 ≈ 500~700 个采样点 ≈ 12 KB，能塞进 KV 值也够客户端解析。
+ *
+ *  三个来源:
+ *    ① 我的最佳（localStorage，按赛道分开 —— 没网、没账号也能跟自己比）
+ *    ② 官方榜上的某个人（GET /api/ghost?game=racing3d&track=&name=）
+ *    ③ 关掉（默认；AI 照常跑）
+ *  上传: 只在"这一局刷新了个人最佳 + 前面成绩提交成功"时把幽灵一起 POST /api/ghost。
+ *
+ *  回放口径: 幽灵不吃物理、不参与碰撞（纯视觉），按玩家每圈开始重置到 t=0 循环跑；
+ *            高度按同一套赛道函数算，所以上下坡也贴地。
+ * =========================================================================== */
+
+const Ghost = {
+  HZ: 10,                  // 采样率 Hz
+  rec: null,               // 录制中 {t:[], x:[], z:[], yaw:[], model, lapMs}
+  recAcc: 0,               // 采样累加器（秒）
+  play: null,              // 正在回放的幽灵 {name, lap, model, t, x, z, yaw}
+  mesh: null,              // 幽灵车模型（半透明）
+  clock: 0,                // 本圈的幽灵时钟（秒）
+  pick: 'off',             // 'off' | 'mine' | 榜单上的名字
+  state: '',               // 状态文案（开场卡片上显示）
+  best: null,              // 本机最佳幽灵 {lap, model, data}（当前赛道）
+  pending: null,           // 待上传 {track, lap, data}（这一局刷新 PB 时挂上）
+  uploadNote: '',          // 上传结果一句话
+  LOADED: false
+};
+
+/* ------------------------------ 编解码 ------------------------------ */
+function ghostEncode(o) {
+  const parts = ['g1', String(o.model || 'coupe'), String(Math.round(o.lapMs || 0))];
+  let s = '';
+  for (let i = 0; i < o.t.length; i++) {
+    if (i) s += ';';
+    s += Math.round(o.t[i]) + ',' + Math.round(o.x[i] * 100) + ',' +
+      Math.round(o.z[i] * 100) + ',' + Math.round(o.yaw[i] * 1000);
+  }
+  parts.push(s);
+  return parts.join('|');
+}
+
+function ghostDecode(str) {
+  if (!str || typeof str !== 'string') return null;
+  const p = str.split('|');
+  if (p.length < 4 || p[0] !== 'g1') return null;
+  const o = { model: p[1] || 'coupe', lapMs: parseInt(p[2], 10) || 0, t: [], x: [], z: [], yaw: [] };
+  const rows = p[3].split(';');
+  for (let i = 0; i < rows.length; i++) {
+    const f = rows[i].split(',');
+    if (f.length < 4) continue;
+    const t = parseInt(f[0], 10), x = parseInt(f[1], 10), z = parseInt(f[2], 10), y = parseInt(f[3], 10);
+    if (!isFinite(t) || !isFinite(x) || !isFinite(z) || !isFinite(y)) continue;
+    o.t.push(t); o.x.push(x / 100); o.z.push(z / 100); o.yaw.push(y / 1000);
+  }
+  if (o.t.length < 2) return null;
+  o.seconds = o.t[o.t.length - 1] / 1000;
+  return o;
+}
+
+/* ------------------------------ 录制 ------------------------------ */
+/** 玩家过起点线（开始计圈）时调用：开始录这一圈 */
+function ghostBeginLap(model) {
+  Ghost.rec = { t: [], x: [], z: [], yaw: [], model: model || 'coupe', lapMs: 0 };
+  Ghost.recAcc = 0;
+}
+
+/** 每帧采样（在 simulate 里、物理步进之后调用） */
+function ghostSample(dt, car, lapT) {
+  if (!Ghost.rec) return;
+  Ghost.recAcc += dt;
+  const step = 1 / Ghost.HZ;
+  if (Ghost.recAcc < step && Ghost.rec.t.length) return;
+  Ghost.recAcc = 0;
+  const r = Ghost.rec;
+  r.t.push(Math.round(lapT * 1000));
+  r.x.push(car.x); r.z.push(car.z); r.yaw.push(car.yaw);
+}
+
+/** 一圈跑完：这一圈是个人最佳就留成本地幽灵（并准备上传） */
+function ghostEndLap(lapT, isBest, model) {
+  const r = Ghost.rec;
+  Ghost.rec = null;
+  if (!r || r.t.length < 20 || !isBest) return false;
+  r.lapMs = Math.round(lapT * 1000);
+  r.model = model || r.model;
+  const data = ghostEncode(r);
+  const track = onlineTrackId();
+  Ghost.best = { track: track, lap: r.lapMs, model: r.model, data: data };
+  ghostSaveLocal(track, Ghost.best);
+  /* 挂上待上传：等成绩提交成功后一起 POST（没登录/没网就留在本地） */
+  Ghost.pending = { track: track, lap: r.lapMs, data: data };
+  if (Ghost.pick === 'mine') ghostUseLocal();
+  return true;
+}
+
+/* ------------------------------ 本地存档 ------------------------------ */
+function ghostLocalKey(track) { return 'racing3d.ghost.v1.' + (track || onlineTrackId()); }
+
+function ghostSaveLocal(track, o) {
+  try { window.localStorage.setItem(ghostLocalKey(track), JSON.stringify(o)); } catch (e) { /* file:// 下可能被拒 */ }
+}
+
+function ghostLoadLocal(track) {
+  try {
+    const s = window.localStorage.getItem(ghostLocalKey(track));
+    if (!s) return null;
+    const o = JSON.parse(s);
+    return (o && o.data) ? o : null;
+  } catch (e) { return null; }
+}
+
+/* ------------------------------ 回放 ------------------------------ */
+function ghostDispose() {
+  if (Ghost.mesh && Ghost.mesh.parent) Ghost.mesh.parent.remove(Ghost.mesh);
+  Ghost.mesh = null;
+  Ghost.play = null;
+  Ghost.clock = 0;
+}
+
+/** 造一台半透明的幽灵车（复用玩家车库的几何体，只是材质透明） */
+function ghostBuildMesh(model) {
+  ghostDispose();
+  if (typeof createCar !== 'function' || typeof scene === 'undefined' || !scene) return;
+  let m;
+  try { m = createCar(0x8fe3ff, model || 'coupe'); }
+  catch (e) { Ghost.buildErr = String((e && e.message) || e); return; }
+  m.group.traverse(function (o) {
+    if (!o.material) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    for (let i = 0; i < mats.length; i++) {
+      mats[i].transparent = true;
+      mats[i].opacity = 0.40;
+      mats[i].depthWrite = false;
+    }
+  });
+  scene.add(m.group);
+  m.group.visible = false;      // 过起点线(开始计圈)之前不显示, 免得在开场卡片后面杵着
+  Ghost.mesh = m.group;
+  Ghost.meshModel = m;
+}
+
+/** 装载一条幽灵（解码 + 建模型）; name 只用于显示 */
+function ghostSet(o, name) {
+  if (!o) { ghostDispose(); Ghost.state = '这条榜还没有幽灵数据'; return false; }
+  /* 顺序很重要: ghostBuildMesh 内部先 ghostDispose(), 而它会清空 Ghost.play,
+     所以必须"先建模、后挂 play"(否则刚装上就被自己清掉 —— 自检里踩过一次) */
+  ghostBuildMesh(o.model);
+  Ghost.play = o;
+  Ghost.play.name = name || '';
+  Ghost.playSeconds = (o.t[o.t.length - 1] || 0) / 1000;
+  Ghost.clock = 0;
+  Ghost._idx = 0;
+  Ghost.state = (name ? name + ' · ' : '') + fmtTime((o.lapMs || 0) / 1000) + ' 的幽灵';
+  return true;
+}
+
+/** 每帧推进幽灵（t 以"本圈已经跑了多久"为准，按采样线性插值） */
+function ghostUpdate(dt, lapT) {
+  if (!Ghost.play || !Ghost.mesh) return;
+  const g = Ghost.play;
+  const tt = lapT === undefined ? (Ghost.clock += dt) : lapT;
+  const last = g.t[g.t.length - 1] / 1000;
+  const t = Math.min(tt, last);
+  /* 二分/线性找区间（采样点几百个，直接线性扫也够快，且顺序访问几乎 O(1)） */
+  let i = Ghost._idx || 0;
+  if (i >= g.t.length - 1) i = g.t.length - 2;
+  while (i > 0 && g.t[i] / 1000 > t) i--;
+  while (i < g.t.length - 2 && g.t[i + 1] / 1000 < t) i++;
+  Ghost._idx = i;
+  const t0 = g.t[i] / 1000, t1 = g.t[i + 1] / 1000;
+  const k = (t1 > t0) ? clamp((t - t0) / (t1 - t0), 0, 1) : 0;
+  const x = g.x[i] + (g.x[i + 1] - g.x[i]) * k;
+  const z = g.z[i] + (g.z[i + 1] - g.z[i]) * k;
+  let dy = wrapPi(g.yaw[i + 1] - g.yaw[i]);
+  const yaw = wrapPi(g.yaw[i] + dy * k);
+  Ghost.mesh.position.set(x, trackHeightAtS(projectTrack(x, z).s), z);
+  Ghost.mesh.rotation.y = yaw;
+  /* 车轮跟着转（纯视觉）: 用上一帧的位移反推速度, 幽灵不走物理 */
+  const mm = Ghost.meshModel;
+  const prev = Ghost.pose;
+  if (mm && mm.wheels) {
+    const v = prev ? Math.hypot(x - prev.x, z - prev.z) / Math.max(dt, 1e-3) : 0;
+    for (let w = 0; w < mm.wheels.length; w++) {
+      mm.wheels[w].tire.rotation.x += (v * dt) / CFG.CAR.WHEEL_R;
+    }
+  }
+  Ghost.pose = { x: x, z: z, yaw: yaw, t: t, idx: i };   // 供 HUD / 自检读取
+}
+
+/* ------------------------------ 选择 / 拉取 ------------------------------ */
+function ghostUseLocal() {
+  const o = ghostLoadLocal(onlineTrackId());
+  if (!o) { ghostDispose(); Ghost.state = '这台设备还没有你自己的幽灵（先跑一圈刷个最佳）'; return false; }
+  Ghost.best = o;
+  const d = ghostDecode(o.data);
+  return ghostSet(d, '我');
+}
+
+/** 从云后端拉一条别人的幽灵 */
+async function ghostFetch(name, track) {
+  const tid = track || onlineTrackId();
+  if (typeof fetch !== 'function' || !onlineBases().length) {
+    Ghost.state = '没配云后端，只能跟自己的幽灵跑';
+    return false;
+  }
+  Ghost.state = '正在读取 ' + name + ' 的幽灵…';
+  const r = await onlineReq('/api/ghost?game=' + Online.GAME + '&track=' + encodeURIComponent(tid) +
+    '&name=' + encodeURIComponent(name), { method: 'GET' }, false);
+  if (!r.ok) { Ghost.state = '读不到幽灵：' + (r.err || '网络问题'); return false; }
+  const gh = r.data && r.data.ghost;
+  if (!gh || !gh.data) { ghostDispose(); Ghost.state = name + ' 这条榜还没有幽灵数据'; return false; }
+  const d = ghostDecode(gh.data);
+  if (!d) { ghostDispose(); Ghost.state = name + ' 的幽灵数据解不开（版本不匹配）'; return false; }
+  /* 以榜单上那条成绩为准(数据串里的 lapMs 只是录制时的兜底值) */
+  if (gh.lap > 0) d.lapMs = gh.lap;
+  return ghostSet(d, gh.name || name);
+}
+
+/** 把这一局的幽灵传上去（成绩提交成功后调用；失败只是少一条幽灵，不挡玩法） */
+async function ghostPublish() {
+  if (!Ghost.pending) return { ok: false, err: '没有待上传的幽灵' };
+  if (!onlineCanSubmit()) { Ghost.uploadNote = '没登录云账号，幽灵只存在本机'; return { ok: false, err: 'need_login' }; }
+  const p = Ghost.pending;
+  const r = await onlineReq('/api/ghost', {
+    method: 'POST',
+    body: JSON.stringify({ game: Online.GAME, track: p.track, lap: p.lap, data: p.data })
+  }, true);
+  if (r.ok && r.data && r.data.ok) {
+    Ghost.pending = null;
+    Ghost.uploadNote = r.data.kept === false ? '榜上已有更快的幽灵，没覆盖' : '幽灵已上传';
+    return { ok: true, kept: r.data.kept !== false };
+  }
+  Ghost.uploadNote = onlineErrText(r);
+  return r;
+}
+
+/** 开场卡片上点选幽灵来源 */
+function ghostSetPick(v) {
+  Ghost.pick = v || 'off';
+  try { window.localStorage.setItem('racing3d.ghostPick', Ghost.pick); } catch (e) { /* 忽略 */ }
+  onlineRenderGhostPick();
+  if (Ghost.pick === 'off') { ghostDispose(); Ghost.state = '不跟幽灵跑'; return; }
+  if (Ghost.pick === 'mine') { ghostUseLocal(); return; }
+  ghostFetch(Ghost.pick).then(function () { onlineRenderGhostPick(); });
+}
+
+function ghostLoadPick() {
+  let v = 'off';
+  try { v = window.localStorage.getItem('racing3d.ghostPick') || 'off'; } catch (e) { v = 'off'; }
+  Ghost.pick = v || 'off';
+  Ghost.best = ghostLoadLocal(onlineTrackId());
+  if (Ghost.pick === 'mine') ghostUseLocal();
+}
+
+/** 换赛道：丢掉旧幽灵（榜与幽灵都是按赛道分的） */
+function ghostOnTrackChange() {
+  ghostDispose();
+  Ghost.best = ghostLoadLocal(onlineTrackId());
+  Ghost.pending = null;
+  if (Ghost.pick === 'mine') ghostUseLocal();
+  else if (Ghost.pick !== 'off') ghostFetch(Ghost.pick);
 }
 
 /* ===== 80_main.js ===== */
@@ -5148,6 +5572,7 @@ function bindInput() {
   }
   /* 官方排行榜的按钮/面板（站点模式下才有内容，单文件模式会显示"本地模式"提示） */
   onlineBindUI();
+  onlineRenderGhostPick();      // 幽灵对手选择器（关 / 我的最佳 / 榜上前 3 名）
 }
 
 /* ------------------------------ 切换赛道 ------------------------------ */
@@ -5177,6 +5602,8 @@ function selectTrack(mode) {
   /* 换了赛道 = 换了一张榜：清掉旧赛道的官方最快，后台刷新（没网也不影响比赛） */
   Online.board = []; Online.recordLap = 0; Online.boardTrack = '';
   onlineRefreshHud();
+  ghostOnTrackChange();          // 幽灵也是按赛道分的: 换图就换幽灵
+  onlineRenderGhostPick();
   if (onlineAvailable()) onlineFetchBoard();
   if (G.state !== 'intro') { uiShowCard('start'); G.state = 'intro'; }
 }
@@ -5214,11 +5641,19 @@ function selectCar(id) {
   CAR_CHOICE.now = id;
   const p = G.player;
   p.model = id;
+  p.spec = carSpecOf(id);      // 车型差异化: 换车 = 换一套物理规格(动力/极速/抓地/漂移)
   if (p.group) scene.remove(p.group);
   newCarVisual(p, PLAYER.COLOR);
   syncCarVisual(p, 0.016);
   camReset(p);
   updateCarPickUI();
+}
+
+function carSpecLine(id) {
+  const m = carSpecMul(id);
+  const pct = function (v) { return (v >= 1 ? '+' : '') + Math.round((v - 1) * 100) + '%'; };
+  return '动力 ' + pct(m.POWER) + ' · 极速 ' + pct(m.VMAX) + ' · 抓地 ' + pct(m.GRIP) +
+    ' · 转向 ' + pct(m.STEER) + ' · 漂移 ' + pct(m.DRIFT) + (m.note ? ' ｜ ' + m.note : '');
 }
 
 function updateCarPickUI() {
@@ -5227,7 +5662,7 @@ function updateCarPickUI() {
     btns[i].classList.toggle('on', btns[i].getAttribute('data-car') === CAR_CHOICE.now);
   }
   if (UI.e.carName) UI.e.carName.textContent = carModelById(CAR_CHOICE.now).name;
-  if (UI.e.carDesc) UI.e.carDesc.textContent = carModelById(CAR_CHOICE.now).desc;
+  if (UI.e.carDesc) UI.e.carDesc.textContent = carModelById(CAR_CHOICE.now).desc + ' ｜ ' + carSpecLine(CAR_CHOICE.now);
 }
 
 /* ------------------------------ AI 难度档 ------------------------------
@@ -5372,7 +5807,11 @@ function updateLap(car) {
   if (car.nextSplit === 0) {
     car.lapStartTime = G.raceTime;               // 首次过起点线 => 开始计圈
     car.nextSplit = TRACK.len;
-    if (car === G.player) uiBanner('第 1 圈', '#8fe3ff');
+    if (car === G.player) {
+      uiBanner('第 1 圈', '#8fe3ff');
+      ghostBeginLap(car.model);                  // 幽灵: 从这一圈开始录
+      if (Ghost.mesh) Ghost.mesh.visible = true; // 上圈的幽灵重新上路
+    }
   } else {
     const lapT = G.raceTime - car.lapStartTime;
     car.lapStartTime = G.raceTime;
@@ -5390,6 +5829,7 @@ function updateLap(car) {
       }
       if (isBest) uiFlash('NEW BEST  ' + fmtTime(lapT), '第 ' + car.lap + ' 圈 · 刷新最佳纪录', '#ffd76a', 2.4);
       else uiBanner('第 ' + car.lap + ' 圈   ' + fmtTime(lapT), '#bfe0ff');
+      ghostEndLap(lapT, isBest, car.model);      // 幽灵: 刷新个人最佳就存下这一圈
     }
     if (car.lap >= CFG.RACE_LAPS) {
       car.finished = true;
@@ -5452,6 +5892,18 @@ function showResults() {
       '<td class="n">' + gap + '</td></tr>';
   }
   UI.e.resBody.innerHTML = html;
+  /* 跟幽灵的对比（选了幽灵对手才有）—— 这就是"那时候我跑得真快"的地方 */
+  if (UI.e.resGhost) {
+    if (Ghost.play && Ghost.play.lapMs > 0 && p.bestLap > 0) {
+      const d = Math.round(p.bestLap * 1000) - Ghost.play.lapMs;
+      const who = Ghost.play.name || '幽灵';
+      UI.e.resGhost.innerHTML = d <= 0
+        ? '🏁 比幽灵「' + onlineEsc(who) + '」快 <b>' + Math.abs(d / 1000).toFixed(2) + ' 秒</b> —— 那时候我跑得真快'
+        : '幽灵「' + onlineEsc(who) + '」比你快 <b>' + (d / 1000).toFixed(2) + ' 秒</b>，再追一次';
+    } else {
+      UI.e.resGhost.textContent = '';
+    }
+  }
   uiShowCard('result');
   /* 结算完再把这一局的最好单圈传上官方榜（没登录/没网都只是提示一句，不挡玩法） */
   onlineAfterRace();
@@ -5468,6 +5920,14 @@ function simulate(dt) {
   resolveCarCollisions(G.cars, dt);
   for (let i = 0; i < G.cars.length; i++) updateLap(G.cars[i]);
   if (G.state === 'finished') updateRanking();
+  /* 幽灵: 录制玩家这一圈 + 回放对手幽灵（都用"本圈已经跑了多久"做时钟） */
+  if (G.player.lapStartTime > 0) {
+    const lapT = G.raceTime - G.player.lapStartTime;
+    ghostSample(dt, G.player, lapT);
+    ghostUpdate(dt, lapT);
+  } else if (Ghost.mesh) {
+    Ghost.mesh.visible = false;      // 还没过起点线（发车格上）先别显示
+  }
 }
 
 /* 倒计时推进 (与物理步长无关, 用真实 dt) */
@@ -5643,6 +6103,7 @@ function boot() {
   uiInit();
   bindInput();
   uiLoadDiff();          // 上次选的 AI 难度 (在发车前读, 影响首局的 AI)
+  ghostLoadPick();       // 上次选的幽灵对手(我的最佳 / 榜上某人 / 关)
   setupRace();
   camReset(G.player);
   updateTrackPickUI();
@@ -5661,6 +6122,12 @@ window.RACEGAME = {
   trackAt: trackAt, trackDef: trackDef, selectTrack: selectTrack, TRACK_DEFS: TRACK_DEFS,
   CAR_MODELS: CAR_MODELS, CAR_GEO: CAR_GEO, selectCar: selectCar, CAR_CHOICE: CAR_CHOICE,
   DIFF_DEFS: DIFF_DEFS, selectDiff: selectDiff, updateDiffPickUI: updateDiffPickUI,
+  Ghost: Ghost, ghostSetPick: ghostSetPick, ghostFetch: ghostFetch, ghostPublish: ghostPublish,
+  ghostEncode: ghostEncode, ghostDecode: ghostDecode, ghostUseLocal: ghostUseLocal,
+  ghostSet: ghostSet, ghostUpdate: ghostUpdate, ghostSample: ghostSample,
+  ghostBeginLap: ghostBeginLap, ghostEndLap: ghostEndLap, ghostDispose: ghostDispose,
+  ghostRenderPick: function () { onlineRenderGhostPick(); },
+  CAR_SPECS: CAR_SPECS, carSpecMul: carSpecMul, carSpecOf: carSpecOf, carPaceIndex: carPaceIndex,
   fxUpdate: fxUpdate, fxStats: fxStats, fxClear: fxClear, syncCarVisual: syncCarVisual,
   projectTrack: projectTrack, ellipseAt: trackAt, trackAt: trackAt, tOfS: tOfS, sOfT: sOfT,
   groundHeightAt: groundHeightAt, GROUND: GROUND, trackHeightAtS: trackHeightAtS,

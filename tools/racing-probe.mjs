@@ -92,6 +92,36 @@ const env = await page.evaluate(() => ({
     G.selectDiff('normal');   // 复原, 免得影响后面的检查
     return obs;
   })(),
+  /* 幽灵模式（2026-09-24 新增）: 选择器在、能选、编解码往返一致 */
+  ghostBtns: Array.prototype.map.call(document.querySelectorAll('#ghostPick .dbtn'), b => b.getAttribute('data-ghost')),
+  ghostState: (document.getElementById('ghostState') || {}).textContent || '',
+  ghostRoundTrip: (() => {
+    const G = window.RACEGAME;
+    if (!G.ghostEncode || !G.ghostDecode) return null;
+    const src = { model: 'gt', lapMs: 60000, t: [0, 100, 200], x: [1.23, 4.56, 7.89], z: [-1.5, 2.25, 0], yaw: [0.5, -1.25, 3] };
+    const d = G.ghostDecode(G.ghostEncode(src));
+    if (!d || d.t.length !== 3) return { ok: false };
+    let e = 0;
+    for (let i = 0; i < 3; i++) e = Math.max(e, Math.abs(d.x[i] - src.x[i]), Math.abs(d.z[i] - src.z[i]));
+    return { ok: e < 0.01, err: e };
+  })(),
+  ghostPickMine: (() => {
+    const G = window.RACEGAME;
+    const b = document.querySelector('#ghostPick .dbtn[data-ghost="mine"]');
+    if (!b) return null;
+    b.click();
+    return { state: (document.getElementById('ghostState') || {}).textContent || '', pick: G.Ghost.pick };
+  })(),
+  /* 车型差异化: 9 套规格 + 超跑极速 > 皮卡 */
+  carSpecs: (() => {
+    const G = window.RACEGAME;
+    if (!G.CAR_SPECS) return null;
+    return {
+      n: Object.keys(G.CAR_SPECS).length,
+      hyper: G.carSpecOf('hyper').MAX_SPEED, pickup: G.carSpecOf('pickup').MAX_SPEED,
+      coupe: G.carSpecOf('coupe').MAX_SPEED
+    };
+  })(),
 }));
 out.env = env;
 ok('页面标题正常（不是错误页）', /赛车|极速|Racing/i.test(env.title), env.title);
@@ -111,6 +141,20 @@ ok('点「硬核」真的换档（CFG 变 hard + 按钮高亮跟随 + skill=1.06
   !!env.diffHard && env.diffHard.set === 'hard' && env.diffHard.onBtn === 'hard' &&
   env.diffHard.skill === 1.06 && /硬核/.test(env.diffHard.name),
   JSON.stringify(env.diffHard));
+/* —— 幽灵模式 —— */
+ok('开场卡片有幽灵对手选择器（至少「不跟幽灵跑」「我的最佳」两个入口）',
+  env.ghostBtns.indexOf('off') >= 0 && env.ghostBtns.indexOf('mine') >= 0,
+  env.ghostBtns.join('/'));
+ok('幽灵串编解码往返一致（厘米级）', !!(env.ghostRoundTrip && env.ghostRoundTrip.ok),
+  JSON.stringify(env.ghostRoundTrip));
+ok('点「我的最佳」能选上并给出提示文案（本机没纪录时也要说人话）',
+  !!env.ghostPickMine && env.ghostPickMine.pick === 'mine' && env.ghostPickMine.state.length > 0,
+  JSON.stringify(env.ghostPickMine));
+/* —— 车型差异化 —— */
+ok('9 款车都有独立规格，且超跑极速 > 轿跑 > 皮卡',
+  !!env.carSpecs && env.carSpecs.n === 9 && env.carSpecs.hyper > env.carSpecs.coupe &&
+  env.carSpecs.coupe > env.carSpecs.pickup,
+  JSON.stringify(env.carSpecs));
 
 await page.screenshot({ path: outDir + '/intro.png' });
 
@@ -194,7 +238,25 @@ ok('暂停 → 点「返回主菜单」→ 真的回到开场卡片（state=intr
   ', overlay=' + pausedInfo.overlay + ', 截图前 still=' + pausedInfo.stillPaused);
 
 out.board = board;
-ok('面板打开后读到榜单（GET /api/score 公开只读）', board.ok && board.state === 'ok', JSON.stringify(board).slice(0, 180));ok('榜单渲染成表格行', board.rows >= 1, 'rows=' + board.rows);
+ok('面板打开后读到榜单（GET /api/score 公开只读）', board.ok && board.state === 'ok', JSON.stringify(board).slice(0, 180));
+ok('榜单渲染成表格行', board.rows >= 1, 'rows=' + board.rows);
+
+/* 2c. 云后端幽灵接口：证明 Worker 已经部署了 /api/ghost（不存在的名字要返回 ghost:null 而不是 404） */
+const ghostApi = await page.evaluate(async () => {
+  const R = window.RACEGAME;
+  R.ghostSetPick('off');                     // 复原选择, 免得影响后面的检查
+  try {
+    const base = (window.DSH_AUTH_CONFIG && window.DSH_AUTH_CONFIG.api) || '';
+    const r = await fetch(base + '/api/ghost?game=racing3d&track=oval&name=__probe_nobody__', { method: 'GET', mode: 'cors' });
+    let d = null;
+    try { d = await r.json(); } catch (e) { d = null; }
+    return { status: r.status, ok: !!(d && d.ok), ghost: d ? d.ghost : 'n/a', err: d && d.err };
+  } catch (e) { return { status: 0, fail: String(e && e.message || e) }; }
+});
+out.ghostApi = ghostApi;
+ok('云后端已上线 /api/ghost（查不存在的名字 → ghost:null，公开只读）',
+  ghostApi.status === 200 && ghostApi.ok === true && ghostApi.ghost === null,
+  JSON.stringify(ghostApi).slice(0, 170));
 ok('未登录时面板给的是「注册云账号」入口（云账号=主路径）',
   board.hasRegBtn || /可以上榜/.test(board.formText),
   'hasRegBtn=' + board.hasRegBtn + ' form=' + board.formText.replace(/\s+/g, ' ').slice(0, 70));
