@@ -5352,16 +5352,19 @@ function onlineRenderGhostPick() {
   const items = [{ id: 'off', name: '不跟幽灵跑', sub: '只有 5 台 AI' }];
   items.push({ id: 'mine', name: '我的最佳', sub: mine ? onlineFmt(mine.lap) : '本机还没纪录' });
   const list = (Online.board || []).slice(0, 3);
+  const probes = [];
   for (let i = 0; i < list.length; i++) {
     const row = list[i];
     if (!row || !row.name) continue;
-    items.push({ id: row.name, name: row.name, sub: '官方榜 P' + (i + 1) + ' · ' + onlineFmt(row.lap) });
+    items.push({ id: row.name, name: row.name, sub: '官方榜 P' + (i + 1) + ' · ' + onlineFmt(row.lap), probe: true });
+    probes.push(row.name);
   }
   let html = '';
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     html += '<button class="dbtn' + (Ghost.pick === it.id ? ' on' : '') + '" data-ghost="' +
-      onlineEsc(it.id) + '">' + onlineEsc(it.name) + '<i>' + onlineEsc(it.sub) + '</i></button>';
+      onlineEsc(it.id) + '">' + onlineEsc(it.name) + '<i data-sub="' + onlineEsc(it.id) + '">' +
+      onlineEsc(it.sub) + '</i></button>';
   }
   box.innerHTML = html;
   const btns = box.querySelectorAll('.dbtn');
@@ -5370,9 +5373,25 @@ function onlineRenderGhostPick() {
       el.addEventListener('click', function () { ghostSetPick(el.getAttribute('data-ghost')); }, false);
     })(btns[i]);
   }
+  /* 榜上的名字**不一定有幽灵**（幽灵功能上线之前跑的成绩就没有）:
+     逐个探一下并在按钮上写明, 免得玩家点了没反应以为坏了 */
+  for (let i = 0; i < probes.length; i++) {
+    (function (nm) {
+      ghostProbe(nm).then(function (res) {
+        const el = box.querySelector('[data-sub="' + nm + '"]');
+        if (!el) return;
+        if (res === null) { el.textContent = '幽灵：读不到（没网？）'; return; }
+        el.textContent = res.ok
+          ? '有幽灵 · ' + onlineFmt(res.lap)
+          : '还没传幽灵（他跑的时候还没有这功能）';
+      });
+    })(probes[i]);
+  }
   const st = document.getElementById('ghostState');
   if (st) {
-    st.textContent = '幽灵对手：' + (Ghost.state || (Ghost.pick === 'off' ? '不跟幽灵跑（AI 照常）' : Ghost.pick));
+    const anyGhost = (Online.board || []).length > 0;
+    st.textContent = '幽灵对手：' + (Ghost.state || (Ghost.pick === 'off' ? '不跟幽灵跑（AI 照常）' : Ghost.pick)) +
+      (anyGhost && Ghost.pick === 'off' ? ' · 榜上的名字带「有幽灵」的才能选中' : '');
   }
 }
 
@@ -5505,6 +5524,15 @@ function ghostEndLap(lapT, isBest, model) {
   if (typeof uiFlash === 'function') {
     uiFlash('已存下你的幽灵 ' + fmtTime(r.lapMs / 1000), '下一局可以选「我的最佳」跟它跑', '#8fe3ff', 2.2);
   }
+  /* 顺手尝试上传（不用等成绩提交成功 —— 圈速没上榜但幽灵照样可以传，别人就能跟你跑） */
+  if (Ghost.pending && onlineCanSubmit()) {
+    ghostPublish().then(function () {
+      if (Ghost.uploadNote && typeof uiFlash === 'function') {
+        uiFlash(Ghost.uploadNote === '幽灵已上传' ? '幽灵已上传到官方榜' : Ghost.uploadNote,
+          '别人可以在「幽灵对手」里选你', '#ffd76a', 2.0);
+      }
+    });
+  }
   return true;
 }
 
@@ -5569,13 +5597,17 @@ function ghostSet(o, name) {
   return true;
 }
 
-/** 每帧推进幽灵（t 以"本圈已经跑了多久"为准，按采样线性插值） */
+/** 每帧推进幽灵（t 以"本圈已经跑了多久"为准，按采样线性插值）
+ *  2026-09-24 修「幽灵只跑一圈」：跑完它自己那一圈后**立刻接着下一圈**（按圈时长取模循环），
+ *  而不是停在终点线上等玩家 —— 玩家每圈过线时它又从起点出发（phase 归零），所以圈速依然可比。 */
 function ghostUpdate(dt, lapT) {
   if (!Ghost.play || !Ghost.mesh) return;
   const g = Ghost.play;
   const tt = lapT === undefined ? (Ghost.clock += dt) : lapT;
-  const last = g.t[g.t.length - 1] / 1000;
-  const t = Math.min(tt, last);
+  const period = g.t[g.t.length - 1] / 1000;
+  if (!(period > 0.5)) return;
+  const t = tt - Math.floor(tt / period) * period;      // 循环
+  Ghost.lapNo = Math.floor(tt / period) + 1;            // 第几圈（显示用）
   /* 二分/线性找区间（采样点几百个，直接线性扫也够快，且顺序访问几乎 O(1)） */
   let i = Ghost._idx || 0;
   if (i >= g.t.length - 1) i = g.t.length - 2;
@@ -5646,6 +5678,19 @@ async function ghostFetch(name, track) {
   /* 以榜单上那条成绩为准(数据串里的 lapMs 只是录制时的兜底值) */
   if (gh.lap > 0) d.lapMs = gh.lap;
   return ghostSet(d, gh.name || name);
+}
+
+/** 只探测"这个名字的幽灵在不在"（不装载、不改状态）—— 开场界面上把没有幽灵的榜单条目标出来 */
+async function ghostProbe(name, track) {
+  const tid = track || onlineTrackId();
+  if (!name || typeof fetch !== 'function' || !onlineBases().length) return null;
+  try {
+    const r = await onlineReq('/api/ghost?game=' + Online.GAME + '&track=' + encodeURIComponent(tid) +
+      '&name=' + encodeURIComponent(name), { method: 'GET' }, false);
+    if (!r.ok) return null;
+    const gh = r.data && r.data.ghost;
+    return gh && gh.data ? { ok: true, lap: gh.lap || 0 } : { ok: false };
+  } catch (e) { return null; }
 }
 
 /** 把这一局的幽灵传上去（成绩提交成功后调用；失败只是少一条幽灵，不挡玩法） */async function ghostPublish() {
@@ -6401,6 +6446,7 @@ window.RACEGAME = {
   Ghost: Ghost, ghostSetPick: ghostSetPick, ghostFetch: ghostFetch, ghostPublish: ghostPublish,
   ghostEncode: ghostEncode, ghostDecode: ghostDecode, ghostUseLocal: ghostUseLocal,
   ghostSet: ghostSet, ghostUpdate: ghostUpdate, ghostSample: ghostSample,
+  ghostProbe: ghostProbe,
   ghostBeginLap: ghostBeginLap, ghostEndLap: ghostEndLap, ghostDispose: ghostDispose,
   ghostRenderPick: function () { onlineRenderGhostPick(); },
   CAR_SPECS: CAR_SPECS, carSpecMul: carSpecMul, carSpecOf: carSpecOf, carPaceIndex: carPaceIndex,

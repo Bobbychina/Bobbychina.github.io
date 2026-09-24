@@ -294,9 +294,19 @@ const ghostRun = await page.evaluate(() => {
     }
   }
   R.KEY.accel = false;
-  return { loaded: loaded, visible: visible, moved: +moved.toFixed(1), pose: !!R.Ghost.pose, lap: p.lap, state: R.G.state };
+  /* 幽灵必须一圈接一圈跑（站长反馈"只跑一圈"）: 把圈时钟推到它自己那圈之后, 位置还要在变 */
+  const per = R.Ghost.play ? R.Ghost.play.t[R.Ghost.play.t.length - 1] / 1000 : 0;
+  R.ghostUpdate(0, per + 0.3);
+  const w1 = R.Ghost.pose ? R.Ghost.pose.x : 0;
+  R.ghostUpdate(0, per + 1.5);
+  const w2 = R.Ghost.pose ? R.Ghost.pose.x : 0;
+  return { loaded: loaded, visible: visible, moved: +moved.toFixed(1), pose: !!R.Ghost.pose,
+    lap: p.lap, state: R.G.state, period: +per.toFixed(2),
+    wrapped: Math.abs(w2 - w1) > 0.5, ghostLap: R.Ghost.lapNo };
 });
 out.ghostRun = ghostRun;
+ok('幽灵会一圈接一圈跑（不会跑完一圈就停在终点）',
+  ghostRun.wrapped === true && ghostRun.ghostLap >= 2, JSON.stringify(ghostRun));
 ok('幽灵端到端：本机幽灵装得上、发车后真的在跑（模型可见 + 位置在推进）',
   !!ghostRun.loaded && ghostRun.visible && ghostRun.pose && ghostRun.moved > 20,
   JSON.stringify(ghostRun));
