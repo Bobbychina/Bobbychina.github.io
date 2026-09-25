@@ -1048,13 +1048,14 @@ function buildAll() {
     addGroup('player_' + dir, src.slice());
   });
 
-  /* --- 怪物 --- */
+  /* --- 怪物 ---
+     巨魔 / 精英这两只"两关共用"的重型怪已经搬到 tools/brute-elite-art.js 重做
+     （站长点单：原来太可爱，要霸气 + 骨头外露 + 绿色粘液），
+     所以从下面的 humanoids 表里移除，改由 REDONE_MODELS 注入。 */
   const humanoids = [
     ['zombie', ZOMBIE_BODY, PAL_ZOMBIE, LEGS_A, LEGS_C],
     ['skeleton', SKELETON_BODY, PAL_SKELETON, LEGS_A, LEGS_B],
-    ['wraith', WRAITH_BODY, PAL_WRAITH, LEGS_B, LEGS_C],
-    ['brute', BRUTE_BODY, PAL_BRUTE, LEGS_B, LEGS_A],
-    ['elite', ELITE_BODY, PAL_ELITE, LEGS_C, LEGS_A]
+    ['wraith', WRAITH_BODY, PAL_WRAITH, LEGS_B, LEGS_C]
   ];
 
   humanoids.forEach(([id, body, pal, l0, l1]) => {
@@ -1063,6 +1064,18 @@ function buildAll() {
     addSprite(a, buildSprite(a, withLegs(body, l0), pal));
     addSprite(b, buildSprite(b, withLegs(body, l1), pal));
     addGroup(id, [a, b]);
+  });
+
+  /* --- 重做过的怪：形状由 tools/brute-elite-art.js 用代码构造（多帧）--- */
+  const bruteEliteArt = require('./brute-elite-art.js');
+  Object.keys(bruteEliteArt.models).forEach((id) => {
+    const def = bruteEliteArt.models[id];
+    const names = def.frames.map((rows, i) => {
+      const n = `${id}_${i}`;
+      addSprite(n, buildSprite(n, rows, def.pal));
+      return n;
+    });
+    addGroup(id, names);
   });
 
   addSprite('bat_0', buildSprite('bat_0', BAT_0, PAL_BAT));
