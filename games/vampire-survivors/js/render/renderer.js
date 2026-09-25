@@ -893,8 +893,10 @@
       var idx = list ? (Math.floor(r.walkPhase) % list.length) : 0;
       var name = list ? list[idx] : null;
 
-      // 奇数帧上浮，走路更有弹性
-      var bob = (idx % 2 === 1) ? -1 * PLAYER_SCALE : 0;
+      /* 奇数帧（跨步帧）上浮 1 像素，走路有弹性。
+         原来是 -1 * PLAYER_SCALE = 2px，配上"站立 ↔ 跨步"两姿态会显得一颠一颠；
+         1px 是这类俯视像素小人的常规幅度。 */
+      var bob = (idx % 2 === 1) ? -1 : 0;
 
       /* 无敌帧闪烁 */
       var alpha = 1;

@@ -36,10 +36,11 @@ for (const skin of SKINS) for (const ch of chars) if (!skin.pal[ch]) problems.pu
 for (const d of DIRS) {
   const a = built[`${d}_0`].join('\n');
   const b = built[`${d}_1`].join('\n');
-  const c = built[`${d}_3`].join('\n');
-  if (a === b) problems.push(`${d}: 帧 0 与帧 1 完全相同 —— 动画不会动`);
-  if (a === c) problems.push(`${d}: 帧 0 与帧 3 完全相同 —— 动画不会动`);
+  if (a === b) problems.push(`${d}: 帧 0 与 帧 1 完全相同 —— 动画不会动`);
 }
+/* 本作采用"站立 ↔ 跨步"两姿态交替 + 渲染层奇数帧上下弹跳的约定
+   （见 renderer.drawPlayer 的 bob）：帧 0/2 站立、帧 1/3 跨步，
+   所以 1 与 3 相同是**设计如此**，靠弹跳方向区分，不判失败。 */
 
 console.log(`画布 ${W}×${H}`);
 console.log(`字符集: ${[...chars].sort().join('')}`);

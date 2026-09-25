@@ -191,23 +191,25 @@ const PAL_ABYSS = {
   b: '#c2cba6',   // 蚀骨中
   c: '#e0e6c8',   // 蚀骨受光
   P: '#2b3a08',   // 孢子暗
-  p: '#7ba524'    // 孢子亮
+  p: '#7ba524',   // 孢子亮
+  w: '#b9c46a'    // 苍白酸黄（2026-09-25 加：孢子囊囊体 / 柠檬树冠 / 草尖，
+                  //   目的是把这一关的"一片绿"打散成黄绿相间）
 };
 
 /* 柠檬树：树冠占大头、挂三颗柠檬，树干细 —— 上次像长矛是树冠太小 */
 const DECO_LEMONTREE = [
   '....................',
-  '.......KGGLGGK......',
-  '.....KGGLLLLGGK.....',
-  '....KGLLyLLyLLGK....',
-  '...KGLLyYLLyYLLGK...',
-  '...KGLLLyLLLyLLGK...',
-  '..KGLLLLLLLLLLLLGK..',
-  '..KGLyYLLLLLLyYLGK..',
-  '..KGLLLyLLLLyLLLGK..',
-  '..KGGLLLLLLLLLLGGK..',
-  '...KGGLLLLLLLLGGK...',
-  '....KGGGLLLLGGGK....',
+  '.......KGGwGGK......',
+  '.....KGGwwwwGGK.....',
+  '....KGGwwLLwwGGK....',
+  '...KGGwwLLwwLLGGK...',
+  '...KGGwwLLwwLLGGK...',
+  '..KGGwwLLLLLLwwGGK..',
+  '..KGGwwLLLLLLwwGGK..',
+  '..KGGwwLLLLLLwwGGK..',
+  '..KGGGwwLLLLwwGGGK..',
+  '...KGGGwwwwwwGGGK...',
+  '....KGGGwwwwGGGK....',
   '.....KGGGGGGGGK.....',
   '.......KGgGK........',
   '.......KGgGK........',
@@ -242,26 +244,28 @@ const DECO_ACIDPOOL = [
   '..KGGGGGGGGGGGGGGK..'
 ];
 
-/* 孢子囊：鼓起的圆囊，顶端裂口喷孢子 */
+/* 孢子囊：鼓起的圆囊，顶端裂口喷孢子。
+   2026-09-25：站长反馈"绿色装饰太多"，囊体从绿改**苍白的酸白色**（用 w 槽），
+   只留底座的沼绿 —— 这样它在一片绿里是"亮点"而不是又一块绿。 */
 const DECO_SPOREPOD = [
   '....................',
   '....................',
   '....................',
   '....................',
-  '.......pp..pp.......',
-  '......p.p..p.p......',
-  '.......KppppK.......',
-  '......KpKPPKpK......',
-  '.....KpPPPPPPpK.....',
-  '....KpPPPllPPPpK....',
-  '....KpPPllllPPpK....',
-  '...KpPPPllllPPPpK...',
-  '...KpPPPPllPPPPpK...',
-  '...KpPPPPPPPPPPpK...',
-  '...KpPPPPPPPPPPpK...',
-  '...KpPPPPPPPPPPpK...',
-  '...KPPPPPPPPPPPPK...',
-  '...KPPPPPPPPPPPPK...',
+  '.......ww..ww.......',
+  '......w.w..w.w......',
+  '.......KwwwwK.......',
+  '......KwKwwKwK......',
+  '.....KwKwwwwKwK.....',
+  '....KwKwwllwwKwK....',
+  '....KwKwwllwwKwK....',
+  '...KwKwwwwwwwwKwK...',
+  '...KwKwwwwwwwwKwK...',
+  '...KwKwwwwwwwwKwK...',
+  '...KwKwwwwwwwwKwK...',
+  '...KwKwwwwwwwwKwK...',
+  '...KwKwwwwwwwwKwK...',
+  '...KwKwwwwwwwwKwK...',
   '...KGGGGGGGGGGGGK...',
   '..KggggggggggggggK..'
 ];
@@ -300,11 +304,11 @@ const DECO_ABYSSGRASS = [
   '....................',
   '....................',
   '....................',
-  '....KlK...KlK.......',
-  '...KlAK...KlAK......',
-  '...KlAK...KlAK......',
-  '..KlAAK..KlAAK......',
-  '..KlAAK..KlAAK......',
+  '....KwK...KwK.......',
+  '...KwAK...KwAK......',
+  '...KwAK...KwAK......',
+  '..KwAAK..KwAAK......',
+  '..KwAAK..KwAAK......',
   '..KAAAK..KAAAK......',
   '..KGGGGKKKGGGGK.....',
   '..KGGGGKKKGGGGK.....',
