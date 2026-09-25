@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>极速椭圆 · 3D 飞车竞速</title>
+<meta name="description" content="纯 Three.js 单文件 3D 竞速：10 条赛道 × 9 款车型、5 台 AI 对手、幽灵车对战，每赛道一张官方排行榜（看榜免登录）。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="极速椭圆 · 3D 飞车竞速">
+<meta property="og:description" content="打开就开的 3D 竞速：10 条赛道、幽灵车对战、每赛道一张官方榜。">
+<meta property="og:url" content="https://bobbychina.github.io/games/racing3d/">
+<meta property="og:image" content="https://bobbychina.github.io/og/home.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://bobbychina.github.io/og/home.png">
 <style>
   /* ===================== 基础 ===================== */
   *{box-sizing:border-box;margin:0;padding:0}
@@ -6434,7 +6444,19 @@ function boot() {
   fxInit(scene);
   G.lastT = 0;
   requestAnimationFrame(loop);
+  setTimeout(deepLinkFromHash, 0);   // 晚一拍: 等 uiInit/onlineBindUI 与首帧都完成
 }
+
+/* 深链: 游戏厅卡片的「🏆 排行榜」指到 /games/racing3d/#board, 这里把它接上.
+   没有 hash (单文件双击打开) 时什么都不做; 出任何问题都不影响游戏本体. */
+function deepLinkFromHash() {
+  try {
+    const h = String((window.location && window.location.hash) || '').toLowerCase();
+    if (h !== '#board') return;
+    if (typeof onlineTogglePanel === 'function') onlineTogglePanel(true);
+  } catch (e) { /* 深链失败静默 */ }
+}
+window.addEventListener('hashchange', deepLinkFromHash, false);
 
 /* 调试/自动化测试接口 */
 window.RACEGAME = {

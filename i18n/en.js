@@ -99,7 +99,7 @@ I18N.define('en', {
   'games.vs.badge3': 'Self-contained, no external calls',
   /* Racing — pure Three.js single file, with an official cloud leaderboard */
   'games.racing.title': '🏎️ Velocity Oval · 3D Racing',
-  'games.racing.desc': 'A pure Three.js single-file 3D racer: <b>6 tracks</b> (speed oval / triple hairpins / WRC dirt hills / city streets / desert dunes / alpine pass) × <b>9 cars</b>, against 5 AI drivers. Hold Space to drift; dirt throws dust and leaves tyre marks. Comes with an <b>official leaderboard</b> — one board per track, and viewing needs no login.',
+  'games.racing.desc': 'A pure Three.js single-file 3D racer: <b>10 tracks</b> (speed oval / triple hairpins / WRC dirt hills / city streets / desert dunes / alpine pass / jump canyon / skyway ramps / ice lake / kart) × <b>9 cars</b>, against 5 AI drivers. Hold Space to drift; dirt throws dust and leaves tyre marks. Comes with an <b>official leaderboard</b> — one board per track, and viewing needs no login.',
   'games.racing.badge1': 'Playable',
   'games.racing.badge3': 'Single file',
   'games.racing.badge4': 'Official leaderboard',
