@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>纯走路 · 梦核</title>
+<meta name="description" content="纯 canvas 手写射线渲染的第一人称梦核步行模拟：没有敌人、没有追逐、没有目标——只有走廊、灯、水声。26 个房间、8 种梦核分区，开在浏览器里，离线也能走。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="纯走路 · 梦核">
+<meta property="og:description" content="没有敌人、没有追逐、没有目标，只有走廊、灯、水声，和你自己的脚步。">
+<meta property="og:url" content="https://bobbychina.github.io/games/dreamcore/">
+<meta property="og:image" content="https://bobbychina.github.io/og/home.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{ --ink:#e9e4d7; --dim:#9a948a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#040507;color:var(--ink);
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased; user-select:none}
+  #view{position:fixed;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;cursor:none;touch-action:none}
+  .ui{position:fixed;inset:0;pointer-events:none;z-index:5}
+  #hud{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 20px;
+    font-size:13px;letter-spacing:.14em;opacity:.7;text-shadow:0 0 14px rgba(0,0,0,.95)}
+  #hud .z{font-size:15px;letter-spacing:.22em}
+  #hud .r{text-align:right;line-height:1.7}
+  #hint{position:fixed;left:50%;bottom:6.5vh;transform:translateX(-50%);font-size:13px;letter-spacing:.18em;
+    opacity:0;transition:opacity 1.6s ease;text-shadow:0 0 12px #000;white-space:nowrap;color:#cfc8ba}
+  #hint.on{opacity:.62}
+  #flash{position:fixed;inset:0;background:#05060a;opacity:0;pointer-events:none;z-index:6}
+  #frame{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .4s ease;
+    box-shadow:inset 0 0 0 14px #0b0b0d, inset 0 0 90px 30px rgba(0,0,0,.85)}
+  body.photo #frame{opacity:1}
+  body.photo #hud{opacity:0;transition:opacity .4s ease}
+
+  #title{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:22px;text-align:center;padding:6vw;cursor:pointer;
+    background:radial-gradient(120% 90% at 50% 40%, #171614 0%, #0a0a0c 45%, #040405 100%)}
+  #title h1{font-size:clamp(30px,7vw,64px);font-weight:600;letter-spacing:.34em;text-indent:.34em;
+    color:#efe8d6;text-shadow:0 0 40px rgba(255,226,160,.18)}
+  #title .sub{font-size:clamp(12px,1.5vw,15px);letter-spacing:.24em;color:#b8ae9b;line-height:2.1}
+  #title .quote{font-size:clamp(11px,1.3vw,13px);letter-spacing:.16em;color:#7e7768;line-height:2;max-width:38em}
+  #title .keys{font-size:12px;letter-spacing:.2em;color:#8d8676;line-height:2.2;border-top:1px solid #22201c;padding-top:16px}
+  #title .go{font-size:13px;letter-spacing:.4em;color:#e7dcbf;animation:pulse 3.4s ease-in-out infinite}
+  #title b{color:#e2d6b4;font-weight:600}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:.95}}
+  #err{position:fixed;left:8px;bottom:8px;font-size:11px;color:#ff8a8a;z-index:20;white-space:pre-wrap;max-width:60vw}
+</style>
+<script src="/beta-notice.js" data-version="v4.0.0-beta" defer></script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="frame"></div>
+<div id="flash"></div>
+<div class="ui"><div id="hud"><div class="z" id="zoneName">黄墙走廊</div><div class="r" id="stats">步数 0<br/>梦中 00:00</div></div></div>
+<div id="hint">WASD 走路 · 鼠标转视角 · Shift 慢走 · P 拍照模式 · O 存下一帧</div>
+<div id="title">
+  <h1>纯 走 路</h1>
+  <div class="sub">梦核 · 步行模拟<br/>没有敌人 · 没有追逐 · 没有目标<br/>只有走廊、灯、水声，和你自己的脚步</div>
+  <div class="quote">「你不觉得这种逛风景的、心理恐怖的，非常惬意吗。」<br/>—— 送给 CarlinNearl</div>
+  <div class="keys">W A S D 走路 / 方向键也行 &nbsp;·&nbsp; 鼠标 或 ← → 转视角<br/>Shift 慢走 &nbsp;·&nbsp; P 拍照模式 &nbsp;·&nbsp; O 存图 &nbsp;·&nbsp; M 静音 &nbsp;·&nbsp; Esc 松手</div>
+  <div class="go">点 击 开 始 做 梦</div>
+</div>
+<div id="err"></div>
+
+<script defer>
+(function(){
+'use strict';
+/* ============================ 0. 基础工具 ============================ */
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const errBox = $('#err');
+const ERRS = [];
+function logErr(e){ ERRS.push(String(e)); if(ERRS.length<4) errBox.textContent = ERRS.join('\n'); }
+window.addEventListener('error', e => logErr(e.message));
+window.addEventListener('unhandledrejection', e => logErr(e.reason));
+function mulberry32(a){ return function(){ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ============================ 1. 梦核分区 ============================ */
+const ZONES = [
+  {name:'黄墙走廊', tint:[1.06,0.98,0.80], fog:'#0b0906'},
+  {name:'池核',     tint:[0.82,0.98,1.10], fog:'#04080c'},
+  {name:'办公室',   tint:[1.02,1.00,0.92], fog:'#0a0a08'},
+  {name:'老房子',   tint:[1.10,0.94,0.74], fog:'#0c0805'},
+  {name:'地下车库', tint:[0.92,0.94,0.98], fog:'#060708'},
+  {name:'白瓷间',   tint:[0.96,1.04,1.04], fog:'#070a0a'},
+  {name:'空教室',   tint:[0.94,1.02,0.90], fog:'#070906'},
+  {name:'旧病房',   tint:[0.92,1.02,0.98], fog:'#060907'}
+];
+
+/* ============================ 2. 贴图工坊 ============================ */
+const TEX = 64;
+function pack(d){
+  const out = new Uint32Array(TEX*TEX);
+  for(let i=0;i<out.length;i++){
+    // 高字节必须保留真实 alpha：精灵靠它做镂空，写死 0xFF 会让道具变成黑方块
+    out[i] = (d[i*4+3]<<24) | (d[i*4+2]<<16) | (d[i*4+1]<<8) | d[i*4];
+  }
+  return out;
+}
+function fromCanvas(cv){ return pack(cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data); }
+function newCV(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+function noise(ctx,S,alpha,seed){
+  const R=mulberry32(seed||1); const img=ctx.getImageData(0,0,S,S); const d=img.data;
+  for(let i=0;i<S*S;i++){
+    const n=(R()*2-1)*255*alpha;
+    d[i*4]=clamp(d[i*4]+n,0,255); d[i*4+1]=clamp(d[i*4+1]+n,0,255); d[i*4+2]=clamp(d[i*4+2]+n,0,255);
+  }
+  ctx.putImageData(img,0,0);
+}
+function stains(ctx,S,seed,color,n){
+  const R=mulberry32(seed);
+  for(let i=0;i<n;i++){
+    const x=R()*S, y=R()*S, r=4+R()*16;
+    const g=ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+  }
+}
+// —— 墙面 ——
+function wallTex(z){
+  const cv=newCV(TEX,TEX), c=cv.getContext('2d');
+  if(z===0){ // 黄壁纸 + 踢脚
+    c.fillStyle='#a08a4c'; c.fillRect(0,0,TEX,TEX);
+    for(let x=0;x<TEX;x+=8){ c.fillStyle='rgba(134,113,58,.85)'; c.fillRect(x+2,0,2,TEX); c.fillStyle='rgba(206,186,124,.30)'; c.fillRect(x+5,0,1,TEX); }
+    for(let y=0;y<TEX;y+=16){ c.fillStyle='rgba(60,48,20,.14)'; c.fillRect(0,y,TEX,2); }
+    stains(c,TEX,11,'rgba(40,30,10,.35)',10);
+    c.fillStyle='#4a3f24'; c.fillRect(0,TEX-7,TEX,7); c.fillStyle='rgba(255,230,160,.10)'; c.fillRect(0,TEX-8,TEX,1);
+  } else if(z===1){ // 池核瓷砖
+    c.fillStyle='#cfe4e4'; c.fillRect(0,0,TEX,TEX);
+    for(let y=0;y<TEX;y+=16) for(let x=0;x<TEX;x+=16){
+      c.fillStyle = ((x/16+y/16)%2)?'#bcd8da':'#d6eaea'; c.fillRect(x+1,y+1,14,14);
+      c.fillStyle='rgba(140,190,196,.55)'; c.fillRect(x+1,y+13,14,1);
+    }
+    stains(c,TEX,22,'rgba(70,120,120,.22)',8);
+    c.fillStyle='rgba(255,255,255,.06)'; c.fillRect(0,0,TEX,10);
+  } else if(z===2){ // 办公室隔断
+    c.fillStyle='#c9c3ac'; c.fillRect(0,0,TEX,TEX);
+    c.fillStyle='#8d8871'; for(let x=0;x<TEX;x+=21) c.fillRect(x,0,2,TEX);
+    c.fillStyle='#6f6a58'; c.fillRect(0,20,TEX,2);
+    for(let i=0;i<60;i++){ const R=mulberry32(31+i); c.fillStyle='rgba(90,86,70,.10)'; c.fillRect((R()*TEX)|0,(R()*TEX)|0,2,1); }
+    noise(c,TEX,0.03,3);
+  } else if(z===3){ // 老房子木墙
+    c.fillStyle='#6f5436'; c.fillRect(0,0,TEX,TEX);
+    for(let x=0;x<TEX;x+=16){ c.fillStyle='rgba(40,26,12,.5)'; c.fillRect(x,0,1,TEX); c.fillStyle='rgba(150,116,74,.18)'; c.fillRect(x+1,0,2,TEX); }
+    for(let i=0;i<18;i++){ const R=mulberry32(41+i); c.fillStyle='rgba(30,20,8,.25)'; c.fillRect(0,(R()*TEX)|0,TEX,1); }
+    stains(c,TEX,44,'rgba(30,18,6,.4)',6);
+  } else if(z===4){ // 车库混凝土
+    c.fillStyle='#8b8d8e'; c.fillRect(0,0,TEX,TEX);
+    noise(c,TEX,0.09,5);
+    stains(c,TEX,55,'rgba(20,20,22,.34)',9);
+    c.fillStyle='rgba(255,255,255,.05)'; c.fillRect(0,10,TEX,1); c.fillRect(0,12,TEX,1);
+  } else if(z===5){ // 白瓷
+    c.fillStyle='#e6ecec'; c.fillRect(0,0,TEX,TEX);
+    for(let y=0;y<TEX;y+=8) for(let x=0;x<TEX;x+=8){
+      c.fillStyle='rgba(180,196,196,.9)'; c.fillRect(x,y,8,1); c.fillRect(x,y,1,8);
+      c.fillStyle='rgba(255,255,255,.5)'; c.fillRect(x+1,y+1,6,1);
+    }
+    stains(c,TEX,66,'rgba(90,110,90,.25)',12);
+  } else if(z===6){ // 教室：绿墙裙
+    c.fillStyle='#dcd9cb'; c.fillRect(0,0,TEX,TEX);
+    c.fillStyle='#5c7a63'; c.fillRect(0,34,TEX,TEX-34);
+    c.fillStyle='#3f5946'; c.fillRect(0,34,TEX,2);
+    noise(c,TEX,0.04,7); stains(c,TEX,77,'rgba(90,80,50,.22)',8);
+  } else { // 病房
+    c.fillStyle='#dfe8e0'; c.fillRect(0,0,TEX,TEX);
+    c.fillStyle='#a9c6b6'; c.fillRect(0,0,TEX,20);
+    c.fillStyle='rgba(120,150,130,.55)'; c.fillRect(0,20,TEX,1);
+    noise(c,TEX,0.035,8); stains(c,TEX,88,'rgba(100,120,110,.25)',9);
+  }
+  return fromCanvas(cv);
+}
+// —— 地面 ——
+const WATER_Z = 1;
+function floorTex(z){
+  const cv=newCV(TEX,TEX), c=cv.getContext('2d');
+  if(z===0){ // 暗红地毯 + 暗纹
+    c.fillStyle='#5c2c27'; c.fillRect(0,0,TEX,TEX);
+    for(let y=0;y<TEX;y+=8) for(let x=0;x<TEX;x+=8){
+      c.fillStyle=((x/8+y/8)%2)?'rgba(146,74,54,.22)':'rgba(38,18,15,.25)';
+      c.beginPath(); c.arc(x+4,y+4,2.4,0,7); c.fill();
+    }
+    noise(c,TEX,0.05,101);
+  } else if(z===1){ // 水
+    c.fillStyle='#1d6f86'; c.fillRect(0,0,TEX,TEX);
+    for(let y=0;y<TEX;y+=4){
+      c.fillStyle='rgba(150,235,255,.16)'; c.beginPath();
+      for(let x=0;x<=TEX;x+=4) c.lineTo(x, y+Math.sin((x+y)*0.35)*2.6);
+      c.lineTo(TEX,y+4); c.lineTo(0,y+4); c.closePath(); c.fill();
+    }
+    noise(c,TEX,0.03,102);
+  } else if(z===2){ c.fillStyle='#6d6a63'; c.fillRect(0,0,TEX,TEX); noise(c,TEX,0.11,103);
+    for(let i=0;i<200;i++){ const R=mulberry32(200+i); c.fillStyle='rgba(40,40,38,.35)'; c.fillRect((R()*TEX)|0,(R()*TEX)|0,1,1); }
+  } else if(z===3){ c.fillStyle='#6b4a2c'; c.fillRect(0,0,TEX,TEX);
+    for(let y=0;y<TEX;y+=8){ c.fillStyle='rgba(40,24,10,.45)'; c.fillRect(0,y,TEX,1); c.fillStyle='rgba(150,110,70,.12)'; c.fillRect(0,y+1,TEX,1); }
+    noise(c,TEX,0.05,104);
+  } else if(z===4){ c.fillStyle='#787a7b'; c.fillRect(0,0,TEX,TEX); noise(c,TEX,0.09,105);
+    stains(c,TEX,115,'rgba(15,15,18,.5)',6);
+    c.fillStyle='rgba(230,230,220,.14)'; c.fillRect(0,30,TEX,2); c.fillRect(0,31,TEX,1);
+  } else if(z===5){ c.fillStyle='#cfd8d6'; c.fillRect(0,0,TEX,TEX);
+    for(let y=0;y<TEX;y+=16) for(let x=0;x<TEX;x+=16){ c.fillStyle='rgba(160,178,176,.8)'; c.fillRect(x,y,16,1); c.fillRect(x,y,1,16); }
+    stains(c,TEX,116,'rgba(80,100,90,.28)',8);
+  } else if(z===6){ c.fillStyle='#9a9484'; c.fillRect(0,0,TEX,TEX); noise(c,TEX,0.08,106);
+    for(let i=0;i<70;i++){ const R=mulberry32(300+i); c.fillStyle=['rgba(200,190,160,.5)','rgba(120,140,160,.45)','rgba(150,110,110,.4)'][i%3];
+      c.fillRect((R()*TEX)|0,(R()*TEX)|0,2,2); }
+  } else { c.fillStyle='#b9c3ba'; c.fillRect(0,0,TEX,TEX);
+    for(let y=0;y<TEX;y+=8){ c.fillStyle='rgba(150,165,155,.5)'; c.fillRect(0,y,TEX,1); }
+    noise(c,TEX,0.04,107);
+  }
+  return fromCanvas(cv);
+}
+// —— 天花板 ——
+function ceilTex(z){
+  const cv=newCV(TEX,TEX), c=cv.getContext('2d');
+  if(z===2){ c.fillStyle='#cfcab8'; c.fillRect(0,0,TEX,TEX);
+    c.strokeStyle='#9a958a'; c.lineWidth=1;
+    for(let i=0;i<=TEX;i+=16){ c.beginPath(); c.moveTo(i,0); c.lineTo(i,TEX); c.stroke(); c.beginPath(); c.moveTo(0,i); c.lineTo(TEX,i); c.stroke(); }
+    c.fillStyle='#f2efdd'; c.fillRect(24,24,16,6);
+    stains(c,TEX,121,'rgba(120,110,80,.30)',6);
+  } else if(z===4){ c.fillStyle='#4c4e50'; c.fillRect(0,0,TEX,TEX); noise(c,TEX,0.07,122);
+    c.fillStyle='#3a3c3e'; c.fillRect(6,0,5,TEX); c.fillStyle='#5c5e60'; c.fillRect(6,0,1,TEX);
+    c.fillStyle='#333537'; c.fillRect(40,0,3,TEX);
+  } else if(z===1){ c.fillStyle='#bcd6da'; c.fillRect(0,0,TEX,TEX);
+    for(let i=0;i<40;i++){ const R=mulberry32(400+i); c.fillStyle='rgba(255,255,255,.25)'; c.fillRect((R()*TEX)|0,(R()*TEX)|0,10,2); }
+  } else {
+    c.fillStyle= z===0?'#c6bfa4' : z===3?'#cbc4b4' : '#d3d6cf'; c.fillRect(0,0,TEX,TEX);
+    noise(c,TEX,0.05,z*13+9); stains(c,TEX,z*17+3,'rgba(90,84,60,.28)',5);
+    c.fillStyle='rgba(255,255,255,.10)'; c.fillRect(0,28,TEX,2);
+  }
+  return fromCanvas(cv);
+}
+// —— 门板 ——
+function doorTex(){
+  const cv=newCV(TEX,TEX), c=cv.getContext('2d');
+  c.fillStyle='#5a3f2a'; c.fillRect(0,0,TEX,TEX);
+  c.fillStyle='#3d2a1c'; c.fillRect(6,6,52,22); c.fillRect(6,34,52,24);
+  c.fillStyle='rgba(160,120,80,.22)'; c.fillRect(6,6,52,1); c.fillRect(6,34,52,1);
+  c.fillStyle='#c9b06a'; c.beginPath(); c.arc(56,32,2.2,0,7); c.fill();
+  noise(c,TEX,0.04,131);
+  return fromCanvas(cv);
+}
+/* —— 精灵（可带透明） —— */
+function spriteTex(kind){
+  const cv=newCV(TEX,TEX), c=cv.getContext('2d');
+  c.clearRect(0,0,TEX,TEX);
+  if(kind==='chair'){
+    c.fillStyle='#3a3129'; c.fillRect(20,26,24,4); c.fillRect(22,30,3,20); c.fillRect(39,30,3,20);
+    c.fillStyle='#2e2720'; c.fillRect(20,10,24,16);
+  } else if(kind==='lamp'){
+    c.fillStyle='#d8c38a'; c.beginPath(); c.moveTo(18,22); c.lineTo(46,22); c.lineTo(40,8); c.lineTo(24,8); c.closePath(); c.fill();
+    c.fillStyle='rgba(255,225,150,.55)'; c.beginPath(); c.moveTo(20,22); c.lineTo(44,22); c.lineTo(38,30); c.lineTo(26,30); c.closePath(); c.fill();
+    c.fillStyle='#3a352c'; c.fillRect(31,22,2,28); c.fillRect(22,50,20,3);
+  } else if(kind==='plant'){
+    c.fillStyle='#5b4630'; c.fillRect(22,42,20,14);
+    c.fillStyle='#2f5a38';
+    for(let i=0;i<7;i++){ const a=-Math.PI/2+(i-3)*0.34; c.beginPath(); c.moveTo(32,42);
+      c.quadraticCurveTo(32+Math.cos(a)*16,42+Math.sin(a)*26,32+Math.cos(a)*24,42+Math.sin(a)*30); c.lineWidth=3; c.strokeStyle='#2f5a38'; c.stroke(); }
+  } else if(kind==='tv'){
+    c.fillStyle='#22201e'; c.fillRect(12,16,40,32);
+    c.fillStyle='#6f7a72'; c.fillRect(16,20,32,22);
+    const R=mulberry32(7); for(let i=0;i<260;i++){ const v=(R()*90+120)|0; c.fillStyle='rgba('+v+','+v+','+v+',.5)'; c.fillRect(16+((R()*32)|0),20+((R()*22)|0),1,1); }
+    c.fillStyle='#141311'; c.fillRect(16,44,32,3);
+  } else if(kind==='crate'){
+    c.fillStyle='#7a5c34'; c.fillRect(16,26,32,30);
+    c.fillStyle='rgba(40,26,12,.6)'; c.fillRect(16,38,32,3); c.strokeStyle='rgba(40,26,12,.7)'; c.lineWidth=2; c.strokeRect(16,26,32,30);
+  } else if(kind==='bucket'){
+    c.fillStyle='#4c5a63'; c.beginPath(); c.moveTo(22,28); c.lineTo(42,28); c.lineTo(38,54); c.lineTo(26,54); c.closePath(); c.fill();
+    c.fillStyle='rgba(255,255,255,.18)'; c.fillRect(24,30,4,22);
+  } else if(kind==='ladder'){
+    c.strokeStyle='#c9ccd0'; c.lineWidth=2;
+    c.beginPath(); c.moveTo(24,4); c.lineTo(24,52); c.moveTo(40,4); c.lineTo(40,52); c.stroke();
+    for(let y=10;y<52;y+=9){ c.beginPath(); c.moveTo(24,y); c.lineTo(40,y); c.stroke(); }
+  } else if(kind==='figure'){
+    c.fillStyle='rgba(8,8,10,.92)';
+    c.beginPath(); c.arc(32,14,7,0,7); c.fill();
+    c.beginPath(); c.moveTo(25,22); c.lineTo(39,22); c.lineTo(43,50); c.lineTo(21,50); c.closePath(); c.fill();
+    c.fillStyle='rgba(8,8,10,.75)'; c.fillRect(26,50,5,12); c.fillRect(34,50,5,12);
+  } else if(kind==='poster'){
+    c.fillStyle='#d9d2b8'; c.fillRect(12,12,40,40);
+    c.fillStyle='#2b3a4a'; c.fillRect(15,15,34,20);
+    c.fillStyle='#e8e2cc'; c.font='bold 12px system-ui,sans-serif'; c.textAlign='center';
+    c.fillText('别回头', 32, 46); c.font='9px system-ui,sans-serif'; c.fillText('慢慢走', 32, 30);
+  } else if(kind==='poster2'){
+    c.fillStyle='#c8b58e'; c.fillRect(10,14,44,36);
+    c.fillStyle='#5a4a30'; c.font='bold 11px system-ui,sans-serif'; c.textAlign='center';
+    c.fillText('回 家 的 路', 32, 30); c.fillText('还 有 很 远', 32, 44);
+  } else if(kind==='clock'){
+    c.fillStyle='#22201d'; c.beginPath(); c.arc(32,32,18,0,7); c.fill();
+    c.fillStyle='#e6e0cb'; c.beginPath(); c.arc(32,32,15,0,7); c.fill();
+    c.strokeStyle='#2a2824'; c.lineWidth=2; c.beginPath(); c.moveTo(32,32); c.lineTo(32,22); c.stroke();
+    c.beginPath(); c.moveTo(32,32); c.lineTo(41,35); c.stroke();
+  } else { // 'sink'
+    c.fillStyle='#e2e6e4'; c.fillRect(18,30,28,14);
+    c.fillStyle='#c3cac8'; c.fillRect(22,33,20,8);
+    c.fillStyle='#b8bfbd'; c.fillRect(30,20,4,10);
+  }
+  return fromCanvas(cv);
+}
+
+/* ============================ 3. 地图生成 ============================ */
+const CELL = 26, GW = 6, GH = 6, MW = CELL*GW, MH = CELL*GH;
+let wall, floorM, ceilM, lightM, roomOf, ROOMS, PROPS, SEED = 20260214;
+
+function buildWorld(seed){
+  const R = mulberry32(seed>>>0);
+  wall = new Uint8Array(MW*MH); floorM = new Uint8Array(MW*MH); ceilM = new Uint8Array(MW*MH);
+  lightM = new Uint8Array(MW*MH); roomOf = new Int16Array(MW*MH).fill(-1);
+  ROOMS = []; PROPS = [];
+  const idx = (x,y)=> y*MW+x;
+
+  // 3.1 随机游走铺设房间链（保证房间之间互相连通）
+  const placed = new Set(); const chain = [];
+  let cx = 3, cy = 2;
+  for(let step=0; step<26; step++){
+    const k = cy*GW+cx;
+    if(!placed.has(k)){ placed.add(k); chain.push([cx,cy]); }
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]].map(d=>({d,k:R()}));
+    dirs.sort((a,b)=>a.k-b.k);
+    let moved=false;
+    for(const o of dirs){
+      const nx=cx+o.d[0], ny=cy+o.d[1];
+      if(nx<0||ny<0||nx>=GW||ny>=GH) continue;
+      if(placed.has(ny*GW+nx)) continue;
+      cx=nx; cy=ny; moved=true; break;
+    }
+    if(!moved){ // 找任意未铺格子继续
+      const free=[]; for(let y=0;y<GH;y++) for(let x=0;x<GW;x++) if(!placed.has(y*GW+x)) free.push([x,y]);
+      if(!free.length) break;
+      const f=free[(R()*free.length)|0]; cx=f[0]; cy=f[1];
+    }
+  }
+  // 3.2 逐房填建筑
+  const zoneOf = new Map();
+  chain.forEach((n,i)=>{
+    let z = i===0 ? 0 : (R()*ZONES.length)|0;
+    if(i>0 && zoneOf.get(chain[i-1][0]+','+chain[i-1][1])===z) z = (z+1+((R()*3)|0))%ZONES.length;
+    zoneOf.set(n[0]+','+n[1], z);
+  });
+  chain.forEach(([gx,gy])=>{
+    const z = zoneOf.get(gx+','+gy);
+    const x0=gx*CELL, y0=gy*CELL, x1=x0+CELL-1, y1=y0+CELL-1;
+    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+      const i=idx(x,y);
+      // 内外墙：周长一格为墙，其余为空
+      if(x===x0||y===y0||x===x1||y===y1){ wall[i]=z+1; }
+      floorM[i]=z; ceilM[i]=z; roomOf[i]=ROOMS.length;
+    }
+    const r = {gx,gy,zone:z,x0:x0+1,y0:y0+1,x1:x1-1,y1:y1-1,baseLight:1,curLight:1,flicker:R()<0.18,dark:false};
+    const lv = R()<0.62 ? 1 : (R()<0.7 ? 0.92 : 0.85);
+    r.baseLight = lv;
+    ROOMS.push(r);
+    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) lightM[idx(x,y)] = (lv*255)|0;
+  });
+  // 3.3 开门（相邻房间之间打通 2 格厚墙）
+  const openCell = (x,y)=>{
+    const gx=(x/CELL)|0, gy=(y/CELL)|0, z=zoneOf.get(gx+','+gy);
+    if(z===undefined) return;
+    const i=idx(x,y); wall[i]=0; floorM[i]=z; ceilM[i]=z;
+  };
+  const setWallTex = (x,y,t)=>{ const i=idx(x,y); if(i>=0&&i<wall.length&&x>=0&&y>=0&&x<MW&&y<MH) wall[i]=t; };
+  const carved = new Set();
+  chain.forEach(([gx,gy])=>{
+    [[1,0],[0,1]].forEach(([dx,dy])=>{
+      const nx=gx+dx, ny=gy+dy;
+      if(nx>=GW||ny>=GH) return;
+      if(!placed.has(ny*GW+nx)) return;
+      const key = gx+','+gy+'|'+nx+','+ny;
+      if(carved.has(key)) return; carved.add(key);
+      if(dy===1){ // 上下相邻 → 在 y 方向打通
+        const yA = gy*CELL+CELL-1, yB = gy*CELL+CELL;
+        const xm = gx*CELL+((CELL/2)|0);
+        for(let x=xm-1;x<=xm+1;x++){ openCell(x,yA); openCell(x,yB); }
+        for(let x=xm-2;x<=xm+2;x++) if(x===xm-2||x===xm+2){ setWallTex(x,yA,9); setWallTex(x,yB,9); }
+      } else {     // 左右相邻 → 在 x 方向打通
+        const xA = gx*CELL+CELL-1, xB = gx*CELL+CELL;
+        const ym = gy*CELL+((CELL/2)|0);
+        for(let y=ym-1;y<=ym+1;y++){ openCell(xA,y); openCell(xB,y); }
+        for(let y=ym-2;y<=ym+2;y++) if(y===ym-2||y===ym+2){ setWallTex(xA,y,9); setWallTex(xB,y,9); }
+      }
+    });
+  });
+  // 3.4 室内隔断（不堵门）
+  ROOMS.forEach(r=>{
+    if(R()<0.45) return;
+    const horiz = R()<0.5;
+    const len = 3+((R()*6)|0);
+    const sx = r.x0+3+((R()*(r.x1-r.x0-6-len))|0);
+    const sy = r.y0+3+((R()*(r.y1-r.y0-6-len))|0);
+    for(let k=0;k<len;k++){
+      const x = horiz ? sx+k : sx, y = horiz ? sy : sy+k;
+      if(x<=r.x0||y<=r.y0||x>=r.x1||y>=r.y1) continue;
+      wall[idx(x,y)] = r.zone+1;
+    }
+  });
+  // 3.5 摆道具
+  const kinds = [
+    ['chair','lamp','crate','poster','tv','clock'],
+    ['ladder','bucket','chair','plant'],
+    ['chair','crate','tv','poster2','clock'],
+    ['lamp','chair','crate','poster2'],
+    ['bucket','crate','chair'],
+    ['sink','bucket','plant'],
+    ['chair','poster','clock'],
+    ['chair','bucket','plant','clock']
+  ];
+  ROOMS.forEach(r=>{
+    const list = kinds[r.zone];
+    const n = 2+((R()*3)|0);
+    for(let k=0;k<n;k++){
+      const x = r.x0+2+((R()*(r.x1-r.x0-4))|0);
+      const y = r.y0+2+((R()*(r.y1-r.y0-4))|0);
+      const i = idx(x,y);
+      if(wall[i]) continue;
+      if(Math.abs(x-(r.x0+r.x1)/2)<1.5 && Math.abs(y-(r.y0+r.y1)/2)<1.5) continue; // 别挡玩家出生点
+      let clash=false;
+      for(const p of PROPS) if(Math.abs(p.x-x)<1.6 && Math.abs(p.y-y)<1.6) clash=true;
+      if(clash) continue;
+      PROPS.push({x:x+0.5, y:y+0.5, kind:list[(R()*list.length)|0], ttl:Infinity, a:1});
+    }
+    // 池核房间：地面换成水
+    if(r.zone===WATER_Z){ /* 水由 zone 决定，无需改贴图 */ }
+  });
+  // 3.6 玩家出生：第一个房间中央
+  const s = ROOMS[0];
+  const p0 = safePlace((s.x0+s.x1)/2, (s.y0+s.y1)/2);
+  player.x = p0[0]; player.y = p0[1];
+  player.a = 0.6; worldSeed = seed;
+}
+function roomAt(x,y){
+  const gx=(x/CELL)|0, gy=(y/CELL)|0;
+  if(gx<0||gy<0||gx>=GW||gy>=GH) return null;
+  const i = roomOf[gy*CELL*MW + gx*CELL];
+  return i<0?null:ROOMS[i];
+}
+// 落点可能被室内隔断占据 → 从落点向外螺旋找最近的可站格，避免卡在墙里
+function safePlace(x,y){
+  if(!blocked(x,y)) return [x,y];
+  for(let r=1;r<14;r++){
+    for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+      const nx=x+dx, ny=y+dy;
+      if(nx>0&&ny>0&&nx<MW-1&&ny<MH-1&&!blocked(nx,ny)) return [nx,ny];
+    }
+  }
+  return [x,y];
+}
+function blocked(x,y){
+  const r=0.3;
+  for(let k=0;k<4;k++){
+    const ox = (k===0||k===3) ? -r : r, oy = (k<2) ? -r : r;
+    const cx=(x+ox)|0, cy=(y+oy)|0;
+    if(cx<0||cy<0||cx>=MW||cy>=MH) return true;
+    if(wall[cy*MW+cx]) return true;
+  }
+  return false;
+}
+
+/* ============================ 4. 状态 ============================ */
+const player = {x:2,y:2,a:0.6,step:0,travel:0,breath:0};
+let worldSeed = SEED;
+const key = Object.create(null);
+let photoMode=false, muted=false, started=false;
+let bobT=0, bobY=0, hb=0, timeS=0, dreamT=0, stepCount=0;
+let flick=1, flickT=0;
+let transition = null; // {t,dur,fn,done}
+let spritesDyn = [];
+
+/* ============================ 5. 音频（全程序化，无素材） ============================ */
+let AC=null, master=null, droneGain=null, rainGain=null, humGain=null, muted0=true;
+function initAudio(){
+  try{
+    AC = new (window.AudioContext||window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value=0.0; master.connect(AC.destination);
+    // 低音 drone
+    droneGain = AC.createGain(); droneGain.gain.value=0.5;
+    const lp = AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420; lp.Q.value=0.6;
+    droneGain.connect(lp); lp.connect(master);
+    [55, 82.5, 110.3, 164.8].forEach((f,i)=>{
+      const o=AC.createOscillator(); o.type = i%2?'triangle':'sine'; o.frequency.value=f;
+      const g=AC.createGain(); g.gain.value = 0.16/(i+1);
+      const lfo=AC.createOscillator(); lfo.frequency.value=0.03+i*0.017;
+      const lg=AC.createGain(); lg.gain.value=0.06/(i+1);
+      lfo.connect(lg); lg.connect(g.gain);
+      o.connect(g); g.connect(droneGain); o.start(); lfo.start();
+    });
+    // 雨 / 空气噪声
+    const len = AC.sampleRate*3, buf = AC.createBuffer(1, len, AC.sampleRate), dd = buf.getChannelData(0);
+    for(let i=0;i<len;i++) dd[i] = (Math.random()*2-1)*0.5;
+    const src = AC.createBufferSource(); src.buffer=buf; src.loop=true;
+    const bp = AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=760; bp.Q.value=0.5;
+    rainGain = AC.createGain(); rainGain.gain.value=0.16;
+    src.connect(bp); bp.connect(rainGain); rainGain.connect(master); src.start();
+    // 灯管嗡鸣
+    const hz=AC.createOscillator(); hz.type='sawtooth'; hz.frequency.value=118;
+    const hlp=AC.createBiquadFilter(); hlp.type='lowpass'; hlp.frequency.value=900;
+    humGain=AC.createGain(); humGain.gain.value=0.0;
+    hz.connect(hlp); hlp.connect(humGain); humGain.connect(master); hz.start();
+    AC.resume();
+  }catch(e){ logErr('audio: '+e); }
+}
+function fadeIn(){ if(!AC) return; master.gain.cancelScheduledValues(AC.currentTime); master.gain.linearRampToValueAtTime(muted?0:0.55, AC.currentTime+4); }
+function tone(freq, dur, gain, type, slideTo){
+  if(!AC||muted) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type||'sine'; o.frequency.value=freq;
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, AC.currentTime+dur);
+  g.gain.value=0; g.gain.linearRampToValueAtTime(gain, AC.currentTime+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime+dur);
+  o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime+dur+0.05);
+}
+function noiseBurst(dur, gain, freq, q){
+  if(!AC||muted) return;
+  const len=(AC.sampleRate*dur)|0, b=AC.createBuffer(1,len,AC.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+  const s=AC.createBufferSource(); s.buffer=b;
+  const f=AC.createBiquadFilter(); f.type='bandpass'; f.frequency.value=freq||300; f.Q.value=q||0.9;
+  const g=AC.createGain(); g.gain.value=gain||0.2;
+  s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+function sfxStep(){ noiseBurst(0.16, 0.16, 220+Math.random()*90, 1.2); }
+function sfxDoor(){ tone(58, 0.9, 0.10, 'sine', 42); noiseBurst(0.5, 0.07, 180, 1.6); }
+function sfxPhone(){ for(let i=0;i<4;i++) setTimeout(()=>{ tone(660,0.16,0.045,'sine'); setTimeout(()=>tone(560,0.2,0.04,'sine'),180); }, i*900); }
+function sfxTinnitus(){ tone(4300, 7, 0.012, 'sine'); tone(2150, 6, 0.006, 'sine'); }
+function sfxChime(){ tone(523.25, 2.4, 0.05, 'triangle'); tone(659.25, 2.0, 0.03, 'sine'); }
+function sfxWater(){ noiseBurst(0.5, 0.05, 900, 3.2); }
+function sfxKnock(){ for(let i=0;i<3;i++) setTimeout(()=>tone(95,0.28,0.14,'sine',72), i*330); }
+
+/* ============================ 6. 渲染器 ============================ */
+const view = $('#view'), dctx = view.getContext('2d');
+const fbc = newCV(2,2), fctx = fbc.getContext('2d');
+let IW=320, IH=180, fimg=null, buf=null, rowShade=new Int16Array(1), zBuf=new Float32Array(1);
+const WALLT = ZONES.map((_,z)=>wallTex(z));
+const FLOORT = ZONES.map((_,z)=>floorTex(z));
+const CEILT  = ZONES.map((_,z)=>ceilTex(z));
+const DOORT  = doorTex();
+const SPRT = {}; ['chair','lamp','plant','tv','crate','bucket','ladder','figure','poster','poster2','clock','sink'].forEach(k=>SPRT[k]=spriteTex(k));
+const SPR_INFO = { chair:[0.55,0.75], lamp:[0.72,0.5], plant:[0.6,0.65], tv:[0.42,0.85], crate:[0.5,0.6],
+  bucket:[0.36,0.5], ladder:[0.95,0.55], figure:[1.0,0.75], poster:[0.42,0.55], poster2:[0.44,0.6], clock:[0.4,0.6], sink:[0.5,0.7] };
+const WALL_OFF = { poster:0.62, poster2:0.62, clock:0.66 }; // 挂墙道具离地高度
+
+let grainCV=null, scanPattern=null, vignette=null, grainPattern=null;
+function makePost(){
+  grainCV = newCV(96,96);
+  const g=grainCV.getContext('2d'); const R=mulberry32(9);
+  for(let i=0;i<96*96;i++){ const v=(R()*255)|0; g.fillStyle='rgba('+v+','+v+','+v+',1)'; g.fillRect(i%96,(i/96)|0,1,1); }
+  const sc=newCV(1,4); const s=sc.getContext('2d');
+  s.fillStyle='rgba(0,0,0,.55)'; s.fillRect(0,0,1,1); s.fillStyle='rgba(255,255,255,.05)'; s.fillRect(0,2,1,1);
+  scanPattern = dctx.createPattern(sc,'repeat');
+  grainPattern = dctx.createPattern(grainCV,'repeat');
+}
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  view.width = w; view.height = h;
+  const aspect = w/h;
+  IW = clamp(Math.round(IH*aspect), 240, 900);
+  fbc.width = IW; fbc.height = IH;
+  fimg = fctx.createImageData(IW,IH); buf = new Uint32Array(fimg.data.buffer);
+  rowShade = new Int16Array(IH); zBuf = new Float32Array(IW);
+  vignette = dctx.createRadialGradient(w/2,h/2, Math.min(w,h)*0.40, w/2,h/2, Math.max(w,h)*0.82);
+  vignette.addColorStop(0,'rgba(0,0,0,0)'); vignette.addColorStop(1,'rgba(0,0,0,.44)');
+  makePost();
+}
+addEventListener('resize', resize);
+
+// 亮度必须夹到 255 以内，否则打包像素时 r/g/b 会溢出污染相邻通道（花屏）
+// 衰减别太陡 + 保留一点环境底光，否则十几格开外就全黑、材质颜色全看不见
+function shadeInt(d){ const v = 600/(1+d*d*0.045); return clamp(v+40, 84, 255)|0; }
+
+function render(){
+  const dirX = Math.cos(player.a), dirY = Math.sin(player.a);
+  const FOV = 0.72;
+  const planeX = -dirY*FOV, planeY = dirX*FOV;
+  hb = IH*0.5 + bobY;
+  const room = roomAt(player.x, player.y);
+  const zone = room ? room.zone : 0;
+  const flick0 = flick;
+
+  // —— 天花板 / 地面 ——
+  for(let y=0;y<IH;y++){
+    const p = y - hb;
+    const rowBase = Math.abs(p)<1 ? 0 : shadeInt((IH*0.5)/Math.abs(p));
+    const isFloor = p>0;
+    rowShade[y] = Math.min(255, (rowBase*flick0)|0);
+    if(Math.abs(p)<1){ // 地平线一行：填成远雾
+      const c = 0xFF000000 | (8<<16) | (8<<8) | 8;
+      for(let x=0;x<IW;x++) buf[y*IW+x] = c;
+      continue;
+    }
+    const rowDist = (IH*0.5)/Math.abs(p);
+    const rdx0 = dirX - planeX, rdy0 = dirY - planeY;
+    const rdx1 = dirX + planeX, rdy1 = dirY + planeY;
+    const stepX = rowDist*(rdx1-rdx0)/IW, stepY = rowDist*(rdy1-rdy0)/IW;
+    let fx = player.x + rowDist*rdx0, fy = player.y + rowDist*rdy0;
+    const rs = rowShade[y];
+    const base = y*IW;
+    for(let x=0;x<IW;x++){
+      const cx = fx|0, cy = fy|0;
+      let v = 0xFF000000 | (6<<16) | (6<<8) | 6;
+      if(cx>=0&&cy>=0&&cx<MW&&cy<MH){
+        const ci = cy*MW+cx;
+        const z = isFloor ? floorM[ci] : ceilM[ci];
+        let tx = ((fx-cx)*TEX)|0, ty = ((fy-cy)*TEX)|0;
+        tx &= TEX-1; ty &= TEX-1;
+        let tex;
+        if(z===WATER_Z && isFloor){ tex = FLOORT[1]; ty = (ty + ((timeS*10)|0)) & (TEX-1); }
+        else tex = isFloor ? FLOORT[z] : CEILT[z];
+        const c = tex[(ty<<6)|tx];
+        let s = (rs*lightM[ci])>>8;
+        if(s < 46) s = 46; // 暗房间保底可见度：太黑就只剩黑屏，没有“逛风景”
+        const r = ((c&255)*s)>>8, g = (((c>>8)&255)*s)>>8, b = (((c>>16)&255)*s)>>8;
+        v = 0xFF000000 | (b<<16) | (g<<8) | r;
+      }
+      buf[base+x] = v;
+      fx += stepX; fy += stepY;
+    }
+  }
+
+  // —— 墙 ——
+  for(let x=0;x<IW;x++){
+    const camX = 2*x/IW - 1;
+    const rdx = dirX + planeX*camX, rdy = dirY + planeY*camX;
+    let mapX = player.x|0, mapY = player.y|0;
+    const ddx = rdx===0?1e30:Math.abs(1/rdx), ddy = rdy===0?1e30:Math.abs(1/rdy);
+    let stepX, stepY, sdx, sdy, side=0, hit=0, guard=0;
+    if(rdx<0){ stepX=-1; sdx=(player.x-mapX)*ddx; } else { stepX=1; sdx=(mapX+1-player.x)*ddx; }
+    if(rdy<0){ stepY=-1; sdy=(player.y-mapY)*ddy; } else { stepY=1; sdy=(mapY+1-player.y)*ddy; }
+    while(!hit && guard++<600){
+      if(sdx<sdy){ sdx+=ddx; mapX+=stepX; side=0; } else { sdy+=ddy; mapY+=stepY; side=1; }
+      if(mapX<0||mapY<0||mapX>=MW||mapY>=MH){ hit=2; break; }
+      if(wall[mapY*MW+mapX]) hit=1;
+    }
+    if(hit===2){ zBuf[x]=1e9; continue; }
+    const perp = side===0 ? (sdx-ddx) : (sdy-ddy);
+    const dist = Math.max(perp, 0.0001);
+    zBuf[x] = dist;
+    const lineH = IH/dist;
+    let y0 = (-lineH*0.5 + hb)|0, y1 = (lineH*0.5 + hb)|0;
+    const wy = mapY*MW+mapX;
+    let s = (Math.min(255, (shadeInt(dist)*flick0)|0)*lightM[wy])>>8;
+    if(s < 46) s = 46;
+    let wallX = side===0 ? player.y + dist*rdy : player.x + dist*rdx;
+    wallX -= Math.floor(wallX);
+    let tx = (wallX*TEX)|0;
+    if((side===0 && rdx>0) || (side===1 && rdy<0)) tx = TEX-1-tx;
+    const wt = wall[wy];
+    const tex = wt===9 ? DOORT : WALLT[wt-1];
+    const stepT = TEX/lineH;
+    let tp = (Math.max(0,y0) - hb + lineH*0.5)*stepT;
+    const ys = Math.max(0,y0), ye = Math.min(IH-1,y1);
+    for(let y=ys;y<=ye;y++){
+      const ty = (tp|0) & (TEX-1);
+      const c = tex[(ty<<6)|tx];
+      const r = ((c&255)*s)>>8, g = (((c>>8)&255)*s)>>8, b = (((c>>16)&255)*s)>>8;
+      buf[y*IW+x] = 0xFF000000 | (b<<16) | (g<<8) | r;
+      tp += stepT;
+    }
+  }
+
+  // —— 道具（公告牌精灵） ——
+  const sprites = PROPS.concat(spritesDyn);
+  const list = [];
+  for(const sp of sprites){
+    const dx = sp.x - player.x, dy = sp.y - player.y;
+    sp._d = dx*dx+dy*dy;
+    if(sp._d < 900) list.push(sp);
+  }
+  list.sort((a,b)=>b._d-a._d);
+  const invDet = 1/(planeX*dirY - dirX*planeY);
+  for(const sp of list){
+    const dx = sp.x - player.x, dy = sp.y - player.y;
+    const tX = invDet*(dirY*dx - dirX*dy);
+    const tY = invDet*(-planeY*dx + planeX*dy);
+    if(tY < 0.25) continue;
+    const info = SPR_INFO[sp.kind] || [0.5,0.7];
+    const screenX = ((IW/2)*(1+tX/tY))|0;
+    const lineH = IH/tY;
+    const hpx = lineH*info[0], wpx = lineH*info[0];
+    const floorY = hb + (IH*0.5)/tY;
+    const yOff = (WALL_OFF[sp.kind]||0)*lineH;
+    const top = floorY - yOff - hpx;
+    const x0 = (screenX - wpx/2)|0, x1 = (screenX + wpx/2)|0;
+    const ys0 = Math.max(0, top|0), ys1 = Math.min(IH-1, (top+hpx)|0);
+    const sBase = shadeInt(tY);
+    const tex = SPRT[sp.kind] || SPRT.crate;
+    const alpha = sp.a===undefined?1:sp.a;
+    for(let x=Math.max(0,x0); x<=Math.min(IW-1,x1); x++){
+      if(tY >= zBuf[x]) continue;
+      const tx = (((x - x0)/(wpx)) * TEX)|0;
+      if(tx<0||tx>=TEX) continue;
+      for(let y=ys0;y<=ys1;y++){
+        const ty = (((y - top)/hpx)*TEX)|0;
+        if(ty<0||ty>=TEX) continue;
+        const c = tex[(ty<<6)|tx];
+        const a = ((c>>>24) * alpha)|0;
+        if(a<10) continue;
+        const s = sBase;
+        let r = ((c&255)*s)>>8, g = (((c>>8)&255)*s)>>8, b = (((c>>16)&255)*s)>>8;
+        const dv = buf[y*IW+x];
+        if(a<245){
+          r = (r*a + (dv&255)*(255-a))/255|0;
+          g = (g*a + ((dv>>8)&255)*(255-a))/255|0;
+          b = (b*a + ((dv>>16)&255)*(255-a))/255|0;
+        }
+        buf[y*IW+x] = 0xFF000000 | (b<<16) | (g<<8) | r;
+      }
+    }
+  }
+  // —— 精灵里的“人”靠近就消失（不追你）——
+  for(const sp of spritesDyn){
+    if(sp.kind==='figure' && sp._d < 36){ sp.fadeOut = true; }
+    if(sp.fadeOut){ sp.a -= 0.012; }
+  }
+  spritesDyn = spritesDyn.filter(s=>s.a>0.02);
+
+  fctx.putImageData(fimg,0,0);
+
+  // —— 上屏 + 后处理 ——
+  dctx.imageSmoothingEnabled = false;
+  dctx.globalAlpha = 1;
+  dctx.drawImage(fbc, 0, 0, view.width, view.height);
+  // 色调（梦核分区）
+  const tt = ZONES[zone].tint;
+  dctx.globalCompositeOperation='multiply';
+  dctx.globalAlpha = 0.16;
+  dctx.fillStyle = 'rgb('+(clamp(tt[0]*255,0,255)|0)+','+(clamp(tt[1]*255,0,255)|0)+','+(clamp(tt[2]*255,0,255)|0)+')';
+  dctx.fillRect(0,0,view.width,view.height);
+  dctx.globalCompositeOperation='source-over';
+  // 颗粒 / 扫描线 / 暗角
+  if(grainPattern){ dctx.globalAlpha = 0.045; const ox=-((Math.random()*96)|0), oy=-((Math.random()*96)|0);
+    dctx.save(); dctx.translate(ox,oy); dctx.fillStyle=grainPattern; dctx.fillRect(0,0,view.width+96,view.height+96); dctx.restore(); }
+  if(scanPattern){ dctx.globalAlpha = 0.07; dctx.fillStyle = scanPattern; dctx.fillRect(0,0,view.width,view.height); }
+  dctx.globalAlpha = 1;
+  dctx.fillStyle = vignette; dctx.fillRect(0,0,view.width,view.height);
+  // VHS 撕裂（只做很轻的位移，太重会被当成"贴图丢了"）
+  if(Math.random()<0.008){
+    const n=1+((Math.random()*2)|0);
+    dctx.globalAlpha = 0.5;
+    for(let i=0;i<n;i++){
+      const y=(Math.random()*view.height)|0, h=3+Math.random()*12, off=(Math.random()*2-1)*8;
+      dctx.drawImage(view, 0, y, view.width, h, off, y, view.width, h);
+    }
+    dctx.globalAlpha = 1;
+  }
+  // 转场黑幕
+  if(transition){
+    const t = transition.t/transition.dur;
+    const a = t<0.5 ? t*2 : (1-t)*2;
+    dctx.fillStyle='rgba(4,5,8,'+clamp(a,0,1)+')';
+    dctx.fillRect(0,0,view.width,view.height);
+  }
+  // 拍照模式辅助线
+  if(photoMode){
+    dctx.globalAlpha=0.25; dctx.strokeStyle='#e8e0c8'; dctx.lineWidth=1;
+    dctx.strokeRect(view.width*0.5-1, view.height*0.5-1, 2, 2);
+    dctx.globalAlpha=1;
+  }
+}
+
+/* ============================ 7. 事件：心理恐怖，但惬意 ============================ */
+let evT = 9 + Math.random()*10;
+function scheduleEvent(){
+  const roll = Math.random();
+  const room = roomAt(player.x, player.y);
+  if(roll < 0.20){ flickT = 2 + Math.random()*3.5; }                        // 灯闪
+  else if(roll < 0.34 && room && !room.dark){                                // 熄灯一会儿
+    room.dark = true; setRoomLight(room, room.baseLight*0.3);
+    setTimeout(()=>{ if(room){ room.dark=false; setRoomLight(room, room.baseLight); } }, 3500+Math.random()*5000);
+  }
+  else if(roll < 0.46){ sfxPhone(); }                                        // 远处的电话
+  else if(roll < 0.56){ sfxDoor(); }                                         // 身后的门
+  else if(roll < 0.64){ sfxWater(); }                                        // 水滴
+  else if(roll < 0.70){ sfxKnock(); }                                        // 隔壁的敲击
+  else if(roll < 0.78){                                                      // 远处站着一个人
+    const d = 9 + Math.random()*7, a = player.a + (Math.random()*1.2-0.6);
+    const x = player.x + Math.cos(a)*d, y = player.y + Math.sin(a)*d;
+    if(!blocked(x,y) && x>1 && y>1 && x<MW-1 && y<MH-1){ spritesDyn.push({x,y,kind:'figure',a:1,ttl:9}); sfxTinnitus(); }
+  }
+  else if(roll < 0.86){ sfxChime(); rainGain && (rainGain.gain.value = 0.30); setTimeout(()=>{ if(rainGain) rainGain.gain.value=0.16; }, 9000); }
+  else if(roll < 0.94 && room){                                              // 梦里的循环：悄悄挪到同分区的另一个房间
+    const same = ROOMS.filter(r=>r.zone===room.zone && r!==room);
+    if(same.length){
+      const r = same[(Math.random()*same.length)|0];
+      transition = {t:0,dur:1.6, fn:()=>{ const q=safePlace((r.x0+r.x1)/2,(r.y0+r.y1)/2); player.x=q[0]; player.y=q[1]; player.a=Math.random()*6.283; }};
+    }
+  }
+  else { flickT = 1.2; sfxDoor(); }
+}
+function setRoomLight(r, v){
+  for(let y=r.y0-1;y<=r.y1+1;y++) for(let x=r.x0-1;x<=r.x1+1;x++){
+    if(x<0||y<0||x>=MW||y>=MH) continue;
+    lightM[y*MW+x] = (clamp(v,0,1)*255)|0;
+  }
+}
+
+/* ============================ 8. 主循环 ============================ */
+let last = performance.now(), acc = 0, frames = 0, fpsSmooth = 0, frameMs = 16, adaptT = 0;
+function update(dt){
+  // 转场
+  if(transition){
+    transition.t += dt;
+    if(transition.t >= transition.dur*0.5 && !transition.done){ transition.done=true; transition.fn && transition.fn(); }
+    if(transition.t >= transition.dur) transition = null;
+  }
+  // 灯光
+  if(flickT>0){
+    flickT -= dt;
+    flick = 0.55 + Math.random()*0.25 + (Math.random()<0.12 ? 0.9 : 0);
+    if(flickT<=0) flick = 1;
+  } else {
+    flick += (1-flick)*Math.min(1,dt*3);
+  }
+  // 移动
+  const slow = key['Shift'] ? 0.55 : 1;
+  const speed = 1.55*slow;
+  const turn = (key['ArrowLeft']?-1:0) + (key['ArrowRight']?1:0);
+  player.a += turn*1.5*dt;
+  let fwd = (key['w']||key['W']||key['ArrowUp']?1:0) - (key['s']||key['S']||key['ArrowDown']?1:0);
+  let str = (key['d']||key['D']?1:0) - (key['a']||key['A']?1:0);
+  const touchFwd = touch.fwd, touchStr = touch.str;
+  if(touchFwd) fwd = Math.max(fwd, touchFwd);
+  if(touchStr) str += touchStr;
+  const len = Math.hypot(fwd,str) || 1;
+  const vx = Math.cos(player.a), vy = Math.sin(player.a);
+  const mx = (vx*fwd/len - vy*str/len)*speed*dt;
+  const my = (vy*fwd/len + vx*str/len)*speed*dt;
+  if(!blocked(player.x+mx, player.y)) player.x += mx;
+  if(!blocked(player.x, player.y+my)) player.y += my;
+  const moving = (fwd!==0||str!==0);
+  if(moving){
+    bobT += dt*(slow<1?5.2:8.2);
+    bobY = Math.sin(bobT)*1.5*(slow<1?0.7:1);
+    player.travel += Math.hypot(mx,my);
+    if(player.travel > 0.86){ player.travel = 0; stepCount++; sfxStep(); }
+  } else {
+    bobY += (Math.sin(timeS*1.1)*0.35 - bobY)*Math.min(1,dt*4);
+  }
+  player.breath += dt;
+  // 嗡鸣音量跟随灯
+  if(humGain && AC) humGain.gain.value = muted?0:(0.010+0.014*flick);
+  // 事件
+  evT -= dt;
+  if(evT<=0){ scheduleEvent(); evT = 12 + Math.random()*20; }
+  // 分区名
+  const room = roomAt(player.x, player.y);
+  if(room && roomCur!==room){ roomCur = room; $('#zoneName').textContent = ZONES[room.zone].name; }
+  dreamT += dt;
+  const m = (dreamT/60)|0, s = (dreamT%60)|0;
+  $('#stats').innerHTML = '步数 '+stepCount+'<br/>梦中 '+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+let roomCur = null;
+let touch = {fwd:0,str:0};
+function loop(){
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  let dt = (now-last)/1000; last = now;
+  if(dt>0.25) dt = 0.25;
+  timeS += dt;
+  update(dt);
+  const t0 = performance.now();
+  render();
+  frameMs = frameMs*0.9 + (performance.now()-t0)*0.1;
+  frames++;
+  fpsSmooth = fpsSmooth*0.92 + (1/Math.max(dt,0.0001))*0.08;
+  // 自适应分辨率
+  adaptT += dt;
+  if(adaptT > 1.2){
+    adaptT = 0;
+    if(frameMs > 26 && IH > 140){ IH = Math.max(140, (IH*0.9)|0); resize(); }
+    else if(frameMs < 13 && IH < 260){ IH = Math.min(260, (IH*1.06)|0); resize(); }
+  }
+}
+
+/* ============================ 9. 输入 ============================ */
+addEventListener('keydown', e=>{
+  key[e.key] = true;
+  if(e.key==='p'||e.key==='P'){ photoMode=!photoMode; document.body.classList.toggle('photo',photoMode); }
+  if(e.key==='m'||e.key==='M'){ muted=!muted; if(master&&AC) master.gain.value = muted?0:0.55; }
+  if(e.key==='o'||e.key==='O'){ saveShot(); }
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
+addEventListener('keyup', e=>{ key[e.key] = false; });
+view.addEventListener('click', ()=>{ view.requestPointerLock && view.requestPointerLock(); });
+addEventListener('mousemove', e=>{
+  if(document.pointerLockElement===view) player.a += e.movementX*0.0021;
+});
+// 触屏：按住下半屏往前走，左右拖动转视角
+let lastTouchX = null;
+function touchUpdate(e){
+  e.preventDefault();
+  const t = e.touches[0];
+  if(!t){ touch.fwd=0; touch.str=0; return; }
+  touch.fwd = 1;
+  if(lastTouchX!==null) player.a += (t.clientX-lastTouchX)*0.005;
+  lastTouchX = t.clientX;
+  touch.str = (t.clientX < innerWidth*0.3) ? 0 : 0;
+}
+view.addEventListener('touchstart', e=>{ lastTouchX=null; touchUpdate(e); }, {passive:false});
+view.addEventListener('touchmove', touchUpdate, {passive:false});
+view.addEventListener('touchend', ()=>{ touch.fwd=0; lastTouchX=null; });
+function saveShot(){
+  try{
+    const a=document.createElement('a');
+    a.download = '梦核-'+Date.now()+'.png';
+    a.href = view.toDataURL('image/png');
+    a.click();
+    $('#hint').textContent = '存下了这一帧 · 继续走'; $('#hint').classList.add('on');
+  }catch(e){ logErr('save: '+e); }
+}
+
+/* ============================ 10. 启动 ============================ */
+function start(){
+  if(started) return;
+  started = true;
+  $('#title').style.transition='opacity .9s ease';
+  $('#title').style.opacity='0';
+  setTimeout(()=>{ $('#title').style.display='none'; }, 950);
+  $('#hint').classList.add('on');
+  setTimeout(()=>$('#hint').classList.remove('on'), 9000);
+  if(!AC) initAudio();
+  fadeIn();
+  const room = roomAt(player.x, player.y);
+  if(room) $('#zoneName').textContent = ZONES[room.zone].name;
+  last = performance.now();
+}
+$('#title').addEventListener('click', start);
+addEventListener('keydown', e=>{ if(!started && (e.key==='Enter'||e.key===' ')) start(); });
+
+resize();
+buildWorld(SEED);
+loop();
+
+/* ============================ 11. 调试接口（验收用） ============================ */
+window.__dream = {
+  get frames(){ return frames; },
+  get fps(){ return fpsSmooth; },
+  get errors(){ return ERRS.slice(); },
+  get pos(){ return {x:player.x, y:player.y, a:player.a}; },
+  get zone(){ const r=roomAt(player.x,player.y); return r?ZONES[r.zone].name:'?'; },
+  get internal(){ return IW+'x'+IH; },
+  get stats(){ return {steps:stepCount, dreamT:dreamT, fps:fpsSmooth, frameMs:frameMs, sprites:PROPS.length, rooms:ROOMS.length}; },
+  start,
+  tick(n, keys){ // 手动推进 n 帧（headless 里 rAF 会被节流）
+    if(keys) for(const k in keys) key[k]=keys[k];
+    for(let i=0;i<(n||1);i++){ timeS+=1/60; update(1/60); render(); frames++; }
+    if(keys) for(const k in keys) key[k]=false;
+    return this.pos;
+  },
+  gotoZone(zi){ // 跳到某个分区的房间（截图用）
+    const r = ROOMS.find(r=>r.zone===zi);
+    if(!r) return null;
+    const q = safePlace((r.x0+r.x1)/2, (r.y0+r.y1)/2);
+    player.x=q[0]; player.y=q[1]; player.a=0.6;
+    roomCur=null;
+    return {zone:ZONES[zi].name, x:player.x, y:player.y, blocked:blocked(player.x,player.y)};
+  },
+  look(a){ player.a = a; },
+  faceProp(maxD){ // 面向最近的可见道具（截图验收用）
+    let best=null, bd=(maxD||20);
+    for(const p of PROPS){
+      const dx=p.x-player.x, dy=p.y-player.y, d=Math.hypot(dx,dy);
+      if(d<bd){ bd=d; best=p; }
+    }
+    if(!best) return null;
+    player.a = Math.atan2(best.y-player.y, best.x-player.x);
+    return {kind:best.kind, dist:+bd.toFixed(2), angle:+player.a.toFixed(2)};
+  },
+  addFigure(dist){ spritesDyn.push({x:player.x+Math.cos(player.a)*(dist||6), y:player.y+Math.sin(player.a)*(dist||6), kind:'figure', a:1}); },
+  setSeed(s){ buildWorld(s|0); return worldSeed; },
+  luminance(){ // 画面平均亮度（黑屏检测）
+    const d = dctx.getImageData(0,0,Math.min(200,view.width), Math.min(120,view.height)).data;
+    let sum=0; for(let i=0;i<d.length;i+=4) sum += (d[i]+d[i+1]+d[i+2])/3;
+    return sum/(d.length/4);
+  },
+  blackRect(){ // 找 32x32 平均亮度 <10 的块：排查"假黑块/贴图丢失"式渲染异常
+    const d = dctx.getImageData(0,0,view.width,view.height).data;
+    let cnt=0, minAvg=999;
+    for(let by=0;by+32<=view.height;by+=32) for(let bx=0;bx+32<=view.width;bx+=32){
+      let sum=0, n=0;
+      for(let y=by;y<by+32;y+=4) for(let x=bx;x<bx+32;x+=4){ const i=(y*view.width+x)*4; sum += (d[i]+d[i+1]+d[i+2])/3; n++; }
+      const avg=sum/n;
+      if(avg<10) cnt++;
+      if(avg<minAvg) minAvg=avg;
+    }
+    return {blackBlocks:cnt, minBlockAvg:Math.round(minAvg)};
+  },
+  lumFull(){ // 整帧平均亮度 + 上/中/下三段平均 RGB（判色偏用）
+    const d = dctx.getImageData(0,0,view.width,view.height).data;
+    const bands = [[0,0,0,0],[0,0,0,0],[0,0,0,0]]; // r,g,b,n
+    let sum=0, n=0;
+    for(let y=0;y<view.height;y+=3) for(let x=0;x<view.width;x+=3){
+      const i=(y*view.width+x)*4, r=d[i],g=d[i+1],b=d[i+2];
+      sum += (r+g+b)/3; n++;
+      const bi = y < view.height/3 ? 0 : (y < view.height*2/3 ? 1 : 2);
+      bands[bi][0]+=r; bands[bi][1]+=g; bands[bi][2]+=b; bands[bi][3]++;
+    }
+    return { avg: Math.round(sum/n), top: bands[0].slice(0,3).map(v=>Math.round(v/bands[0][3])),
+             mid: bands[1].slice(0,3).map(v=>Math.round(v/bands[1][3])), bot: bands[2].slice(0,3).map(v=>Math.round(v/bands[2][3])) };
+  },
+};
+})();
+</script>
+</body>
+</html>
