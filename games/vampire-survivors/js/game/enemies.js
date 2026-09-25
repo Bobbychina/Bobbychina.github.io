@@ -12,7 +12,8 @@
   /**
    * 当前时间下的属性倍率。
    * 血量/伤害走 Phases 里的关键帧曲线（可按阶段压平），速度走 SPEED_CURVE；
-   * 再乘上**关卡**的额外乘区（第二关 hp ×1.6 / dmg ×1.35 / speed ×1.10）。
+   * 再乘上**关卡**的额外乘区（第二关实际是 hp ×1.30 / dmg ×1.50 / speed ×1.08，
+   * 以 C.LEVELS[1] 为准 —— 这里原写的 1.6/1.35/1.10 是早期数值，已过时）。
    */
   function scaleFor(t, levelIndex) {
     var mul = VS.Levels ? VS.Levels.statMul(levelIndex || 0) : { hp: 1, dmg: 1, speed: 1 };
