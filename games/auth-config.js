@@ -30,17 +30,18 @@ window.DSH_AUTH_CONFIG = {
   api: 'https://dsh-oauth-relay.bobby-minecraft.workers.dev',
 
   // 回调页：一定要和上面登记的地址逐字一致
-  redirect: 'https://bobbychina.github.io/games/oauth-callback.html',
+  // ⚠️ 换域名后要去 GitHub OAuth App 设置里把 Authorization callback URL 同步改成这个
+  redirect: 'https://bobbycn.cc/games/oauth-callback.html',
 
   github: {
     clientId: 'Ov23liPzQ7xNDx0FdUdh',   // bobbychina's games（2026-09-12 注册，Device Flow 已开）
     scope: 'gist read:user',      // gist = 云存档用的私有 Gist；read:user = 显示头像/用户名
-    /* 中继（Cloudflare Pages）：原来只为 OAuth 兜底，现在**整个 /api/* 都从这儿转发**
-       （账号、云存档、全站榜），因为 `*.workers.dev` 在部分网络被整段 DNS 黑洞 ——
-       2026-09-23 之前只转发 /api/score，于是黑洞网络里注册会静默降级成本机账号。
-       源码：本仓库根目录 functions/[[path]].js；部署：`node tools/deploy-relay.mjs bobbychina-games`。
+    /* 中继：**整个 /api/* 都从这儿转发**（账号、云存档、全站榜），外加 OAuth 两条端点。
+       2026-09-28 起中继搬到自己家服务器：`bobbycn.cc` 的 nginx 复刻了原来 CF Pages Functions
+       （源码见 stockGameOnlinePro/deploy/nginx/portal.conf；旧实现 functions/[[path]].js 仍留在仓库里备查）。
+       走自家域名就不再受"某些网络把 *.pages.dev / *.workers.dev 整段 DNS 黑洞"的影响。
        留空 = 只走直连（会先试直连，失败再报"连不上云后端"）。 */
-    relay: 'https://bobbychina-games.pages.dev',
+    relay: 'https://bobbycn.cc',
     // 旧的 Worker 版（同账号，留个地址备查；在黑洞网络里不可达）：https://dsh-oauth-relay.bobby-minecraft.workers.dev
   },
 

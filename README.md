@@ -2,6 +2,11 @@
 
 我的个人主页 + 网页游戏厅，纯静态站点，托管在 GitHub Pages。
 
+> **2026-09-28 起主站迁到自建服务器：<https://bobbycn.cc>**（东京 · 宿主 nginx + NestJS 容器，前置 Cloudflare 橙云，源站只允许 CF 回源）。
+> 本仓库继续存在，角色是 **静态镜像 / 降级阅读端**：静态内容同源，云能力（云账号、云存档、全站榜、OAuth）走主站的 `/api` 中继 ——
+> 见 `games/auth-config.js` 里的 `relay`。仓库中的 `functions/` 只对 Cloudflare Pages 的那份部署生效，**对 GitHub Pages 不起作用**，
+> 其逻辑（`/api` 全路径中继、OAuth 两条端点、Origin 白名单、macOS 服务端 403）已在主站 nginx 复刻。
+
 - 主页：<https://bobbychina.github.io/>
 - 游戏厅：<https://bobbychina.github.io/games/>
 - 在线玩：<https://bobbychina.github.io/games/zombie-survival/>
