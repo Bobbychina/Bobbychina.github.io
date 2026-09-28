@@ -127,9 +127,16 @@
     try { document.dispatchEvent(new CustomEvent('i18n:change', { detail: { lang: cur } })); } catch (e) { /* ignore */ }
   }
 
+  /* 词典版本号（2026-09-28 加）：
+     CF 按扩展名缓存静态文件（实测 .js 被 HIT 4 小时），词典改了线上不生效。
+     ⚠️ 改词典（zh-CN.js / en.js）时**把下面的 VER 改一下**（与页面里 site.css/site.js 的 ?v= 同步跳）。
+     一开始想从 document.currentScript 的 ?v= 里取，但词典是在 loadAsync 里异步加载的，
+     那时 currentScript 已经是 null，取不到 —— 静态站不搞聪明，写死常量最稳。 */
+  var VER = '20260928c';
+
   function loadAsync(code, cb) {
     var s = document.createElement('script');
-    s.src = BASE + code + '.js';
+    s.src = BASE + code + '.js' + (VER ? ('?v=' + VER) : '');
     s.onload = s.onerror = function () { cb(); };
     document.head.appendChild(s);
   }
@@ -161,7 +168,9 @@
   function boot() {
     cur = detect();
     if (document.readyState === 'loading') {
-      document.write('<script src="' + BASE + cur + '.js"><\/script>');
+      // ⚠️ 这条是"首屏同步加载"，改词典不生效的元凶就在这里：早先只给 loadAsync 带了版本号，
+      //    结果首次加载仍打到 CF 缓存的旧词典（实测线上一直显示旧词条 / 新键不生效）。
+      document.write('<script src="' + BASE + cur + '.js' + (VER ? ('?v=' + VER) : '') + '"><\/script>');
       document.addEventListener('DOMContentLoaded', ready);
     } else {
       loadAsync(cur, ready);

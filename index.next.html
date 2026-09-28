@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bobby · 在做的和写过的东西</title>
+<meta name="description" content="Bobby（bobbychina）：做游戏、写工具、折腾静态站点与 AI 工具链。这里放着在做的东西和写下来的东西。">
+<meta property="og:title" content="Bobby · 在做的和写过的东西">
+<meta property="og:description" content="做游戏、写工具、折腾静态站点与 AI 工具链。">
+<meta property="og:image" content="/og/home.png">
+<link rel="alternate" type="application/rss+xml" title="Bobby 的博客" href="/feed.xml">
+<script src="/mac-block.js" defer></script>
+<!--
+  2026-09-28 改版 v2（预览版 /new/，线上首页未动）
+  站主要求：① 分区导航要明显（topbar）② 深色模式（浅色刺眼）③ 登录态全站可见
+  设计：纸感底（暖黑墨色）+ 衬线标题 + 朱砂句读；清单行 hover 右移 + 短横浮出（v1 保留）
+  深色默认，右上角可切浅色；选择记 localStorage（key: site-theme）
+  登录态：读 /api/auth/identity/me（域级 Cookie，Domain=.bobbycn.cc，全站子域共用）
+-->
+<style>
+  :root{
+    --serif:Georgia,"Songti SC","Source Han Serif SC","Noto Serif SC",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    --seal:#D4553F;
+    --radius:10px;
+  }
+  html[data-theme="dark"]{
+    --bg:#121110; --paper2:#191715; --ink:#EAE5DD; --dim:#948B80; --soft:#BDB4A8;
+    --line:#2A2723; --line2:#201E1B; --link-underline:rgba(234,229,221,.22);
+    --glow1:#211D19; --glow2:#1A1613;
+  }
+  html[data-theme="light"]{
+    --bg:#FAF7F0; --paper2:#FFFDF8; --ink:#1E1B18; --dim:#8A8177; --soft:#4A443C;
+    --line:#E7E1D6; --line2:#EFEAE1; --link-underline:rgba(30,27,24,.22);
+    --glow1:#FFFDF8; --glow2:#F6EFE3;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}   /* 作者样式里的 display:flex 会盖掉 UA 的 [hidden]，这里显式压住 */
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;font-family:var(--sans);font-size:16px;line-height:1.95;color:var(--ink);
+    background:
+      radial-gradient(120% 80% at 12% -10%, var(--glow1) 0%, rgba(0,0,0,0) 60%),
+      radial-gradient(90% 60% at 100% 0%, var(--glow2) 0%, rgba(0,0,0,0) 55%),
+      var(--bg);
+    transition:background .25s ease,color .25s ease;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:.04;z-index:0;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+  }
+  .wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:26px 24px 88px}
+  a{color:inherit;text-decoration:none;border-bottom:1px solid var(--link-underline)}
+  a:hover{border-bottom-color:var(--seal);color:var(--seal)}
+
+  /* ── topbar：分区导航要"一眼看见" ── */
+  .top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line2);margin:0 -24px 0;padding:8px 24px 0}
+  .toprow{display:flex;align-items:center;gap:16px;min-height:44px}
+  .name{font-family:var(--serif);font-size:19px;letter-spacing:.01em;border:0}
+  .name i{font-style:normal;color:var(--seal)}
+  .spacer{flex:1}
+  .iconbtn{font:inherit;font-size:12.5px;color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 11px;cursor:pointer;transition:.18s}
+  .iconbtn:hover{color:var(--ink);border-color:var(--seal)}
+  .me{font-size:13px;color:var(--dim);display:flex;align-items:center;gap:10px}
+  .me b{color:var(--ink);font-weight:600}
+  .tabs{display:flex;gap:8px;overflow-x:auto;padding:9px 0 10px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs a{
+    flex:0 0 auto;border:1px solid var(--line);background:var(--paper2);padding:7px 15px;border-radius:999px;
+    font-size:13.5px;color:var(--dim);position:relative;transition:color .18s ease,border-color .18s ease,background .18s ease;
+  }
+  .tabs a:hover{color:var(--ink);border-color:var(--seal)}
+  .tabs a.on{color:var(--seal);border-color:var(--seal);background:color-mix(in srgb,var(--seal) 12%,transparent);font-weight:600}
+
+  h1{font-family:var(--serif);font-weight:400;font-size:34px;line-height:1.55;letter-spacing:-.01em;margin:46px 0 18px}
+  h1 .seal{color:var(--seal)}
+  .lead{color:var(--soft);margin:0 0 8px}
+  .lead b{font-weight:600;color:var(--ink)}
+
+  h2{font-family:var(--serif);font-weight:400;font-size:14px;letter-spacing:.22em;color:var(--dim);margin:60px 0 6px;scroll-margin-top:120px}
+  h2::after{content:"";display:block;width:34px;height:1px;background:var(--seal);margin-top:10px;opacity:.6}
+
+  ul.list{list-style:none;margin:18px 0 0;padding:0}
+  li.row{position:relative;padding:20px 0 18px;border-bottom:1px solid var(--line);transition:transform .18s ease}
+  li.row::before{content:"";position:absolute;left:-16px;top:32px;width:7px;height:2px;background:var(--seal);
+                 opacity:0;transform:translateX(-5px);transition:opacity .18s ease,transform .18s ease}
+  li.row:hover{transform:translateX(3px)}
+  li.row:hover::before{opacity:1;transform:translateX(0)}
+  .t{font-family:var(--serif);font-size:18px;border:0}
+  .t:hover{color:var(--seal)}
+  .who{color:var(--dim);font-size:12.5px;margin-left:8px;font-family:var(--sans)}
+  .d{color:var(--soft);margin:6px 0 0;font-size:14.5px;line-height:1.85}
+  .d b{font-weight:600;color:var(--ink)}
+  .go{display:flex;gap:16px;margin-top:10px;font-size:13.5px;color:var(--dim);flex-wrap:wrap}
+  .go a{border-bottom-color:transparent}
+  .go a:hover{border-bottom-color:var(--seal)}
+
+  .about p{margin:16px 0;color:var(--soft)}
+  .about p b{color:var(--ink)}
+  dl.facts{display:grid;grid-template-columns:auto 1fr;gap:8px 20px;font-size:13.5px;color:var(--dim);margin:26px 0 0}
+  dl.facts dt{color:var(--dim);opacity:.7}
+  dl.facts dd{margin:0;color:var(--soft)}
+  footer{margin-top:80px;padding-top:18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;color:var(--dim);font-size:12.5px}
+  .hand{font-family:"Segoe Script","Bradley Hand","Kaiti SC",cursive;opacity:.85}
+  @media(max-width:620px){
+    .wrap{padding:16px 18px 64px}
+    .top{margin:0 -18px;padding:6px 18px 0}
+    h1{font-size:26px;margin-top:32px}
+    .name{font-size:17px}
+    li.row{padding:16px 0}
+    li.row::before{left:-10px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="toprow">
+      <a class="name" href="/">Bobby<i>.</i></a>
+      <span class="spacer"></span>
+      <span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut">退出</button></span>
+      <a class="iconbtn" id="btnIn" href="/login/" style="border-bottom:0">登录</a>
+      <button class="iconbtn" id="btnTheme" title="切换深浅色">☾ 深色</button>
+    </div>
+    <nav class="tabs">
+      <a href="#projects" class="on">在做的东西</a>
+      <a href="/posts/">写下来的</a>
+      <a href="/games/">游戏厅</a>
+      <a href="#about">关于</a>
+    </nav>
+  </header>
+
+  <h1>我做<em style="font-style:normal">游戏</em>，也做让人少干活的<em style="font-style:normal">工具</em><span class="seal">。</span></h1>
+  <p class="lead">我是 <b>Bobbychina</b>，独立开发者、AI 爱好者。喜欢把想法做成能点开就玩、能双击就跑的东西——
+    浏览器里跑的游戏、开发者工具，以及一些把重复劳动吃掉的小插件。</p>
+
+  <h2 id="projects">在做的东西</h2>
+  <ul class="list">
+
+    <li class="row">
+      <a class="t" href="/games/zombie-survival/">zombie-survival</a><span class="who">可在线玩</span>
+      <p class="d">单机丧尸末日生存：<b>24×24 区块的大世界</b>、宝可梦式回合制战斗、季节/天气/体温、种菜、钓鱼、接水净化、伐木。构建产物是<b>一个自包含 HTML</b>，双击就能玩，不联网也行。</p>
+      <div class="go"><a href="/games/zombie-survival/">直接玩</a><a href="https://github.com/Bobbychina/zombie-survival">源码</a><span>TypeScript · Vite</span></div>
+    </li>
+
+    <li class="row">
+      <a class="t" href="/games/dreamcore/">纯走路 · 梦核</a><span class="who">可在线玩</span>
+      <p class="d">第一人称梦核步行模拟，纯 canvas 手写射线渲染、<b>零依赖零外联</b>：<b>没有敌人、没有追逐、没有目标</b>——只有走廊、灯、水声。8 种梦核分区、26 个房间，走错门会从另一个房间"醒"过来。</p>
+      <div class="go"><a href="/games/dreamcore/">直接玩</a><span>Canvas 2D · 单文件</span></div>
+    </li>
+
+    <li class="row">
+      <a class="t" href="https://github.com/bobbychina32747/StockGameOnlinePro">StockGameOnlinePro</a>
+      <p class="d">A 股模拟炒股：撮合引擎、涨跌停、分红、基金与风控，前后端全栈。虚拟盘，亏了不心疼。</p>
+      <div class="go"><a href="https://github.com/bobbychina32747/StockGameOnlinePro">源码</a><span>TypeScript · NestJS · React</span></div>
+    </li>
+
+    <li class="row">
+      <a class="t" href="https://github.com/Bobbychina/dsh-newline-enter">dsh-newline-enter</a><span class="who">插件</span>
+      <p class="d">输入增强插件：<b>Ctrl/Cmd+Enter 换行不误发</b>，外加一个全屏 Markdown 提示词编辑器（工具栏、实时预览、快捷键）。</p>
+      <div class="go"><a href="https://github.com/Bobbychina/dsh-newline-enter">源码</a><span>JavaScript</span></div>
+    </li>
+
+    <li class="row">
+      <a class="t" href="https://github.com/bobbychina32747/dsh-peak-price-guard">dsh-peak-price-guard</a><span class="who">插件</span>
+      <p class="d">按价格峰谷调度：把不紧急的请求挪到低谷时段执行，避开高峰溢价。省下来的都是真金白银。</p>
+      <div class="go"><a href="https://github.com/bobbychina32747/dsh-peak-price-guard">源码</a><span>JavaScript</span></div>
+    </li>
+
+    <li class="row">
+      <a class="t" href="https://github.com/bobbychina32747/token-miser">token-miser</a><span class="who">规则集</span>
+      <p class="d">一组"让 AI 少废话"的规则集：先说结果、不复述需求、能一行说清就不写一段。写给所有按量计费的场合。</p>
+      <div class="go"><a href="https://github.com/bobbychina32747/token-miser">源码</a><span>Prompt</span></div>
+    </li>
+
+    <li class="row">
+      <a class="t" href="https://github.com/Bobbychina/Bobbychina.github.io">bobbychina.github.io</a>
+      <p class="d">你正在看的这个站点：<b>零依赖静态单页</b>，外加 <a href="/games/">/games/</a> 游戏厅——那里有一套纯前端账号系统，可把存档同步进你自己的私有 Gist。</p>
+      <div class="go"><a href="https://github.com/Bobbychina/Bobbychina.github.io">源码</a><span>HTML · 零依赖</span></div>
+    </li>
+
+  </ul>
+
+  <h2 id="writing">写下来的</h2>
+  <ul class="list">
+    <li class="row">
+      <a class="t" href="/posts/self-hosted-in-tokyo/">把站搬到自己机器上：东京 · nginx · 一个容器</a>
+      <p class="d">从 GitHub Pages 搬到自建服务器，顺手把 CF Pages Functions 的两块服务端逻辑用 nginx 复刻了。附两个必踩的坑。</p>
+      <div class="go"><a href="/posts/">全部文章</a><a href="/feed.xml">RSS</a></div>
+    </li>
+  </ul>
+
+  <h2 id="about">关于</h2>
+  <div class="about">
+    <p>我在做的东西基本都围绕一个念头：<b>把想法变成能立刻跑起来的东西</b>。所以偏好多做"单文件、零依赖、双击就能用"的形态，也愿意花时间在那些看不见但决定手感的地方——寻路花费、资源产出、一个数值改动会不会让整局失衡。</p>
+    <p>写代码时我喜欢把逻辑与参数分开：数值单独成表，配单测和长时间模拟跑一遍，确认不会把游戏玩坏再交付。这套习惯来自做交易系统时的教训——数字错了，界面再好看也没用。</p>
+    <p>我对 AI 工具链本身也很感兴趣——从插件、提示词工程，到"怎么让 agent 稳定地把活干完"的工作流。这个站点和上面的项目大多就是这么长出来的；代码、测试与验收记录都在仓库里，欢迎直接看、直接提 issue。</p>
+    <dl class="facts">
+      <dt>主账号</dt><dd><a href="https://github.com/Bobbychina">github.com/Bobbychina</a></dd>
+      <dt>旧账号</dt><dd><a href="https://github.com/bobbychina32747">github.com/bobbychina32747</a></dd>
+      <dt>常用</dt><dd>TypeScript · React · Vite · Node.js · Python</dd>
+      <dt>在玩</dt><dd>游戏逻辑与数值设计、静态站点工程化、AI 工具链</dd>
+      <dt>本站</dt><dd>纯静态单页：无 Cookie 追踪、无第三方脚本；跑在东京的一台小机器上</dd>
+    </dl>
+  </div>
+
+  <footer>
+    <span>© 2026 Bobby · <a href="https://github.com/Bobbychina/Bobbychina.github.io/issues">提 issue</a></span>
+    <span class="hand">机房在东京，人在北京</span>
+  </footer>
+
+</div>
+
+<script>
+/* 深浅色：深色默认（站主说浅色刺眼），选择记 localStorage */
+(function(){
+  var KEY='site-theme';
+  var saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
+  var theme=(saved==='light'||saved==='dark')?saved:'dark';
+  function apply(t){
+    document.documentElement.setAttribute('data-theme',t);
+    var b=document.getElementById('btnTheme');
+    if(b) b.textContent = t==='dark' ? '☾ 深色' : '☀ 浅色';
+  }
+  apply(theme);
+  document.getElementById('btnTheme').addEventListener('click',function(){
+    theme = theme==='dark' ? 'light' : 'dark';
+    try{localStorage.setItem(KEY,theme);}catch(e){}
+    apply(theme);
+  });
+})();
+
+/* 登录态：域级 Cookie 会话（/api/auth/identity/me），全站子域共用同一份 */
+(function(){
+  var box=document.getElementById('meBox'), name=document.getElementById('meName'), btnIn=document.getElementById('btnIn');
+  fetch('/api/auth/identity/me',{credentials:'same-origin'}).then(function(r){
+    if(!r.ok) throw 0;
+    return r.json();
+  }).then(function(d){
+    if(!d||!d.email) throw 0;
+    name.textContent = d.username || d.email.split('@')[0];
+    box.hidden=false; btnIn.hidden=true;
+  }).catch(function(){ /* 未登录：保持"登录"入口 */ });
+
+  document.getElementById('btnOut').addEventListener('click',function(){
+    fetch('/api/auth/identity/logout',{method:'POST',credentials:'same-origin'}).then(function(){ location.reload(); });
+  });
+})();
+</script>
+</body>
+</html>
