@@ -28,6 +28,7 @@ I18N.define('en', {
   'meta.ogdesc': 'Indie developer & AI enthusiast. Games, dev tools, front-end tinkering: the arcade plays right in your browser, every project is open source.',
   'nav.projects': 'Projects',
   'nav.games': 'Arcade',
+  'nav.posts': 'Posts',
   'nav.about': 'About',
   'home.h1': 'I build <em>games</em> — and <em>tools</em> that kill busywork.',
   'home.role': 'I\'m <b>Bobbychina</b>, an indie developer and <b>AI enthusiast</b>. I like turning ideas into things you can open and play, or double-click and run — browser games, developer tools, and small plugins that eat repetitive work.',
