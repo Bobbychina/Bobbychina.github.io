@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>验证邮箱 · bobbycn.cc</title>
+<link rel="stylesheet" href="/assets/site.css?v=20260928h">
+<script src="/assets/site.js?v=20260928h" defer></script>
+<style>
+  .card{max-width:520px;margin:12vh auto;padding:0 22px;text-align:left}
+  h1{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 10px}
+  .msg{font-size:14px;color:var(--soft);line-height:1.9}
+  .err{color:var(--seal)}
+  .foot{margin-top:26px;color:var(--dim);font-size:13px;display:flex;gap:16px;flex-wrap:wrap}
+  .foot a{color:inherit;border-bottom:1px solid transparent}
+  .foot a:hover{color:var(--seal);border-bottom-color:var(--seal)}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="h">正在验证…</h1>
+  <p class="msg" id="msg">请稍候。</p>
+  <div class="foot"><a href="/">回首页</a><a href="/login/">去登录</a><a href="/posts/">看看博客</a></div>
+</div>
+
+<script>
+/* 邮件里的链接形如 https://bobbycn.cc/verify-email?token=xxx（见 identity.service.ts）。
+   这一页负责把 token POST 给 /api/auth/identity/verify —— 验证成功时后端会下发域级 Cookie，
+   所以用户点完链接就已经是登录状态，直接送他回家。 */
+(function(){
+  var h=document.getElementById('h'), msg=document.getElementById('msg');
+  var token=new URLSearchParams(location.search).get('token');
+  function fail(t){ h.textContent='链接不可用'; msg.className='msg err'; msg.textContent=t; }
+  if(!token){ fail('链接里没有 token。请从邮件里重新点一次，或重新注册/申请重置。'); return; }
+  fetch('/api/auth/identity/verify',{method:'POST',credentials:'same-origin',
+    headers:{'content-type':'application/json'},body:JSON.stringify({token:token})})
+    .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
+    .then(function(res){
+      if(!res.ok){ fail((res.d&&(res.d.message||res.d.error))||('验证失败（'+res.status+'）')); return; }
+      h.textContent='邮箱已验证';
+      msg.textContent='好了，已经登录。2 秒后回首页…';
+      setTimeout(function(){ location.href='/'; },2000);
+    })
+    .catch(function(){ fail('网络错误，请稍后重试。'); });
+})();
+</script>
+</body>
+</html>

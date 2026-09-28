@@ -26,6 +26,7 @@
     var box = document.getElementById('meBox');
     var nameEl = document.getElementById('meName');
     var btnIn = document.getElementById('btnIn');
+    var btnReg = document.getElementById('btnReg');
     if (box || btnIn) {
         fetch('/api/auth/identity/me', { credentials: 'same-origin' })
             .then(function (r) { if (!r.ok) throw 0; return r.json(); })
@@ -34,8 +35,9 @@
                 if (nameEl) nameEl.textContent = d.username || String(d.email).split('@')[0];
                 if (box) box.hidden = false;
                 if (btnIn) btnIn.hidden = true;
+                if (btnReg) btnReg.hidden = true;   // 已登录就别再摆"注册"了
             })
-            .catch(function () { /* 未登录：保留"登录"入口 */ });
+            .catch(function () { /* 未登录：保留"注册/登录"入口 */ });
         var out = document.getElementById('btnOut');
         if (out) out.addEventListener('click', function () {
             fetch('/api/auth/identity/logout', { method: 'POST', credentials: 'same-origin' })
