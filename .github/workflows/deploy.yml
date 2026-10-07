@@ -25,10 +25,18 @@ on:
     branches: [main]
   workflow_dispatch: # 手动触发：用于重跑某次部署
 
-# 串行部署：两个人同时推 main 时不会交错覆盖（排队而不是并发；不取消进行中的部署）
+# 串行部署：两个人同时推 main 时不会交错覆盖。
+#
+# cancel-in-progress 从 false 改成 true（2026-10-07），原因是它救过一次死锁：
+# 去掉 environment 审批后，仍在等批准的旧 run 会把并发组一直占着 ——
+# 新 run 全部停在 pending，而取消 API 对 waiting 状态的 run 无效（返回 500）。
+# 设成 true 后，新来的 run 会自动取消前面还在排队的 run。
+#
+# 取舍：正常情况下它会让"部署到一半时又推一版"变成取消重跑。这里可接受，因为
+# 发布本身是幂等的（tar 覆盖 + 快照），历史版本照旧可从 /opt/stockgame/snapshots 回滚。
 concurrency:
   group: deploy-portal
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
