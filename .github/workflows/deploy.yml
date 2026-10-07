@@ -11,14 +11,19 @@
 #      但换来"任何一次部署都不可能删掉服务器上的东西"。要清理由站长手工处理。
 #   3. 部署前在服务器 /opt/stockgame/snapshots 留一份上一次的 tar 包，
 #      回滚就是把它解开覆盖回去（见 tools/rollback-portal.sh）。
-#   4. 推 main 即上线；靠 GitHub 的 production environment 审批闸门兜一层。
+#   4. **推 main 即上线，没有审批环节**（2026-10-07 站长决定）。
+#      原先挂在 production environment 上要求点 Approve，站长认为那道手动闸门反直觉：
+#      他给的是"能直接推 main"的权限，而且真正拦住事故的是上面第 2 条（不删除）
+#      与第 3 条（有快照可回滚），不是点一下批准。
+#      若哪天真要恢复审批：给 deploy 作业加回 environment: production 即可，
+#      仓库里那个 production 环境还留着（审批人配置也在）。
 
 name: Deploy site
 
 on:
   push:
     branches: [main]
-  workflow_dispatch: # 手动触发：用于审批闸门模式或重跑
+  workflow_dispatch: # 手动触发：用于重跑某次部署
 
 # 串行部署：两个人同时推 main 时不会交错覆盖（排队而不是并发；不取消进行中的部署）
 concurrency:
@@ -79,11 +84,12 @@ jobs:
     name: 同步到东京服务器
     needs: build
     runs-on: ubuntu-latest
-    # 审批闸门挂在这里：建了 production environment 且配了 Required reviewers，
-    # 这一步会停在 Waiting for approval，站长在 GitHub 上点 Approve 才继续。
-    environment:
-      name: production
-      url: https://bobbycn.cc/
+    # 这里原先挂着 environment: production（Required reviewers）做审批闸门。
+    # 2026-10-07 站长决定去掉：推 main 即上线。要恢复审批就取消下面几行的注释，
+    # 并保留上面 environment 的 name/url（环境与审批人配置都还在仓库里）。
+    # environment:
+    #   name: production
+    #   url: https://bobbycn.cc/
     steps:
       - uses: actions/download-artifact@v4
         with:
