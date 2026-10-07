@@ -59,8 +59,11 @@ jobs:
 
       - name: 打包站点
         run: |
+          # .staging/ 与 .deploy-key/ 都是本机工作目录（含测试环境密钥、Basic 口令、部署私钥），
+          # 绝不能进产物 —— 产物会解到 /var/www/portal，那是公网可取的目录。
           tar -czf /tmp/portal.tar.gz \
             --exclude=./.git --exclude=./.github --exclude=./.deploy-key \
+            --exclude=./.staging \
             --exclude=./tools --exclude=./functions \
             --exclude=./.wrangler --exclude=./.probe --exclude=./node_modules \
             .

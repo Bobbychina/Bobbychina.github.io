@@ -9,3 +9,5 @@ tools/preview/
 .wrangler/
 # GitHub Actions 部署到东京服务器的专用私钥（生成后立刻转存进仓库 Secrets，绝不入库）
 .deploy-key/
+# 测试环境（staging）的搭建材料与生成的密钥/口令：只在本机与服务器上有效，绝不入库
+.staging/
