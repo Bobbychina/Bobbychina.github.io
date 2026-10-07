@@ -74,13 +74,22 @@ jobs:
         run: |
           # .staging/ 与 .deploy-key/ 都是本机工作目录（含测试环境密钥、Basic 口令、部署私钥），
           # 绝不能进产物 —— 产物会解到 /var/www/portal，那是公网可取的目录。
+          # partner-kit*.zip / partner-kit/ 同理：给合作伙伴的工具包里含服务器私钥与所有口令，
+          # 已在 .gitignore 里堵过一道，这里再排一道（防 git add -f 之类的意外）。
           tar -czf /tmp/portal.tar.gz \
             --exclude=./.git --exclude=./.github --exclude=./.deploy-key \
-            --exclude=./.staging \
+            --exclude=./.staging --exclude=./.partner-kit \
+            --exclude=./partner-kit --exclude=./partner-kit.zip \
+            --exclude='./partner-kit*.zip' \
             --exclude=./tools --exclude=./functions \
             --exclude=./.wrangler --exclude=./.probe --exclude=./node_modules \
             .
           ls -lh /tmp/portal.tar.gz
+          echo "--- 自检：产物里不得出现敏感文件名 ---"
+          if tar -tzf /tmp/portal.tar.gz | grep -Ei 'partner-kit|id_ed25519|relay-token|prod\.env|/\.env$|^\./\.env'; then
+            echo "::error::产物里出现敏感文件，拒绝部署"; exit 1
+          fi
+          echo "自检通过：无敏感文件"
 
       - uses: actions/upload-artifact@v4
         with:
