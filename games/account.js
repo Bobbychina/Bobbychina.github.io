@@ -375,6 +375,59 @@
       var g = u && u.providers && u.providers.github;
       return { bound: !!g, login: g ? g.login : '', avatar: g ? g.avatar : '', serverSide: false };
     },
+    /* ----- 站点身份免二次登录（2026-09-29） -----
+       站点 bobbycn.cc 的身份登录后，后端按身份派发"游戏厅账号名 + 派生口令"（GET /api/games/arcade），
+       这里拿它走**原有**的注册/登录流程 —— 协议、口令派生、存档加密、Gist 备份全都不用动。
+       为什么不让 Worker 直接认站点 JWT：存档是浏览器侧加密的，密钥由游戏厅口令派生；
+       只给一个 JWT 的话客户端手里没有那把密钥，云端老存档会当场解不开（这也是不碰 Worker 的原因）。 */
+    siteMe: async function () {
+      try {
+        var r = await fetch('/api/auth/identity/me', { credentials: 'same-origin', cache: 'no-store' });
+        return r.ok ? (await r.json()) : null;
+      } catch (e) { return null; }
+    },
+    siteCredential: async function () {
+      try {
+        var r = await fetch('/api/games/arcade', { credentials: 'same-origin', cache: 'no-store' });
+        return r.ok ? (await r.json()) : null;
+      } catch (e) { return null; }
+    },
+    /** 站点身份 → 游戏厅自动登录；账号不存在就按派生名自动开一个。失败只回 {ok:false,err}，不抛。 */
+    signInSite: async function () {
+      var cur = Account.current();
+      if (cur) return { ok: true, already: true, name: cur.name };
+      var me = await Account.siteMe();
+      if (!me || !me.id) return { ok: false, err: 'no-site-identity' };
+      var cr = await Account.siteCredential();
+      if (!cr || !cr.name || !cr.password) return { ok: false, err: 'no-credential' };
+      var r = await Account.login({ name: cr.name, password: cr.password });
+      if (r && r.ok) return { ok: true, viaSite: true, name: cr.name, auto: cr.auto };
+      var reg = await Account.register({ name: cr.name, password: cr.password });
+      if (reg && reg.ok) return { ok: true, viaSite: true, created: true, name: cr.name };
+      return { ok: false, err: (reg && reg.err) || (r && r.err) || 'login-failed' };
+    },
+    /** 把已有的游戏厅账号并进站点身份：验证旧口令 → 改成派生口令 → 后端记下绑定。
+     *  老存档、榜单、GitHub 绑定全部原样保留（账号还是那个账号，只是换了把钥匙）。 */
+    linkExisting: async function (name, password) {
+      var nm = String(name || '').trim(), pw = String(password || '');
+      if (!nm || !pw) return { ok: false, err: '填一下旧账号名和口令' };
+      var me = await Account.siteMe();
+      if (!me || !me.id) return { ok: false, err: '先登录站点账号' };
+      var cr = await Account.siteCredential();
+      if (!cr || !cr.password) return { ok: false, err: '拿不到派生口令' };
+      var li = await Account.login({ name: nm, password: pw });
+      if (!li || !li.ok) return { ok: false, err: (li && li.err) || '旧账号登录失败' };
+      var ch = await Account.changePassword(pw, cr.password);
+      if (!ch || !ch.ok) return { ok: false, err: (ch && ch.err) || '换口令失败' };
+      try {
+        var r = await fetch('/api/games/arcade/link', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: nm }),
+        });
+        if (!r.ok) return { ok: false, err: '绑定记录失败(' + r.status + ')' };
+      } catch (e) { return { ok: false, err: '绑定记录失败' }; }
+      return { ok: true, name: nm };
+    },
     /* ----- 注册 / 登录 / 会话 -----
        M23：这个游戏的 UI **不再提供注册**（账号 = GitHub，见 signInGitHub）；
        register/login 仍留在库里，给游戏厅页面与老的本机账号用。 */

@@ -12,7 +12,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev http://127.0.0.1:5199; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行 -->
-<script src="/i18n/i18n.js?v=20260928h"></script>
+<script src="/i18n/i18n.js?v=20260929d"></script>
 <title>GAMES · Bobbychina</title>
 <meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。" data-i18n-attr="content:games.meta.desc">
 <!-- 分享卡：与主页同一张 1200×630（渲染脚本 archive/sessions/2026-09/scripts/render-og.js）；本页此前没有任何 og:* -->
@@ -124,9 +124,8 @@
   nav .sp{flex:1}
 </style>
 <!-- 公共皮肤（纸感底 / 深色默认 / 分区胶囊导航）+ 主题切换与登录态 -->
-<link rel="stylesheet" href="/assets/site.css?v=20260928h">
-<script src="/assets/site.js?v=20260928h" defer></script>
-<script src="/beta-notice.js" data-version="v4.0.0-beta" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=20260929a">
+<script src="/assets/site.js?v=20260929a" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -243,7 +242,7 @@
 </div>
 
 <script src="/games/auth-config.js"></script>
-<script src="/games/account.js"></script>
+<script src="/games/account.js?v=20260929c"></script>
 <script>
 (function () {
   var A = window.DSHAccount;
@@ -265,6 +264,23 @@
   function val(sel) { var e = bd.querySelector(sel); return e ? e.value.trim() : ''; }
 
   /* ---- 账号条 ---- */
+  /* 站主反馈「两个账号系统？？」——游戏厅账号（云存档/全站榜，PBKDF2 零知识口令）与
+     站点统一身份（bobbycn.cc 邮箱账号）目前是两套。这里至少把关系说清楚：
+     站点身份已登录时，别再显示得像"你根本没登录"。真正的合并见部署手册 §15（Worker 接受 identity JWT）。 */
+  var siteUser = null, siteChecked = false;
+  function probeSite(cb) {
+    if (siteChecked) return cb();
+    fetch('/api/auth/identity/me', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; })
+      .then(function (d) { siteUser = d && d.id ? d : null; siteChecked = true; cb(); });
+  }
+  function siteLabel() {
+    if (!siteUser) return '';
+    if (siteUser.username) return siteUser.username;
+    var m = String(siteUser.email || '').split('@')[0];
+    return m.length > 6 ? m.slice(0, 4) + '***' + m.slice(-2) : m;
+  }
   function refresh() {
     var u = A.current();
     var who = document.getElementById('acct-who'), prov = document.getElementById('acct-prov'), btn = document.getElementById('btn-acct');
@@ -274,18 +290,35 @@
       who.innerHTML = u.email ? T('games.acct.loggedMail', { name: esc(u.name), mail: esc(u.email) })
                               : T('games.acct.logged', { name: esc(u.name) });
       /* 徽标说清"这个号是什么"：云账号（存档在站里）还是本机账号（只在这台设备）。
-         以前不绑第三方时一律显示"未绑定云账号"，云账号用户看着像没登录。 */
-      prov.innerHTML = u.providers.github ? '<span class="badge g">GitHub @' + esc(u.providers.github.login) + '</span> '
+         以前不绑第三方时一律显示"未绑定云账号"，云账号用户看着像没登录。
+         2026-09-29：站点身份自动接通的号（u_ 开头）前面挂一枚"站点账号已接通"，免得 u_xxx 看着莫名其妙。 */
+      var viaSite = !!siteUser && /^u_[0-9a-f]{6,}$/.test(String(u.name || ''));
+      prov.innerHTML = (viaSite ? '<span class="badge g">' + T('games.acct.siteOn') + '</span> ' : '')
+        + (u.providers.github ? '<span class="badge g">GitHub @' + esc(u.providers.github.login) + '</span> '
         : (u.providers.microsoft ? '<span class="badge b">' + T('games.acct.ms', { name: esc(u.providers.microsoft.name) }) + '</span> '
-        : '<span class="badge y">' + T(u.server ? 'games.acct.noDiskServer' : 'games.acct.noDiskLocal') + '</span> ');
+        : '<span class="badge y">' + T(u.server ? 'games.acct.noDiskServer' : 'games.acct.noDiskLocal') + '</span> '));
       btn.textContent = T('games.acct.btn2');
-    } else {
+    } else if (siteUser) {
+      /* 站点账号已登录、游戏厅账号没登录：说清"这是另一个账号"，并给出去登录的入口 */
       box.classList.remove('on');
+      who.innerHTML = T('games.acct.siteOnly', { name: esc(siteLabel()) });
+      prov.innerHTML = '<span class="badge y">' + T('games.acct.hallBadge') + '</span> ';
+      btn.textContent = T('games.acct.btnHall');
+    } else {      box.classList.remove('on');
       who.textContent = T('games.acct.anon');
       prov.innerHTML = '<span class="badge">' + T('games.acct.hint') + '</span>';
       btn.textContent = T('games.acct.btn');
     }
   }
+  probeSite(function () {
+    /* 站点身份登录着、游戏厅还没登录 → 用后端派发的凭据自动登录（没号就自动开一个）；
+       失败也不打扰用户（照常显示"登录游戏厅账号"），只是不自动。 */
+    if (siteUser && !A.current()) {
+      A.signInSite().then(function () { refresh(); }).catch(function () { refresh(); });
+      return;
+    }
+    refresh();
+  });
   document.getElementById('btn-acct').onclick = function () { A.current() ? panel() : loginPanel(); };
 
   /* ---- 一次性的"抄下来"弹窗（恢复码用：只显示这一次） ---- */
@@ -316,12 +349,38 @@
       '<div class="sect">' + T('games.login.pass') + '</div><input id="i-pass" type="password" placeholder="' + T('games.login.pass.ph') + '" autocomplete="current-password">' +
       '<div class="sect">' + T('games.login.mail') + '</div><input id="i-mail" placeholder="' + T('games.login.mail.ph') + '" autocomplete="email">' +
       '<div id="cloudwarn"></div>' +
+      '<div id="siteline"></div>' +
       '<div class="msg"></div>',
       '<button class="btn" onclick="doLogin()">' + T('games.login.do') + '</button><button class="btn ok" onclick="doRegister()">' + T('games.login.reg') + '</button>' +
       '<button class="btn ghost" onclick="forgotPanel()">' + T('games.login.forgot') + '</button>');
     setTimeout(function () { var e = document.getElementById('i-name'); if (e) e.focus(); }, 60);
     cloudWarn();
+    siteLine();
   }
+  /* 站点身份登录着的时候，给一条"把老游戏厅账号并进来"的入口 */
+  function siteLine() {
+    var box = document.getElementById('siteline');
+    if (!box || !siteUser) return;
+    box.innerHTML = '<div class="hint" style="margin-top:12px">' + T('games.link.hint') + ' '
+      + '<a href="#" onclick="linkPanel();return false">' + T('games.link.go') + '</a></div>';
+  }
+  window.linkPanel = function () {
+    open_(T('games.link.title'),
+      '<p>' + T('games.link.p') + '</p>' +
+      '<div class="sect">' + T('games.login.user') + '</div><input id="i-lname" placeholder="' + T('games.link.namePh') + '" autocomplete="username">' +
+      '<div class="sect">' + T('games.login.pass') + '</div><input id="i-lpass" type="password" autocomplete="current-password">' +
+      '<div class="msg"></div>',
+      '<button class="btn ok" onclick="doLink()">' + T('games.link.do') + '</button>');
+    setTimeout(function () { var e = document.getElementById('i-lname'); if (e) e.focus(); }, 60);
+  };
+  window.doLink = async function () {
+    var passEl = document.getElementById('i-lpass');
+    var r = await A.linkExisting(val('#i-lname'), passEl ? passEl.value : '');
+    if (!r.ok) return msg(r.err, true);
+    closeAcct();
+    open_(T('games.link.okTitle'), '<p>' + T('games.link.okP', { name: esc(r.name) }) + '</p>',
+      '<button class="btn ok" onclick="closeAcct();panel()">' + T('games.modal.close') + '</button>');
+  };
   /* 云后端连不上时必须先说：不然注册会静默降级成本机账号（这个坑真踩过） */
   async function cloudWarn() {
     var box = document.getElementById('cloudwarn');

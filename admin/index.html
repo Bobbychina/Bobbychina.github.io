@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>写作台 · bobbycn.cc</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <!--
   站内写作台（/admin/）：登录后直接在站上写文章，不用碰 GitHub。
   设计取舍（2026-09-28）：会上原定用现成 git-based CMS（Pages CMS）；站主要求改为站内直写，
@@ -64,6 +67,7 @@
   <span class="dim">bobbycn.cc/admin</span>
   <span class="sp"></span>
   <span class="dim" id="who"></span>
+  <button id="btnMail">✉ 发信</button>
   <button id="btnNew">＋ 新文章</button>
   <button id="btnLogout" style="display:none">退出</button>
 </header>
@@ -118,6 +122,23 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ③ 发信（2026-09-30 并进写作台：站主要求"只记一个页面"）-->
+<div id="mailView" class="wrap" style="display:none">
+  <main class="main" style="grid-column:1 / -1;max-width:760px">
+    <h2 style="margin:0 0 6px;font-size:18px">发信</h2>
+    <p class="hint" style="margin:0 0 14px">以 <b id="mailFrom">contact@bobbycn.cc</b> 的名义发出（Resend 主域签名，对方看不到"代发"字样）。Ctrl+Enter 发送。</p>
+    <div class="row"><div><label>收件人</label><input id="mTo" placeholder="someone@example.com" autocomplete="off" spellcheck="false"></div></div>
+    <div class="row"><div><label>主题</label><input id="mSubject" placeholder="（可留空）" autocomplete="off"></div></div>
+    <div class="row"><div><label>正文</label><textarea id="mText" spellcheck="false" style="min-height:280px"></textarea></div></div>
+    <div class="row" style="align-items:center">
+      <div style="flex:0 0 auto"><button class="primary" id="btnSend">发送</button></div>
+      <div style="flex:0 0 auto"><button id="btnBackEdit">← 回到文章</button></div>
+      <div style="flex:1;text-align:right;color:var(--dim);font-size:12px" id="mMeta"></div>
+    </div>
+    <div id="mLog" style="margin-top:18px;border-top:1px solid var(--line);padding-top:10px;color:var(--dim);font-size:12px;line-height:1.9"></div>
+  </main>
+</div>
 
 <script>
 /* ── 工具 ── */
@@ -243,10 +264,23 @@ async function loadList() {
 }
 
 /* ── 保存 / 发布 / 删除 ── */
+/* slug 自动生成：**必须只出拉丁字母/数字/中划线** —— 后端（controller DTO + service）都按这个口径校验，
+   以前这里保留了中文（\u4e00-\u9fa5），中文标题会生成中文 slug 然后在服务层被拒（2026-09-30 修）。
+   纯中文标题 → 退化成 post-<日期时间>，并回填到输入框让作者看见最终短链。 */
+function autoSlug(title) {
+  const latin = String(title || '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  if (latin.length >= 2) return latin;
+  const d = new Date(), p = (n) => (n < 10 ? '0' : '') + n;
+  return 'post-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
+}
 async function save() {
   const p = collect();
   if (!p.title) return toast('标题不能空', true);
-  if (!p.slug) p.slug = (p.title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').replace(/^-|-$/g, '') || 'post-' + Date.now());
+  if (!p.slug) {
+    p.slug = autoSlug(p.title);
+    $('fSlug').value = p.slug;                 // 回填：让作者在保存前就看见最终 URL
+  }
   $('btnSave').disabled = true; markMeta('保存中…');
   try {
     const d = await api('/api/admin/blog/posts', { method: 'POST', body: JSON.stringify(p) });
@@ -279,14 +313,60 @@ $('btnPreview').onclick = () => {
 };
 document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); } });
 
-/* ── 启动：有 token 就直接进（token 失效会在首次请求时被踢回登录页）── */
+/* ── 发信（并进写作台，2026-09-30）────────────────────────── */
+function showMail(on) {
+  $('editView').style.display = on ? 'none' : '';
+  $('mailView').style.display = on ? '' : 'none';
+  $('btnNew').style.display = on ? 'none' : '';
+  if (on) { mailPrefill(); setTimeout(() => $('mTo').focus(), 60); }
+}
+function mlog(t) { const d = document.createElement('div'); d.textContent = t; $('mLog').insertBefore(d, $('mLog').firstChild); }
+async function mailPrefill() {
+  if (mailPrefill.done) return;
+  try {
+    const d = await api('/api/admin/mail/config');
+    if (d && d.address) $('mailFrom').textContent = d.address;
+    mailPrefill.done = true;
+  } catch (e) { /* 鉴权失败时保持默认文案，发送时后端还会拦 */ }
+}
+async function mailSend() {
+  const to = $('mTo').value.trim(), subject = $('mSubject').value.trim(), text = $('mText').value;
+  if (!to) return toast('填一下收件人', true);
+  if (!text.trim()) return toast('正文是空的', true);
+  $('btnSend').disabled = true; $('mMeta').textContent = '发送中…';
+  try {
+    const d = await api('/api/admin/mail/send', { method: 'POST', body: JSON.stringify({ to, subject, text }) });
+    $('mMeta').textContent = '';
+    toast('已发出（Resend 受理 ' + (d.id || '?') + '）');
+    mlog(new Date().toLocaleString() + ' → ' + to + ' · ' + (subject || '(无主题)') + ' · id=' + (d.id || '?'));
+    $('mSubject').value = ''; $('mText').value = '';
+  } catch (e) {
+    $('mMeta').textContent = '';
+    toast('发送失败：' + e.message, true);
+  } finally { $('btnSend').disabled = false; }
+}
+$('btnMail').onclick = () => showMail(true);
+$('btnBackEdit').onclick = () => showMail(false);
+$('btnSend').onclick = mailSend;
+$('mText').addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); mailSend(); } });
+
+/* ── 启动：① 本地有写作台 token 就直接进；② 没有 token 也先试一次——站点账号登录着的话
+      （域级 Cookie）后端会直接放行，站主不用再记一套写作台口令（2026-09-29）── */
 (async function boot() {
   const saved = sessionStorage.getItem('admin_user');
   if (saved) { try { ME = JSON.parse(saved); } catch (e) {} }
-  if (!TOKEN) return showLogin();
-  // 现有后端用 GET /api/user/profile；identity 模块上线后会多一个 /api/auth/me，两者都试
-  try { ME = await api('/api/user/profile'); sessionStorage.setItem('admin_user', JSON.stringify(ME)); await enter(); }
-  catch (e) { logout(); }
+  if (TOKEN) {
+    try { ME = await api('/api/user/profile'); sessionStorage.setItem('admin_user', JSON.stringify(ME)); await enter(); return; }
+    catch (e) { logout(); return; }
+  }
+  try {
+    const d = await api('/api/admin/blog/posts');
+    LIST = d.posts || d || []; renderList();
+    ME = { username: '站点账号', viaSiteIdentity: true };
+    await enter();
+  } catch (e) {
+    showLogin();
+  }
 })();
 </script>
 </body>

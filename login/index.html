@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>登录 · bobbycn.cc</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script src="/mac-block.js" defer></script>
 <!--
   全站登录页（2026-09-28）
@@ -28,13 +31,14 @@
   .card{position:relative;z-index:1;max-width:400px;margin:11vh auto;padding:0 22px}
   h1{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 6px}
   .sub{color:var(--dim);font-size:13px;margin:0 0 26px}
-  label{display:block;color:var(--dim);font-size:12px;letter-spacing:.08em;margin:16px 0 5px}
-  input{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
-  input:focus{outline:none;border-color:var(--seal)}
-  button{font:inherit;font-size:14px;width:100%;margin-top:22px;padding:10px;border-radius:9px;cursor:pointer;
+  /* 加 .card 前缀的原因同 register：别让表单规则溢出到页头/主题按钮上 */
+  .card label{display:block;color:var(--dim);font-size:12px;letter-spacing:.08em;margin:16px 0 5px}
+  .card input{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+  .card input:focus{outline:none;border-color:var(--seal)}
+  .card button{font:inherit;font-size:14px;width:100%;margin-top:22px;padding:10px;border-radius:9px;cursor:pointer;
     background:transparent;color:var(--ink);border:1px solid var(--seal)}
-  button:hover{background:var(--seal);color:#1A0F0C;border-color:var(--seal)}
-  button[disabled]{opacity:.5;cursor:default}
+  .card button:hover{background:var(--seal);color:#1A0F0C;border-color:var(--seal)}
+  .card button[disabled]{opacity:.5;cursor:default}
   .msg{margin-top:14px;font-size:13px;color:var(--seal);min-height:20px}
   .foot{margin-top:26px;color:var(--dim);font-size:12.5px;display:flex;gap:14px;flex-wrap:wrap}
   .foot a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
@@ -56,6 +60,19 @@
 
   <button id="btn">登录</button>
   <div class="msg" id="msg"></div>
+
+  <!-- 忘记口令：就地展开，走 /api/auth/identity/password/reset-request（不泄露邮箱是否存在） -->
+  <div style="margin-top:14px">
+    <a href="#" id="forgot" style="font-size:12.5px;color:var(--dim);border-bottom:1px solid transparent">忘记口令？</a>
+  </div>
+  <div id="fbox" hidden style="margin-top:10px">
+    <input id="femail" type="email" placeholder="注册时用的邮箱" autocomplete="email">
+    <!-- 同一张 widget：找回口令这条路同样要挡机器人（action 与注册区分开，服务端会核对） -->
+    <div class="cf-turnstile" data-sitekey="0x4AAAAAAFG_gA9qpBv-0gsz" data-action="password-reset" data-theme="dark" data-size="flexible" data-language="zh-cn" style="margin-top:12px"></div>
+    <button id="fbtn" style="margin-top:10px">发重置链接</button>
+    <div class="msg" id="fmsg"></div>
+  </div>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
   <div class="foot">
     <a href="/">← 回首页</a>
@@ -96,6 +113,39 @@
   }
   btn.addEventListener('click',go);
   document.getElementById('pw').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
+})();
+
+/* 忘记口令：就地问邮箱 → reset-request。后端对"邮箱不存在"也返回同样的话，避免枚举。
+   Turnstile 用同一张 widget（action=password-reset），令牌一次性：失败后必须 reset 才能重试。 */
+(function(){
+  var link=document.getElementById('forgot'), box=document.getElementById('fbox');
+  var fmsg=document.getElementById('fmsg'), fbtn=document.getElementById('fbtn');
+  var tsWidget=null;
+  window.addEventListener('load', function(){
+    if(window.turnstile) tsWidget=window.turnstile.render('.cf-turnstile', { sitekey:'0x4AAAAAAFG_gA9qpBv-0gsz', action:'password-reset', theme:'dark', language:'zh-cn' });
+  });
+  function tsToken(){ try { return (tsWidget!==null&&window.turnstile)?(window.turnstile.getResponse(tsWidget)||''):''; } catch(e){ return ''; } }
+  link.addEventListener('click',function(e){
+    e.preventDefault(); box.hidden=!box.hidden;
+    if(!box.hidden) document.getElementById('femail').focus();
+  });
+  fbtn.addEventListener('click',function(){
+    var em=document.getElementById('femail').value.trim();
+    if(!em||em.indexOf('@')<0){ fmsg.textContent='请填一个像样的邮箱'; return; }
+    fbtn.disabled=true; fmsg.textContent='发送中…';
+    var payload={email:em}; var t=tsToken(); if(t) payload.cfToken=t;
+    fetch('/api/auth/identity/password/reset-request',{method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
+      .then(function(res){
+        fmsg.textContent = res.ok
+          ? '如果这个邮箱注册过，重置链接已经发出（30 分钟内有效）。'
+          : ((res.d&&(res.d.message||res.d.error))||('发送失败（'+res.status+'）'));
+        fbtn.disabled=false;
+        try { if (tsWidget!==null&&window.turnstile) window.turnstile.reset(tsWidget); } catch(e){}
+      })
+      .catch(function(){ fmsg.textContent='网络错误，稍后再试'; fbtn.disabled=false; });
+  });
 })();
 </script>
 </body>

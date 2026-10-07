@@ -132,7 +132,7 @@
      ⚠️ 改词典（zh-CN.js / en.js）时**把下面的 VER 改一下**（与页面里 site.css/site.js 的 ?v= 同步跳）。
      一开始想从 document.currentScript 的 ?v= 里取，但词典是在 loadAsync 里异步加载的，
      那时 currentScript 已经是 null，取不到 —— 静态站不搞聪明，写死常量最稳。 */
-  var VER = '20260928g';
+  var VER = '20260929d';
 
   function loadAsync(code, cb) {
     var s = document.createElement('script');

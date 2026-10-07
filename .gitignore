@@ -7,3 +7,5 @@ tools/art-dump/
 tools/preview/
 # 站长在本机部署 Worker 时的 wrangler 本地状态（含账号信息，绝不入库）
 .wrangler/
+# GitHub Actions 部署到东京服务器的专用私钥（生成后立刻转存进仓库 Secrets，绝不入库）
+.deploy-key/

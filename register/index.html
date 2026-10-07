@@ -5,19 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <title>注册 · bobbycn.cc</title>
-<link rel="stylesheet" href="/assets/site.css?v=20260928h">
-<script src="/assets/site.js?v=20260928h" defer></script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/site.css?v=20260929a">
+<script src="/assets/site.js?v=20260929a" defer></script>
 <style>
   .card{max-width:420px;margin:9vh auto;padding:0 22px}
   h1{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 6px}
   .sub{color:var(--dim);font-size:13px;margin:0 0 22px}
-  label{display:block;color:var(--dim);font-size:12px;letter-spacing:.08em;margin:14px 0 5px}
-  input{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--paper2);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
-  input:focus{outline:none;border-color:var(--seal)}
-  button{font:inherit;font-size:14px;width:100%;margin-top:20px;padding:10px;border-radius:9px;cursor:pointer;
+  /* 表单样式一律加 .card 前缀：不加会连页头共用的 .iconbtn（主题/登录）一起吃 width:100%，
+     症状是顶栏"登录"被挤成竖排、主题按钮拉成一条长胶囊（实测踩过）。 */
+  .card label{display:block;color:var(--dim);font-size:12px;letter-spacing:.08em;margin:14px 0 5px}
+  .card input{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--paper2);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+  .card input:focus{outline:none;border-color:var(--seal)}
+  .card button{font:inherit;font-size:14px;width:100%;margin-top:20px;padding:10px;border-radius:9px;cursor:pointer;
          background:transparent;color:var(--ink);border:1px solid var(--seal)}
-  button:hover{background:var(--seal);color:#1A0F0C}
-  button[disabled]{opacity:.5;cursor:default}
+  .card button:hover{background:var(--seal);color:#1A0F0C}
+  .card button[disabled]{opacity:.5;cursor:default}
   .msg{margin-top:14px;font-size:13px;color:var(--seal);min-height:20px;line-height:1.8}
   .msg.ok{color:var(--soft)}
   .foot{margin-top:22px;color:var(--dim);font-size:12.5px;display:flex;gap:14px;flex-wrap:wrap}
@@ -59,8 +64,16 @@
   <button id="btn">注册</button>
   <div class="msg" id="msg"></div>
 
+  <!-- Cloudflare Turnstile 人机验证（2026-09-28）
+       site key 是公开值，写在页面里没问题；secret 只放服务端环境变量。
+       没填 sitekey 时整块隐藏 —— CF 侧还没建 widget 之前不影响注册。 -->
+  <div id="tsWrap" style="margin-top:18px">
+    <div class="cf-turnstile" data-sitekey="0x4AAAAAAFG_gA9qpBv-0gsz" data-action="register" data-theme="dark" data-size="flexible" data-language="zh-cn"></div>
+  </div>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
   <div class="hintbox" id="mailhint" hidden>
-    邮件已经发出（或写进了服务端日志）。**当前尚未接入发信服务**，如果收不到邮件，跟我说一声，我从服务器日志里把验证链接取给你。
+    邮件已从 <b>no-reply@em.bobbycn.cc</b> 发出。没收到先翻<b>垃圾箱 / 广告邮件</b>；还是没有就跟我说一声，我从发信记录里查。
   </div>
 
   <div class="foot">
@@ -71,16 +84,32 @@
 
 <script>
 (function(){
+  /* Cloudflare Turnstile：site key 是公开值。留空 = 不启用（服务端此时跑 optional 模式，不会因此拒注册）。
+     填上后：渲染 widget → 提交时带 cfToken → 服务端用 TURNSTILE_SECRET 校验（并核对 action=register）。 */
+  var TS_SITEKEY = '0x4AAAAAAFG_gA9qpBv-0gsz';
+  var tsWidget = null;
+  if (TS_SITEKEY) {
+    document.getElementById('tsWrap').hidden = false;
+    window.addEventListener('load', function () {
+      if (window.turnstile) tsWidget = window.turnstile.render('.cf-turnstile', { sitekey: TS_SITEKEY, action: 'register', theme: 'dark', language: 'zh-cn' });
+    });
+  }
+
   var msg=document.getElementById('msg'), btn=document.getElementById('btn');
+  function tsToken(){
+    try { return (tsWidget !== null && window.turnstile) ? (window.turnstile.getResponse(tsWidget) || '') : ''; } catch(e){ return ''; }
+  }
   function go(){
     var em=document.getElementById('em').value.trim();
     var pw=document.getElementById('pw').value, pw2=document.getElementById('pw2').value;
     if(!em || em.indexOf('@')<0){ msg.textContent='请填一个像样的邮箱'; return; }
     if(pw.length<8){ msg.textContent='口令至少 8 位'; return; }
     if(pw!==pw2){ msg.textContent='两次口令不一致'; return; }
+    if(TS_SITEKEY && !tsToken()){ msg.textContent='请先完成人机验证'; return; }
     btn.disabled=true; msg.className='msg'; msg.textContent='提交中…';
+    var payload={email:em,password:pw}; var t=tsToken(); if(t) payload.cfToken=t;
     fetch('/api/auth/identity/register',{method:'POST',credentials:'same-origin',
-      headers:{'content-type':'application/json'},body:JSON.stringify({email:em,password:pw})})
+      headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
       .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
       .then(function(res){
         if(res.ok){
@@ -93,6 +122,7 @@
         msg.className='msg';
         msg.textContent=(res.d && (res.d.message||res.d.error)) || ('注册失败（'+res.status+'）');
         btn.disabled=false;
+        try { if (tsWidget !== null && window.turnstile) window.turnstile.reset(tsWidget); } catch(e){}
       })
       .catch(function(){ msg.textContent='网络错误，稍后再试'; btn.disabled=false; });
   }

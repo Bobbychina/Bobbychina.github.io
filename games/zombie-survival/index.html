@@ -442,6 +442,10 @@ workerScope.onmessage = function (e) {
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://bobbychina.github.io/og/home.png">
+<style data-beta-off="1">/* 2026-09-29 全局移除 BETA 条：这是打包产物里自带的条，源码另在一条流水线上，
+   所以不去改 minified 包，而是把它和它写到 :root 上的高度变量一起按住（--beta-h 必须 !important，
+   否则盖不过脚本写的行内样式）。*/
+html{--beta-h:0px !important}#beta-notice,#mobile-warn{display:none !important}</style>
 </head>
 <body>
 <div id="app">

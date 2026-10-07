@@ -1,0 +1,143 @@
+# 静态站自动上线：main 有新提交 → 同步到东京服务器 /var/www/portal
+#
+# 为什么需要它：主站 bobbycn.cc 是自建服务器（不是 GitHub Pages），push 到本仓库
+# 原本不会影响线上，只能靠站长在本机手工 scp/ssh。这个工作流把那段手工步骤固化成一条链路。
+#
+# 保守设计（都是故意的，别随手改成"更简洁"的写法）：
+#   1. 目标目录 /var/www/portal 里混着**不由本仓库管理**的内容（admin/ 来自写作台、
+#      posts/ media/ 实际 alias 到 /opt/stockgame/blog-dist、.deny/ 是 nginx 的 403 页）。
+#      打 tar 包时要排除这些路径 —— 少一处排除就会把线上内容覆盖掉。
+#   2. 不使用 rsync --delete：只覆盖、不删除。代价是仓库里删掉的文件会留在线上，
+#      但换来"任何一次部署都不可能删掉服务器上的东西"。要清理由站长手工处理。
+#   3. 部署前在服务器 /opt/stockgame/snapshots 留一份上一次的 tar 包，
+#      回滚就是把它解开覆盖回去（见 tools/rollback-portal.sh）。
+#   4. 推 main 即上线；靠 GitHub 的 production environment 审批闸门兜一层。
+
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 手动触发：用于审批闸门模式或重跑
+
+# 串行部署：两个人同时推 main 时不会交错覆盖（排队而不是并发；不取消进行中的部署）
+concurrency:
+  group: deploy-portal
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 构建产物包
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # i18n 自检：词典键与页面实际用键不对齐就退出 1，挡住"改了页面漏改词条"
+      - name: i18n 自检
+        run: node tools/i18n-check.mjs
+
+      # 存在性闸门：这些文件曾被漏掉 git add（只活在站长本机与服务器上）。
+      # 一旦从仓库里消失，部署就会把它们从线上抹掉 —— 这里宁可拒绝部署。
+      - name: 必需文件存在性检查
+        run: |
+          set -e
+          missing=0
+          for f in index.html favicon.svg favicon.ico apple-touch-icon.png \
+                   icon-192.png icon-512.png assets/site.css assets/site.js \
+                   assets/blog.js mail/index.html i18n/i18n.js; do
+            if [ ! -f "$f" ]; then echo "::error::缺少必需文件：$f"; missing=1; fi
+          done
+          [ "$missing" = "0" ] || { echo "拒绝部署：仓库缺少线上正在使用的文件"; exit 1; }
+          echo "必需文件齐全"
+
+      - name: 打包站点
+        run: |
+          tar -czf /tmp/portal.tar.gz \
+            --exclude=./.git --exclude=./.github --exclude=./.deploy-key \
+            --exclude=./tools --exclude=./functions \
+            --exclude=./.wrangler --exclude=./.probe --exclude=./node_modules \
+            .
+          ls -lh /tmp/portal.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portal-dist
+          path: /tmp/portal.tar.gz
+          retention-days: 14
+
+  deploy:
+    name: 同步到东京服务器
+    needs: build
+    runs-on: ubuntu-latest
+    # 审批闸门挂在这里：建了 production environment 且配了 Required reviewers，
+    # 这一步会停在 Waiting for approval，站长在 GitHub 上点 Approve 才继续。
+    environment:
+      name: production
+      url: https://bobbycn.cc/
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: portal-dist
+          path: /tmp
+
+      - name: 配置 SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          # 私钥经环境变量传入，不落进仓库、也不会回显到日志
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # 只信任扫描到的这把主机公钥；ssh-keyscan 失败即中止（避免 TOFU 盲连）
+          ssh-keyscan -T 10 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          test -s ~/.ssh/known_hosts
+
+      - name: 上传并发布
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          SSH="ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes"
+          scp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+            /tmp/portal.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/portal.tar.gz"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          # ① 留一份上一次线上内容的快照（回滚用）
+          sudo install -d -o ubuntu -g ubuntu /opt/stockgame/snapshots
+          if [ -f /tmp/portal-last.tar.gz ]; then
+            sudo cp /tmp/portal-last.tar.gz "/opt/stockgame/snapshots/portal-$(date +%Y%m%d-%H%M%S).tar.gz"
+            sudo find /opt/stockgame/snapshots -name 'portal-*.tar.gz' -mtime +30 -delete
+          fi
+          cp /tmp/portal.tar.gz /tmp/portal-last.tar.gz
+          # ② 覆盖发布（不删除服务器上任何东西）
+          sudo tar -xzf /tmp/portal.tar.gz -C /var/www/portal
+          sudo chown -R www-data:www-data /var/www/portal
+          # ③ 收回权限：tar 包里可能带着 777/755 之外的模式
+          sudo find /var/www/portal -type d -exec chmod 755 {} +
+          sudo find /var/www/portal -type f -exec chmod 644 {} +
+          echo "DEPLOYED files=$(sudo find /var/www/portal -type f | wc -l)"
+          REMOTE
+
+      # 部署后冒烟：这些 URL 任意一个不是 200 就判失败，避免"推成功了但站点是坏的"
+      - name: 线上冒烟
+        run: |
+          set -euo pipefail
+          for u in https://bobbycn.cc/ https://bobbycn.cc/assets/site.css \
+                   https://bobbycn.cc/games/ https://bobbycn.cc/login/; do
+            for i in 1 2 3 4 5; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$u" || true)
+              [ "$code" = "200" ] && break
+              sleep 5
+            done
+            echo "$u -> $code"
+            [ "$code" = "200" ] || exit 1
+          done
