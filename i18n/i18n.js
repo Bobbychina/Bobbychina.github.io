@@ -131,8 +131,10 @@
      CF 按扩展名缓存静态文件（实测 .js 被 HIT 4 小时），词典改了线上不生效。
      ⚠️ 改词典（zh-CN.js / en.js）时**把下面的 VER 改一下**（与页面里 site.css/site.js 的 ?v= 同步跳）。
      一开始想从 document.currentScript 的 ?v= 里取，但词典是在 loadAsync 里异步加载的，
-     那时 currentScript 已经是 null，取不到 —— 静态站不搞聪明，写死常量最稳。 */
-  var VER = '20260929d';
+     那时 currentScript 已经是 null，取不到 —— 静态站不搞聪明，写死常量最稳。
+     2026-10-09：站点授权上线时漏跳了这个号，线上词典被缓存成 9/29 那份，
+     新词条全部显示成 key（表现为"i18n 没生效"）。改词典**必须**同时跳这里。 */
+  var VER = '20261009a';
 
   function loadAsync(code, cb) {
     var s = document.createElement('script');

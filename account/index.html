@@ -9,6 +9,8 @@
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script src="/mac-block.js" defer></script>
+<!-- i18n 引擎：解析期同步执行（勿加 defer/async）——与主页/游戏厅同一套词典 -->
+<script src="/i18n/i18n.js?v=20261009a"></script>
 <script src="/games/auth-config.js"></script>
 <script src="/games/site-auth.js?v=20261008a"></script>
 <script src="/games/site-saves.js?v=20261008a"></script>
@@ -16,8 +18,9 @@
   站点账号页（2026-10-08）
   这个页面回答一个问题：**我授权过哪些应用**，以及一句话把授权收回。
   数据来源是授权系统自己的端点（/api/auth/identity/oauth/grants 需要站点会话；
-  逐个应用的状态来自 /games/site-auth.js 的本地登录态）。
+  云存档概览走 /api/auth/identity/saves/summary，用授权令牌）。
   没有它的话，"可复用的授权系统"就缺了用户侧最重要的一环：能看见、能撤销。
+  2026-10-09：全部文案接入 i18n 词典（此前是硬编码中文），并挂上语言切换器。
 -->
 <style>
   :root{
@@ -45,67 +48,78 @@
   .btn.danger{border-color:#7a3b33;color:#e08c80}
   .msg{font-size:13px;color:var(--dim);min-height:20px;margin-top:8px}
   .msg.err{color:var(--seal)}
-  .top{position:absolute;top:18px;right:22px}
+  .top{position:absolute;top:18px;right:22px;display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--dim)}
+  .top a{color:inherit;text-decoration:none}
   .badge{font-size:11.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
   .badge.g{border-color:#3f7a52;color:#6fce93}
+  .hintline{color:var(--dim);font-size:12.5px;margin-top:8px}
 </style>
 </head>
 <body>
-<button class="btn top" id="btnTheme">☾ 深色</button>
+<span class="top"><span data-i18n-switch></span><button class="btn" id="btnTheme">☾</button></span>
 <div class="wrap">
-  <h1>账号</h1>
-  <p class="sub">bobbycn.cc 的一个账号覆盖全站：游戏厅、博客、模拟炒股，以及以后自己做的独立游戏。下面是它的登录状态与授权记录。</p>
+  <h1 data-i18n="account.h1">账号</h1>
+  <p class="sub" data-i18n="account.sub">bobbycn.cc 的一个账号覆盖全站：游戏厅、博客、模拟炒股，以及以后自己做的独立游戏。下面是它的登录状态与授权记录。</p>
 
   <div class="card" id="idcard">
-    <h2>站点身份</h2>
-    <div id="identity">正在读取…</div>
+    <h2 data-i18n="account.identity">站点身份</h2>
+    <div id="identity" data-i18n="account.loading">正在读取…</div>
   </div>
 
   <div class="card" id="appcard">
-    <h2>已授权的应用</h2>
-    <div id="apps">正在读取…</div>
+    <h2 data-i18n="account.apps">已授权的应用</h2>
+    <div id="apps" data-i18n="account.loading">正在读取…</div>
     <div class="msg" id="msg"></div>
   </div>
 
   <div class="card">
-    <h2>云存档</h2>
-    <div id="saves">正在读取…</div>
+    <h2 data-i18n="account.saves">云存档</h2>
+    <div id="saves" data-i18n="account.loading">正在读取…</div>
   </div>
 
   <div class="card">
-    <h2>其它</h2>
-    <a class="btn" href="/">回首页</a>
-    <a class="btn" href="/games/">游戏厅</a>
-    <a class="btn" href="/admin/">写作台</a>
-    <button class="btn danger" id="btnOut">退出登录（全站）</button>
+    <h2 data-i18n="account.other">其它</h2>
+    <a class="btn" href="/" data-i18n="account.back">回首页</a>
+    <a class="btn" href="/games/" data-i18n="account.games">游戏厅</a>
+    <a class="btn" href="/admin/" data-i18n="account.admin">写作台</a>
+    <button class="btn danger" id="btnOut" data-i18n="account.logoutAll">退出登录（全站）</button>
   </div>
 </div>
 
 <script>
 (function(){
+  /* ---- 主题 ---- */
   var KEY='site-theme', saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
   var theme=(saved==='light'||saved==='dark')?saved:'dark';
-  function apply(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('btnTheme').textContent=t==='dark'?'☾ 深色':'☀ 浅色';}
+  function apply(t){
+    document.documentElement.setAttribute('data-theme',t);
+    document.getElementById('btnTheme').textContent=t==='dark'?'☾':'☀';
+    document.getElementById('btnTheme').title=t==='dark'?I18N.t('account.themeDark'):I18N.t('account.themeLight');
+  }
   apply(theme);
   document.getElementById('btnTheme').addEventListener('click',function(){
     theme=theme==='dark'?'light':'dark'; try{localStorage.setItem(KEY,theme);}catch(e){}; apply(theme);
   });
+  /* 语言切换后主题按钮的 title 也要跟着走 */
+  if (window.I18N && I18N.onChange) I18N.onChange(function(){ apply(theme); });
 })();
 
 (function(){
-  var T=function(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];});};
+  var T=function(k,v){ return window.I18N && I18N.t ? I18N.t(k,v) : k; };
+  var esc=function(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];});};
   function el(id){return document.getElementById(id);}
   function msg(text,err){ el('msg').textContent=text||''; el('msg').className='msg'+(err?' err':''); }
 
   function renderIdentity(site){
     if(!site.signedIn){
-      el('identity').innerHTML='未登录。<a class="btn" href="/login/">去登录</a>';
+      el('identity').innerHTML=T('account.notSignedIn')+' <a class="btn" href="/login/">'+esc(T('account.goLogin'))+'</a>';
       return;
     }
     var u=site.user||{};
-    el('identity').innerHTML='<div>已登录：<b>'+T(u.username||u.name||u.sub||'站点账号')+'</b> <span class="badge g">授权正常</span></div>'+
-      (u.email?('<div style="color:var(--dim);font-size:13px">'+T(u.email)+'</div>'):'')+
-      '<div style="color:var(--dim);font-size:13px">身份 ID：<code>'+T(u.sub||'')+'</code></div>';
+    el('identity').innerHTML='<div>'+T('account.signedInAs',{name:esc(u.username||u.name||u.sub||T('account.siteAccount'))})+
+      ' <span class="badge g">'+esc(T('account.grantOk'))+'</span></div>'+
+      (u.email?('<div class="hintline">'+esc(u.email)+'</div>'):'')+
+      '<div class="hintline">'+esc(T('account.identityId'))+'<code>'+esc(u.sub||'')+'</code></div>';
   }
 
   /* 授权记录：站点会话给的权威列表（授权系统自己的端点） */
@@ -114,15 +128,18 @@
       .then(function(r){ return r.ok?r.json():null; })
       .catch(function(){ return null; })
       .then(function(d){
-        if(!d||!d.grants){ el('apps').innerHTML='<div class="hint" style="color:var(--dim)">读不到授权记录（未登录站点账号？）。</div>'; return; }
-        if(!d.grants.length){ el('apps').innerHTML='<div style="color:var(--dim)">你还没授权过任何应用。到 <a href="/games/">游戏厅</a> 点一次登录就会出现在这里。</div>'; return; }
+        if(!d||!d.grants){ el('apps').innerHTML='<div class="hintline">'+esc(T('account.grantsUnreadable'))+'</div>'; return; }
+        if(!d.grants.length){
+          el('apps').innerHTML='<div class="hintline">'+T('account.grantsEmpty',{games:'<a href="/games/">'+esc(T('account.games'))+'</a>'})+'</div>';
+          return;
+        }
         var rows=d.grants.map(function(g){
-          return '<tr><td><code>'+T(g.clientId)+'</code></td><td>'+T((g.scopes||[]).join(' '))+'</td><td>'+
-            (g.revoked?'<span class="badge">已解除</span>':'<span class="badge g">有效</span>')+'</td><td>'+
-            (g.revoked?'':'<button class="btn danger" data-client="'+T(g.clientId)+'">解除授权</button>')+'</td></tr>';
+          return '<tr><td><code>'+esc(g.clientId)+'</code></td><td>'+esc((g.scopes||[]).join(' '))+'</td><td>'+
+            (g.revoked?'<span class="badge">'+esc(T('account.stateRevoked'))+'</span>':'<span class="badge g">'+esc(T('account.stateActive'))+'</span>')+'</td><td>'+
+            (g.revoked?'':'<button class="btn danger" data-client="'+esc(g.clientId)+'">'+esc(T('account.revoke'))+'</button>')+'</td></tr>';
         }).join('');
-        el('apps').innerHTML='<table><tr><th>应用</th><th>权限</th><th>状态</th><th></th></tr>'+rows+'</table>'+
-          '<div style="color:var(--dim);font-size:12.5px;margin-top:8px">解除后：该应用的刷新令牌立刻作废，已发出的访问令牌最多再活 10 分钟。</div>';
+        el('apps').innerHTML='<table><tr><th>'+esc(T('account.thApp'))+'</th><th>'+esc(T('account.thScopes'))+'</th><th>'+esc(T('account.thState'))+'</th><th></th></tr>'+rows+'</table>'+
+          '<div class="hintline">'+esc(T('account.revokeNote'))+'</div>';
         Array.prototype.forEach.call(el('apps').querySelectorAll('button[data-client]'),function(b){
           b.addEventListener('click',function(){ revoke(b.getAttribute('data-client')); });
         });
@@ -130,36 +147,36 @@
   }
 
   function revoke(clientId){
-    msg('正在解除 '+clientId+' …');
+    msg(T('account.revoking',{client:clientId}));
     fetch('/api/auth/identity/oauth/revoke-grant',{method:'POST',credentials:'same-origin',
       headers:{'content-type':'application/json'},body:JSON.stringify({client_id:clientId})})
       .then(function(r){ return r.json().then(function(d){return {ok:r.ok,d:d};}); })
       .then(function(res){
-        if(!res.ok){ msg('解除失败：'+((res.d&&res.d.message)||'未知'),true); return; }
-        msg('已解除 '+clientId+' 的授权');
+        if(!res.ok){ msg(T('account.revokeFailed',{err:(res.d&&res.d.message)||T('account.unknown')}),true); return; }
+        msg(T('account.revoked',{client:clientId}));
         /* 本地令牌也要清掉，否则页面还以为登录着 */
         try{ if(window.SiteAuth&&window.SiteAuth.signOut) window.SiteAuth.signOut({clientId:clientId}); }catch(e){}
         loadGrants();
       })
-      .catch(function(){ msg('网络错误',true); });
+      .catch(function(){ msg(T('account.netErr'),true); });
   }
 
   function loadSaves(){
-    if(!window.SiteAuth){ el('saves').textContent='（未加载授权 SDK）'; return; }
+    if(!window.SiteAuth){ el('saves').textContent=T('account.noSdk'); return; }
     SiteAuth.ready().then(function(){
-      if(!SiteAuth.status().signedIn){ el('saves').innerHTML='<div style="color:var(--dim)">授权登录后这里会显示各游戏的云存档规模。</div>'; return; }
+      if(!SiteAuth.status().signedIn){ el('saves').innerHTML='<div class="hintline">'+esc(T('account.savesAfterLogin'))+'</div>'; return; }
       SiteAuth.authFetch('/api/auth/identity/saves/summary',{headers:{Accept:'application/json'}})
         .then(function(r){ return r.ok?r.json():null; })
         .then(function(d){
-          if(!d){ el('saves').innerHTML='<div style="color:var(--dim)">读不到云存档（可能还没授权 saves 权限）。</div>'; return; }
-          if(!d.games||!d.games.length){ el('saves').innerHTML='<div style="color:var(--dim)">还没有服务端存档。'+T(d.hint||'')+'</div>'; return; }
+          if(!d){ el('saves').innerHTML='<div class="hintline">'+esc(T('account.savesUnreadable'))+'</div>'; return; }
+          if(!d.games||!d.games.length){ el('saves').innerHTML='<div class="hintline">'+esc(T('account.savesEmpty'))+esc(d.hint||'')+'</div>'; return; }
           var rows=d.games.map(function(g){
-            return '<tr><td><code>'+T(g.game)+'</code></td><td>'+g.slots+' 个槽位</td><td>'+Math.round(g.bytes/1024)+' KB</td><td>'+T(String(g.lastUpdatedAt).slice(0,10))+'</td></tr>';
+            return '<tr><td><code>'+esc(g.game)+'</code></td><td>'+esc(T('account.slots',{n:g.slots}))+'</td><td>'+Math.round(g.bytes/1024)+' KB</td><td>'+esc(String(g.lastUpdatedAt).slice(0,10))+'</td></tr>';
           }).join('');
-          el('saves').innerHTML='<table><tr><th>游戏</th><th>槽位</th><th>大小</th><th>最近更新</th></tr>'+rows+'</table>'+
-            '<div style="color:var(--dim);font-size:12.5px;margin-top:8px">'+T(d.hint||'')+'</div>';
+          el('saves').innerHTML='<table><tr><th>'+esc(T('account.thGame'))+'</th><th>'+esc(T('account.thSlots'))+'</th><th>'+esc(T('account.thSize'))+'</th><th>'+esc(T('account.thUpdated'))+'</th></tr>'+rows+'</table>'+
+            '<div class="hintline">'+esc(d.hint||'')+'</div>';
         })
-        .catch(function(){ el('saves').textContent='读不到云存档。'; });
+        .catch(function(){ el('saves').textContent=T('account.savesUnreadable'); });
     });
   }
 
@@ -168,15 +185,19 @@
     if(window.SiteAuth) SiteAuth.signOut({global:true}).then(go,go); else go();
   });
 
-  function boot(){
-    if(!window.SiteAuth){ renderIdentity({signedIn:false}); loadGrants(); el('saves').textContent='（未加载授权 SDK）'; return; }
+  /* 语言切换后重画（静态文案由 i18n 引擎负责，这里是运行时拼的那几块） */
+  if (window.I18N && I18N.onChange) I18N.onChange(function(){ boot(false); });
+
+  var booted=false;
+  function boot(first){
+    if(!window.SiteAuth){ renderIdentity({signedIn:false}); loadGrants(); el('saves').textContent=T('account.noSdk'); return; }
     SiteAuth.ready().then(function(){
       renderIdentity(SiteAuth.status());
       loadGrants();
       loadSaves();
     });
   }
-  boot();
+  boot(true);
 })();
 </script>
 </body>

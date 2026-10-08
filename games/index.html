@@ -11,8 +11,10 @@
      （frame-ancestors 只能由 HTTP 响应头提供，写在 meta 里会被忽略，所以没写。） -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev http://127.0.0.1:5199; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行 -->
-<script src="/i18n/i18n.js?v=20260929d"></script>
+<!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行
+     ⚠️ ?v= 与 i18n.js 里的 VER 必须同时跳：改词典不跳号 = 线上还被缓存成旧词典，
+     新词条会显示成 key（2026-10-09 踩过一次，表现为"i18n 没生效"）。 -->
+<script src="/i18n/i18n.js?v=20261009a"></script>
 <title>GAMES · Bobbychina</title>
 <meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。" data-i18n-attr="content:games.meta.desc">
 <!-- 分享卡：与主页同一张 1200×630（渲染脚本 archive/sessions/2026-09/scripts/render-og.js）；本页此前没有任何 og:* -->
@@ -260,6 +262,37 @@
   var T = function (k, v) { return I18N.t(k, v); };   /* 面板是运行时拼的 HTML，i18n 的 DOM 扫描覆盖不到，所以全部走 T() */
 
   function esc(s) { return String(s == null ? '' : s).replace(/[<>&"]/g, function (c) { return { '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c]; }); }
+
+  /* ---- 运行时重画节点的 i18n 复位 ----
+     账号条（who/prov/btn）是 JS 画的。i18n 引擎按词典替换只认带 data-i18n 的元素，
+     而运行时写进去的 <b> 标签没有标记 —— 所以切语言时要把这几个节点恢复成原始静态文案、
+     让引擎按新语言重翻一遍，再交给 refresh() 覆盖成当前状态。
+     这样"切语言"和"状态变化"两条路都正确：只摘标记不恢复文案 = 切完还是旧语言；
+     只保留标记 = 引擎一重扫就把动态文案冲掉。 */
+  var I18N_NODES = ['acct-who', 'acct-prov', 'btn-acct'];
+  var I18N_SNAPSHOT = (function () {
+    var snap = {};
+    I18N_NODES.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      snap[id] = {
+        html: el.innerHTML,
+        key: el.getAttribute('data-i18n'),
+        keyHtml: el.getAttribute('data-i18n-html'),
+      };
+    });
+    return snap;
+  })();
+  function restoreI18nNodes() {
+    I18N_NODES.forEach(function (id) {
+      var el = document.getElementById(id), snap = I18N_SNAPSHOT[id];
+      if (!el || !snap) return;
+      el.innerHTML = snap.html;
+      if (snap.key) el.setAttribute('data-i18n', snap.key);
+      if (snap.keyHtml) el.setAttribute('data-i18n-html', snap.keyHtml);
+    });
+    try { I18N.apply(); } catch (e) { /* 老浏览器/引擎未就绪：忽略 */ }
+  }
   function open_(title, body, footer) {
     ti.textContent = title; bd.innerHTML = body;
     ft.innerHTML = footer || '<button class="btn" onclick="closeAcct()">' + T('games.modal.close') + '</button>';
@@ -303,8 +336,8 @@
     var u = A.current();
     var who = document.getElementById('acct-who'), prov = document.getElementById('acct-prov'), btn = document.getElementById('btn-acct');
     var box = document.getElementById('acct');
-    /* 账号条是**运行时重画**的：先摘掉 data-i18n 标记，否则 i18n 引擎的语言切换/重扫
-       会把它改回静态默认文案（表现为"点完登录按钮又变回注册/登录"）。切语言由下面的 onChange 重画。 */
+    /* 这几句是 JS 画进去的、没有 data-i18n 标记：从此刻起它们只由本函数负责，
+       不能让 i18n 的整页重扫（I18N.apply）再冲一遍。切语言由下面的 I18N.onChange 重画。 */
     [who, prov, btn].forEach(function (el) { if (el) { el.removeAttribute('data-i18n'); el.removeAttribute('data-i18n-html'); } });
     var site = SA ? SA.status() : { available: false, signedIn: false };
     if (site.signedIn && u) {
@@ -354,6 +387,10 @@
     var btn = document.getElementById('btn-acct');
     if (btn) { btn.disabled = !!on; btn.textContent = on ? T('games.acct.redirecting') : T('games.acct.siteLogin'); }
   }
+  /* 语言切换：把账号条恢复成静态默认文案 → 让引擎整页重翻 → 再按当前状态重画一次。
+     顺序不能反（先 refresh 再 apply 会被冲掉），也不摘标记就重画（那会停在旧语言）。 */
+  if (window.I18N && I18N.onChange) I18N.onChange(function () { restoreI18nNodes(); refresh(); });
+
   probeSite(function () { refresh(); });
   document.getElementById('btn-acct').onclick = function () {
     var site = SA ? SA.status() : { signedIn: false };
