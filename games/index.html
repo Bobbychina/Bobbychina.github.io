@@ -14,7 +14,7 @@
 <!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行
      ⚠️ ?v= 与 i18n.js 里的 VER 必须同时跳：改词典不跳号 = 线上还被缓存成旧词典，
      新词条会显示成 key（2026-10-09 踩过一次，表现为"i18n 没生效"）。 -->
-<script src="/i18n/i18n.js?v=20261009a"></script>
+<script src="/i18n/i18n.js?v=20261009c"></script>
 <title>GAMES · Bobbychina</title>
 <meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。" data-i18n-attr="content:games.meta.desc">
 <!-- 分享卡：与主页同一张 1200×630（渲染脚本 archive/sessions/2026-09/scripts/render-og.js）；本页此前没有任何 og:* -->
@@ -393,11 +393,19 @@
 
   /* 顶部「退出」按钮：它是 JS 在登录后插进 DOM 的（没有 data-i18n 标记），
      切语言时不会被引擎重扫到，所以在这里手动跟一次。
-     用专门的短词条（games.acct.signOut），不要拿面板那条（带 emoji、字数多）去截。 */
+     用专门的短词条（games.acct.signOut）；**词条取不到就退回内置文案**——
+     i18n.js 与词典是两个文件，CF/浏览器缓存可能让它们版本不同步（线上真发生过：
+     词典还是旧的，页面把 key 原样显示成了按钮文字）。运行时文案不能指望词典一定新。 */
   (function syncTopLogout() {
     var btn = document.getElementById('btnOut');
     if (!btn) return;
-    var t = function () { btn.textContent = T('games.acct.signOut'); };
+    var FALLBACK = { 'zh-CN': '退出', en: 'Sign out' };
+    var t = function () {
+      var lang = (window.I18N && I18N.current) ? I18N.current() : 'zh-CN';
+      var v = T('games.acct.signOut');
+      if (!v || v === 'games.acct.signOut') v = FALLBACK[lang] || FALLBACK['zh-CN'];
+      btn.textContent = v;
+    };
     t();
     if (window.I18N && I18N.onChange) I18N.onChange(t);
   })();
