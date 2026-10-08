@@ -100,6 +100,7 @@ I18N.define('zh-CN', {
   'games.acct.redirecting': '正在跳转授权…',
   'games.acct.linking': '站点账号 <b>{name}</b> 授权成功，正在接通游戏厅…',
   'games.acct.cloudBadge': '云存档已开启',
+  'games.acct.signOut': '退出',
   /* 账号页 /account/（站点身份 + 授权管理 + 云存档概览；2026-10-09 接入词典） */
   'account.h1': '账号',
   'account.sub': 'bobbycn.cc 的一个账号覆盖全站：游戏厅、博客、模拟炒股，以及以后自己做的独立游戏。下面是它的登录状态与授权记录。',

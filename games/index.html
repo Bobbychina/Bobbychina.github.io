@@ -391,6 +391,17 @@
      顺序不能反（先 refresh 再 apply 会被冲掉），也不摘标记就重画（那会停在旧语言）。 */
   if (window.I18N && I18N.onChange) I18N.onChange(function () { restoreI18nNodes(); refresh(); });
 
+  /* 顶部「退出」按钮：它是 JS 在登录后插进 DOM 的（没有 data-i18n 标记），
+     切语言时不会被引擎重扫到，所以在这里手动跟一次。
+     用专门的短词条（games.acct.signOut），不要拿面板那条（带 emoji、字数多）去截。 */
+  (function syncTopLogout() {
+    var btn = document.getElementById('btnOut');
+    if (!btn) return;
+    var t = function () { btn.textContent = T('games.acct.signOut'); };
+    t();
+    if (window.I18N && I18N.onChange) I18N.onChange(t);
+  })();
+
   probeSite(function () { refresh(); });
   document.getElementById('btn-acct').onclick = function () {
     var site = SA ? SA.status() : { signedIn: false };

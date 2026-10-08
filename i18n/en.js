@@ -99,6 +99,7 @@ I18N.define('en', {
   'games.acct.redirecting': 'Redirecting to authorize…',
   'games.acct.linking': 'Site account <b>{name}</b> authorized, linking the arcade…',
   'games.acct.cloudBadge': 'cloud saves on',
+  'games.acct.signOut': 'Sign out',
   /* Account page /account/ (site identity + authorization management + save overview; i18n added 2026-10-09) */
   'account.h1': 'Account',
   'account.sub': 'One bobbycn.cc account covers the whole site: the arcade, the blog, the stock simulator — and any standalone game we build later. Below is its sign-in state and authorization log.',
