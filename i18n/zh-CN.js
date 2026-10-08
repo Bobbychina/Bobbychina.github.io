@@ -1,4 +1,4 @@
-/* 简体中文词典（默认语言）
+﻿/* 简体中文词典（默认语言）
  * 词条键按页面/模块分组；值里允许出现 HTML（配合 data-i18n-html 或 I18N.t 拼串使用）。
  * 改文案只改这里；加语言复制 /i18n/en.js 改值即可，页面不用动。
  */
@@ -91,8 +91,15 @@ I18N.define('zh-CN', {
   /* 站点统一身份（bobbycn.cc）与游戏厅账号是两套：站点身份登录着、游戏厅账号没登录时的说明文案 */
   'games.acct.siteOnly': '站点账号 <b>{name}</b> 已登录；游戏厅云存档要另登一个',
   'games.acct.hallBadge': '游戏厅账号 · 云存档 / 全站榜',
-  'games.acct.siteOn': '站点账号已接通',
+  'games.acct.siteOn': '站点账号授权',
   'games.acct.btnHall': '登录游戏厅账号',
+  /* 2026-10-08：站内游戏改用站点账号**授权登录**（OAuth 授权码 + PKCE），这四句是新的账号条文案 */
+  'games.acct.siteLogin': '用站点账号登录',
+  'games.acct.siteHint': '一个 bobbycn.cc 账号走全站：游戏厅、博客、模拟炒股',
+  'games.acct.siteOff': '站点登录暂不可用（后端未部署授权服务）',
+  'games.acct.redirecting': '正在跳转授权…',
+  'games.acct.linking': '站点账号 <b>{name}</b> 授权成功，正在接通游戏厅…',
+  'games.acct.cloudBadge': '云存档已开启',
   /* 把已有游戏厅账号并进站点身份（一次性；老存档/榜单/GitHub 绑定都保留） */
   'games.link.hint': '有旧的游戏厅账号（云存档、榜单都在里面）？',
   'games.link.go': '并进站点账号',
@@ -210,6 +217,17 @@ I18N.define('zh-CN', {
   'games.panel.rcReset': '♻️ 重新生成恢复码',
   'games.panel.rcHave': '已经设过恢复码；重新生成会让旧的那串立刻失效。',
   'games.panel.rcWorking': '正在生成恢复码…',
+  'games.panel.rcLegacyHint': '恢复码是老游戏厅账号体系的遗留功能：站点账号授权登录后一般用不到它（换设备直接重新授权即可）。',
+  /* 2026-10-08：账号面板改成"站点账号 + 服务端托管存档"的口径 */
+  'games.panel.modeSite': '登录方式：<b>站点账号授权</b>（bobbycn.cc）—— 一个账号走全站：游戏厅、博客、模拟炒股。',
+  'games.panel.identitySect': '站点身份',
+  'games.panel.manage': '管理已授权的应用',
+  'games.panel.migrate': '📦 迁移老存档到站点账号',
+  'games.panel.migrating': '正在迁移…',
+  'games.panel.migrateHint': '老存档的钥匙当年由游戏厅口令派生；搬进站点账号后就跟着账号走，换设备、改登录方式都不丢档。迁移是幂等的，老原件不会删。',
+  'games.saves.emptyServer': '站点账号下还没有这个游戏的存档（第一次存档后就会出现在这里）。',
+  'games.saves.diskSite': '存在本站服务器上，钥匙由站点账号托管（AES-256-GCM 加密）。',
+  'games.saves.migrated': '已迁移',
   'games.panel.saves': '云端存档',
   'games.panel.savesLoading': '正在读取…',
   'games.panel.ops': '账号操作',

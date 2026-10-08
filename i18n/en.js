@@ -1,4 +1,4 @@
-/* English dictionary — 复制本文件即可新增语言（改 I18N.define 的语言码 + 值，再去 i18n.js 的 LANGS 注册一行）。
+﻿/* English dictionary — 复制本文件即可新增语言（改 I18N.define 的语言码 + 值，再去 i18n.js 的 LANGS 注册一行）。
  * Keys must match /i18n/zh-CN.js exactly; a missing key falls back to showing the key itself.
  */
 I18N.define('en', {
@@ -90,8 +90,15 @@ I18N.define('en', {
   /* The site identity (bobbycn.cc) and the arcade account are two separate systems */
   'games.acct.siteOnly': 'Site account <b>{name}</b> is signed in; cloud saves use a separate arcade account',
   'games.acct.hallBadge': 'Arcade account · cloud saves / leaderboard',
-  'games.acct.siteOn': 'linked to site account',
+  'games.acct.siteOn': 'site account authorized',
   'games.acct.btnHall': 'Sign in to arcade',
+  /* 2026-10-08: in-site games now sign in through the site account (OAuth code + PKCE) */
+  'games.acct.siteLogin': 'Sign in with site account',
+  'games.acct.siteHint': 'One bobbycn.cc account for everything: games, blog, stock simulator',
+  'games.acct.siteOff': 'Site sign-in unavailable (authorization service not deployed)',
+  'games.acct.redirecting': 'Redirecting to authorize…',
+  'games.acct.linking': 'Site account <b>{name}</b> authorized, linking the arcade…',
+  'games.acct.cloudBadge': 'cloud saves on',
   /* Merge an existing arcade account into the site identity (one-off; saves/leaderboard/GitHub kept) */
   'games.link.hint': 'Got an older arcade account (with your cloud saves and leaderboard)?',
   'games.link.go': 'Merge it into this account',
@@ -204,6 +211,16 @@ I18N.define('en', {
   'games.panel.rcReset': '♻️ Regenerate recovery code',
   'games.panel.rcHave': 'A recovery code is set; regenerating invalidates the old one immediately.',
   'games.panel.rcWorking': 'Generating recovery code…',
+  'games.panel.rcLegacyHint': 'Recovery codes come from the legacy arcade account system; with site-account sign-in you normally never need one (a new device just authorizes again).',
+  /* 2026-10-08: the account panel now speaks "site account + server-hosted saves" */
+  'games.panel.modeSite': 'Sign-in: <b>site account authorization</b> (bobbycn.cc) — one account for the whole site: arcade, blog, stock simulator.',
+  'games.panel.identitySect': 'Site identity',
+  'games.panel.manage': 'Manage authorized apps',
+  'games.panel.migrate': '📦 Migrate legacy saves to the site account',
+  'games.panel.migrating': 'Migrating…',
+  'games.panel.migrateHint': 'Legacy saves were encrypted with a key derived from the arcade password; once moved, the key follows your site account, so changing devices or sign-in method will not lose them. Migration is idempotent and never deletes the originals.',
+  'games.saves.emptyServer': 'No saves for this game under your site account yet (the first save shows up here).',
+  'games.saves.diskSite': 'Stored on this site’s server; the key is hosted by your site account (AES-256-GCM).',
   'games.panel.saves': 'Cloud saves',
   'games.panel.savesLoading': 'Loading…',
   'games.panel.ops': 'Account actions',
@@ -224,6 +241,7 @@ I18N.define('en', {
   'games.saves.diskMs': 'OneDrive app folder',
   'games.saves.diskServer': "This site's cloud (Cloudflare KV, ciphertext)",
   'games.saves.delErr': 'Delete failed: {err}',
+  'games.saves.migrated': 'migrated',
   'games.err.unknown': 'unknown error',
 
   'games.consent.p': 'On a local account, linking GitHub does exactly one thing: puts your saves into a <b>private Gist under your own account</b>. The consent screen shows two scopes:',

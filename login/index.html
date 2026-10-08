@@ -95,7 +95,17 @@
 
 (function(){
   var msg=document.getElementById('msg'), btn=document.getElementById('btn');
-  var next=new URLSearchParams(location.search).get('next')||'/';
+  /* next：只允许**本站相对路径**。没有这道校验的话，/login/?next=https://evil.com 就成了
+     一个挂在可信域名下的开放重定向（钓鱼最爱的跳板）。授权流程回跳（/api/auth/identity/oauth/...）
+     与站内页面都在这张白名单里。 */
+  function safeNext(raw){
+    var v=String(raw||'');
+    if(!v || v.charAt(0)!=='/' || v.indexOf('//')===0 || v.indexOf('\\')>=0) return '/';
+    var ok=['/api/auth/identity/oauth/','/games/','/admin/','/secret/','/account/','/posts/','/'];
+    for(var i=0;i<ok.length;i++){ if(v.indexOf(ok[i])===0) return v; }
+    return '/';
+  }
+  var next=safeNext(new URLSearchParams(location.search).get('next'));
   function go(){
     var id=document.getElementById('id').value.trim(), pw=document.getElementById('pw').value;
     if(!id||!pw){ msg.textContent='邮箱/用户名和口令都要填'; return; }
@@ -113,6 +123,11 @@
   }
   btn.addEventListener('click',go);
   document.getElementById('pw').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
+  /* 从游戏授权页被送过来的：把"你正在授权某某应用"说清楚，别让人以为莫名其妙被踢到登录页 */
+  if(new URLSearchParams(location.search).get('next')){
+    var app=(new URLSearchParams(location.search).get('next')||'').match(/client_id=([A-Za-z0-9._-]+)/);
+    document.querySelector('.sub').textContent='这一步是登录 bobbycn.cc 账号'+(app?('，授权「'+app[1]+'」使用它'):'')+'。';
+  }
 })();
 
 /* 忘记口令：就地问邮箱 → reset-request。后端对"邮箱不存在"也返回同样的话，避免枚举。

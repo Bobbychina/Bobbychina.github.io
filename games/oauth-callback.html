@@ -4,57 +4,93 @@
 <meta charset="utf-8">
 <script src="/mac-block.js"></script>   <!-- macOS 拦截：同步执行、紧跟 charset（见文件头注释） -->
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>授权完成 · GAMES</title>
+<title>授权完成 · bobbycn.cc</title>
 <!-- 标签页图标：与 /games/ 首页同一颗（终端提示符 >_）；这个页面只是登录回跳，样式体系保持一致 -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0e14'/><path d='M8.6 11.4 14.4 16l-5.8 4.6' fill='none' stroke='%233fd07a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/><path d='M15.6 20.8h7.8' fill='none' stroke='%235cc8ff' stroke-width='3' stroke-linecap='round'/></svg>">
 <style>
   :root { --bg:#0a0e14; --card:#10151d; --border:#1f2733; --text:#d7e2ea; --dim:#6b7a8c; --green:#3fd07a; }
   body { margin:0; background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,sans-serif;
          display:grid; place-items:center; height:100vh; }
-  .box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px 34px; text-align:center; max-width:420px; }
+  .box { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px 34px; text-align:center; max-width:440px; }
   h1 { font-size:18px; margin:0 0 8px; }
   p { color:var(--dim); font-size:13.5px; line-height:1.7; margin:0; }
   code { color:var(--green); font-family:Consolas,monospace; }
+  a.btn { display:inline-block; margin-top:14px; padding:8px 16px; border:1px solid var(--border); border-radius:9px;
+          color:var(--text); text-decoration:none; font-size:13.5px; }
+  a.btn:hover { border-color:var(--green); color:var(--green); }
 </style>
 </head>
 <body>
 <div class="box">
   <h1 id="t">正在完成授权…</h1>
-  <p id="m">这一步只是把授权码转交给游戏大厅，本页不会保存任何东西。</p>
+  <p id="m">这一步把站点账号的授权码转交给发起登录的页面，本页不保存任何东西。</p>
+  <a class="btn" id="back" href="/games/" hidden>回到游戏厅</a>
 </div>
 <script>
-/* OAuth 回调页（GitHub / 微软共用）
-   - 只做一件事：把 ?code / ?state 转交给打开它的窗口（window.opener），然后自己关掉。
-   - 用 state 前缀区分是谁的授权（github:xxx / microsoft:xxx），所以不用在 redirect_uri 里塞自定义参数
-     （那样会跟 OAuth 应用里登记的地址对不上）。
-   - 同时用 BroadcastChannel 广播一份：万一浏览器不给 opener（跨域/被拦），另一条路也能收到。 */
+/* 站点统一授权 · 回调页（2026-10-08）
+   一次回跳要同时喂两条路：
+     ① 新授权系统（SiteAuth SDK）：托管在调用方的页面里，本页把 {type:'siteauth:done', code, state} 交给 opener，
+        由 SDK 用 PKCE verifier 换令牌 —— 授权码本身没有任何用处，必须是同一个窗口的 verifier 才能兑换。
+     ② 旧的第三方登录（GitHub / 微软）：沿用 {type:'dsh-oauth', provider, code} 协议，老代码零改动。
+   两种都发一份，谁在听谁收；opener 不在（跨域/被拦）时用 BroadcastChannel 兜底。
+   注意：**被主窗口打开时绝不 window.close()**，那会把用户自己的标签页关掉。 */
 (function () {
   var q = new URLSearchParams(location.search);
   var code = q.get('code');
   var state = q.get('state') || '';
   var err = q.get('error');
   var errDesc = q.get('error_description') || '';
-  var provider = state.split(':')[0] || '';
-  var T = document.getElementById('t'), M = document.getElementById('m');
+  var provider = state.indexOf(':') >= 0 ? state.split(':')[0] : '';
+  var T = document.getElementById('t'), M = document.getElementById('m'), B = document.getElementById('back');
+  var isPopup = false;
+  try { isPopup = !!(window.opener && !window.opener.closed); } catch (e) { isPopup = false; }
 
   function done(text, sub, ok) {
     T.textContent = text;
     M.textContent = sub;
     T.style.color = ok ? '#3fd07a' : '#e0736a';
   }
+  function post(payload) {
+    try { if (isPopup) window.opener.postMessage(payload, '*'); } catch (e) { /* ignore */ }
+    try { new BroadcastChannel('dsh-oauth').postMessage(payload); } catch (e) { /* ignore */ }
+  }
+
   if (err) {
-    done('授权没有完成', err + (errDesc ? '：' + errDesc : ''), false);
+    post({ type: 'siteauth:error', error: err, error_description: errDesc, state: state });
+    done('授权没有完成', err === 'access_denied' ? '你拒绝了这次授权。' : (err + (errDesc ? '：' + errDesc : '')), false);
+    B.hidden = false;
   } else if (!code) {
     done('没拿到授权码', '如果你是直接打开这个页面的，属正常——它只在授权跳转时使用。', false);
+    B.hidden = false;
   } else {
-    var payload = { type: 'dsh-oauth', provider: provider, code: code, state: state };
-    try { if (window.opener && !window.opener.closed) window.opener.postMessage(payload, location.origin); } catch (e) { /* ignore */ }
-    try {
-      var bc = new BroadcastChannel('dsh-oauth');
-      bc.postMessage(payload);
-    } catch (e) { /* ignore */ }
-    done('授权完成', '正在返回游戏大厅……如果窗口没有自动关闭，直接关掉本页即可。', true);
-    setTimeout(function () { try { window.close(); } catch (e) { /* ignore */ } }, 900);
+    // ① 新的站点授权协议（弹窗流程靠它：opener 里跑着 SiteAuth，收到消息后自己兑换）
+    post({ type: 'siteauth:done', code: code, state: state });
+    // ② 旧协议（GitHub / 微软一键登录），保持兼容
+    if (provider) post({ type: 'dsh-oauth', provider: provider, code: code, state: state });
+
+    if (isPopup) {
+      done('授权完成', '正在返回游戏……如果窗口没有自动关闭，直接关掉本页即可。', true);
+      setTimeout(function () { try { window.close(); } catch (e) { /* ignore */ } }, 900);
+    } else {
+      /* ③ **整页跳转流程**（游戏厅"用站点账号登录"走的就是这条）：
+         必须把一次性 code 原样带回调用方的页面，由那边的 SiteAuth 用 PKCE verifier 兑换。
+         以前这里直接 replace('/games/')，等于把 code 吃掉了 —— 表现是"授权完成了但没登录"。
+         回跳路径优先问 sessionStorage（SDK 在跳转前记下了调用方目录 `siteauth.pkce.v1`，
+         因为回调页是**所有游戏共用**的一份文件，不能靠自己的路径去猜），兜底用当前目录的上一级。 */
+      var back = '';
+      try {
+        var raw = sessionStorage.getItem('siteauth.pkce.v1');
+        var box = raw ? JSON.parse(raw) : null;
+        if (box && box.returnTo) back = String(box.returnTo);
+      } catch (e) { /* ignore */ }
+      if (!back) {
+        back = location.pathname.replace(/[^/]*$/, '').replace(/[^/]+\/$/, '');
+        if (back.charAt(back.length - 1) !== '/') back += '/';
+      }
+      var url = back + (location.search || '');
+      done('授权完成', '正在返回……', true);
+      setTimeout(function () { location.replace(url); }, 700);
+    }
   }
 })();
 </script>

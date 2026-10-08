@@ -375,16 +375,44 @@
       var g = u && u.providers && u.providers.github;
       return { bound: !!g, login: g ? g.login : '', avatar: g ? g.avatar : '', serverSide: false };
     },
-    /* ----- 站点身份免二次登录（2026-09-29） -----
-       站点 bobbycn.cc 的身份登录后，后端按身份派发"游戏厅账号名 + 派生口令"（GET /api/games/arcade），
-       这里拿它走**原有**的注册/登录流程 —— 协议、口令派生、存档加密、Gist 备份全都不用动。
-       为什么不让 Worker 直接认站点 JWT：存档是浏览器侧加密的，密钥由游戏厅口令派生；
-       只给一个 JWT 的话客户端手里没有那把密钥，云端老存档会当场解不开（这也是不碰 Worker 的原因）。 */
+    /* ----- 站点身份免二次登录（2026-09-29 首版 / 2026-10-08 改为站点授权） -----
+       现在的主路径是 **OAuth 授权**（/games/site-auth.js → window.SiteAuth）：
+       游戏用站点账号授权登录，拿到站点身份；站点身份再换「游戏厅凭据」走**原有**的
+       注册/登录流程 —— 协议、口令派生、存档加密、Gist 备份全都不用动。
+
+       为什么还留着这条"派生口令"的桥：
+       老存档是**浏览器侧加密**的，钥匙由游戏厅口令派生；只给一个 JWT 的话客户端手里
+       没有那把钥匙，云端老存档会当场解不开。所以桥留着做**一次性迁移**的钥匙来源，
+       新存档则走 /games/site-saves.js（服务端托管钥匙），迁移完成后这条桥就可以退休。 */
     siteMe: async function () {
       try {
+        if (global.SiteAuth) {
+          var u = await global.SiteAuth.refreshProfile().catch(function () { return null; });
+          if (u && u.sub) return { id: u.sub, username: u.username, email: u.email, via: 'oauth' };
+        }
         var r = await fetch('/api/auth/identity/me', { credentials: 'same-origin', cache: 'no-store' });
         return r.ok ? (await r.json()) : null;
       } catch (e) { return null; }
+    },
+    /** 站点授权登录态（供游戏 UI 判断该显示"授权登录"还是"已登录"） */
+    siteAuthStatus: function () {
+      try {
+        if (!global.SiteAuth) return { available: false, signedIn: false, reason: 'no-sdk' };
+        var s = global.SiteAuth.status();
+        return { available: !!s.available, signedIn: !!s.signedIn, user: s.user || null, error: s.error || '' };
+      } catch (e) { return { available: false, signedIn: false, reason: 'error' }; }
+    },
+    /** 发起站点授权（整页跳转；弹窗版见 SiteAuth.signInPopup） */
+    siteSignIn: function (opts) {
+      if (!global.SiteAuth) return { ok: false, err: '没有加载站点授权 SDK（/games/site-auth.js）' };
+      global.SiteAuth.signIn(opts || {});
+      return { ok: true, redirecting: true };
+    },
+    siteSignOut: async function () {
+      try {
+        if (global.SiteAuth) await global.SiteAuth.signOut({ global: true });
+      } catch (e) { /* 网络失败也要清本地 */ }
+      return Account.logout();
     },
     siteCredential: async function () {
       try {
@@ -392,19 +420,42 @@
         return r.ok ? (await r.json()) : null;
       } catch (e) { return null; }
     },
-    /** 站点身份 → 游戏厅自动登录；账号不存在就按派生名自动开一个。失败只回 {ok:false,err}，不抛。 */
+    /** 站点身份 → 游戏厅自动登录；账号不存在就按派生名自动开一个。失败只回 {ok:false,err}，不抛。
+     *  2026-10-08：优先用 OAuth 授权态（SiteAuth）；站点会话（域级 Cookie）只是兜底。 */
     signInSite: async function () {
       var cur = Account.current();
       if (cur) return { ok: true, already: true, name: cur.name };
       var me = await Account.siteMe();
-      if (!me || !me.id) return { ok: false, err: 'no-site-identity' };
+      if (!me || !me.id) return { ok: false, err: 'no-site-identity', hint: '先登录站点账号（未登录时点「用站点账号登录」会自动带你过去）' };
       var cr = await Account.siteCredential();
-      if (!cr || !cr.name || !cr.password) return { ok: false, err: 'no-credential' };
+      if (!cr || !cr.name || !cr.password) return { ok: false, err: 'no-credential', hint: '站点后端没返回游戏厅凭据（/api/games/arcade）' };
       var r = await Account.login({ name: cr.name, password: cr.password });
-      if (r && r.ok) return { ok: true, viaSite: true, name: cr.name, auto: cr.auto };
+      if (r && r.ok) {
+        Account._tagSite(me.id);
+        return { ok: true, viaSite: true, name: cr.name, auto: cr.auto };
+      }
       var reg = await Account.register({ name: cr.name, password: cr.password });
-      if (reg && reg.ok) return { ok: true, viaSite: true, created: true, name: cr.name };
+      if (reg && reg.ok) {
+        Account._tagSite(me.id);
+        return { ok: true, viaSite: true, created: true, name: cr.name };
+      }
       return { ok: false, err: (reg && reg.err) || (r && r.err) || 'login-failed' };
+    },
+    /** 在本机账号壳上记一笔"这个游戏厅账号属于哪个站点身份"（换设备时用来认领，不存令牌） */
+    _tagSite: function (identityId) {
+      var id = Account.currentUid();
+      if (!id || !identityId) return;
+      var db = loadDB(), u = db.users[id];
+      if (!u) return;
+      u.site = String(identityId);
+      u.server = true;
+      saveDB(db);
+      emit();
+    },
+    /** 当前登录的游戏厅账号关联的站点身份（没有则空串） */
+    siteIdentity: function () {
+      var u = Account._raw();
+      return (u && u.site) || '';
     },
     /** 把已有的游戏厅账号并进站点身份：验证旧口令 → 改成派生口令 → 后端记下绑定。
      *  老存档、榜单、GitHub 绑定全部原样保留（账号还是那个账号，只是换了把钥匙）。 */
@@ -727,6 +778,8 @@
           if (!r.ok && !r.offline && r.status !== 409) console.warn('[account] 服务端存档失败：' + r.err);
         })();
       }
+      /* 新的站点云存档（服务端托管钥匙）：登录过站点授权就一并写一份，失败不影响本地 */
+      void Account.serverSavePut(game, slot, data, opts && opts.meta, false);
       emit({ type: 'save', game: game, slot: slot });
       return { ok: true, updatedAt: rec.updatedAt, bytes: rec.bytes };
     },
@@ -740,6 +793,99 @@
       if (Object.keys(m).length) writeJSON(K.manifest(id, game), m); else removeKey(K.manifest(id, game));
       if (!quiet) emit({ type: 'save-delete', game: game, slot: slot });
       return { ok: true };
+    },
+
+    /* ----- 站点云存档（服务端托管钥匙，2026-10-08）-----
+       与老云存档的区别：钥匙跟着站点账号走（不是口令派生），换设备/换登录方式都不丢档。
+       实现见 /games/site-saves.js；这里只做"未登录/后端没上线"时的显式降级。 */
+    serverSaves: function () { return global.SiteSaves || null; },
+    /** 服务端云存档是否可用（需要 SiteAuth 已授权 + 后端 saves 端点在线） */
+    serverSavesAvailable: async function () {
+      var s = global.SiteSaves;
+      if (!s) return false;
+      try { return await s.available(); } catch (e) { return false; }
+    },
+    serverSavePut: async function (game, slot, data, meta, migrated) {
+      var s = global.SiteSaves;
+      if (!s) return { ok: false, err: 'no-sdk' };
+      try {
+        if (!(await s.available())) return { ok: false, err: 'not-available' };
+        return await s.put(game, slot, data, meta, migrated);
+      } catch (e) { return { ok: false, err: (e && e.message) || String(e) }; }
+    },
+    serverSaveGet: async function (game, slot) {
+      var s = global.SiteSaves;
+      if (!s) return null;
+      try {
+        if (!(await s.available())) return null;
+        var row = await s.get(game, slot);
+        if (!row) return null;
+        /* 顺手写回本地：游戏侧仍然可以同步读（saveGet），不必全改成异步 */
+        var id = Account.currentUid();
+        if (id) {
+          writeJSON(K.save(id, game, slot), { updatedAt: row.updatedAt || nowISO(), bytes: JSON.stringify(row.data || null).length, data: row.data, cloud: 'site' });
+          var m = readJSON(K.manifest(id, game), {});
+          m[slot] = { updatedAt: row.updatedAt || nowISO(), bytes: JSON.stringify(row.data || null).length, site: true };
+          writeJSON(K.manifest(id, game), m);
+        }
+        return { ok: true, data: row.data, meta: row.meta, updatedAt: row.updatedAt, migrated: row.migrated };
+      } catch (e) { return { ok: false, err: (e && e.message) || String(e) }; }
+    },
+    serverSaveList: async function (game) {
+      var s = global.SiteSaves;
+      if (!s) return [];
+      try { if (!(await s.available())) return []; return await s.list(game); } catch (e) { return []; }
+    },
+    serverSaveDelete: async function (game, slot) {
+      var s = global.SiteSaves;
+      if (!s) return { ok: false, err: 'no-sdk' };
+      try { return await s.remove(game, slot); } catch (e) { return { ok: false, err: (e && e.message) || String(e) }; }
+    },
+    serverSummary: async function () {
+      var s = global.SiteSaves;
+      if (!s) return null;
+      try { if (!(await s.available())) return null; return await s.summary(); } catch (e) { return null; }
+    },
+    /**
+     * 一次性迁移：把**老存档**（本地明文，以及老云端用口令派生密钥加密的密文）搬进服务端托管存档。
+     *
+     * 为什么要迁：老密文的钥匙由游戏厅口令派生，而站内游戏已经不再让用户记这个口令了
+     * （站点账号授权登录）。钥匙还在（后端派发的凭据），但这条路是过渡用的，
+     * 搬完就该让新存档只认"站点身份托管钥匙"。
+     *
+     * 返回 {ok, migrated, skipped, failed, note}：**幂等**，重复跑只是再覆盖一次同样的内容。
+     */
+    migrateLegacySaves: async function (game) {
+      var out = { ok: false, migrated: [], failed: [], skipped: [], note: '' };
+      if (!game) { out.note = '要指定游戏'; return out; }
+      if (!(await Account.serverSavesAvailable())) { out.note = '服务端云存档不可用（未授权或后端未部署）'; return out; }
+      var uid = Account.currentUid();
+      if (!uid) { out.note = '先登录'; return out; }
+
+      var slots = Account.slots(game);
+      if (!slots.length) { out.note = '本机没有这个游戏的存档，无需迁移'; return out; }
+
+      for (var i = 0; i < slots.length; i++) {
+        var slot = slots[i].slot;
+        var plain = Account.saveGet(game, slot);
+        if (plain === null || typeof plain === 'undefined') { out.skipped.push(slot); continue; }
+        /* 本地已经有、且服务端也已经有的槽位：只在本地更新时覆盖（updatedAt 比大小） */
+        var remote = null;
+        try { remote = await Account.serverSaveList(game); } catch (e) { remote = []; }
+        var same = (remote || []).filter(function (r) { return r.slot === slot; })[0];
+        if (same && new Date(same.updatedAt).getTime() >= new Date(slots[i].updatedAt).getTime()) {
+          out.skipped.push(slot);
+          continue;
+        }
+        var res = await Account.serverSavePut(game, slot, plain, { migratedFrom: 'legacy', at: nowISO() }, true);
+        if (res && res.ok) out.migrated.push(slot);
+        else out.failed.push({ slot: slot, err: (res && res.err) || 'unknown' });
+      }
+      out.ok = out.migrated.length > 0 || (out.failed.length === 0);
+      out.note = out.migrated.length
+        ? ('已迁移 ' + out.migrated.length + ' 个槽位到站点账号（老存档原件保留，没删）')
+        : (out.failed.length ? '有槽位迁移失败' : '没有需要迁移的槽位');
+      return out;
     },
 
     /* ----- 第三方绑定 ----- */
