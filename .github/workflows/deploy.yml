@@ -81,7 +81,7 @@ jobs:
             --exclude=./.staging --exclude=./.partner-kit \
             --exclude=./partner-kit --exclude=./partner-kit.zip \
             --exclude='./partner-kit*.zip' \
-            --exclude=./tools --exclude=./functions \
+            --exclude=./tools --exclude=./functions --exclude=./admin \
             --exclude=./.wrangler --exclude=./.probe --exclude=./node_modules \
             .
           ls -lh /tmp/portal.tar.gz

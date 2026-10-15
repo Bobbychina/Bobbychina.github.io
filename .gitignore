@@ -20,3 +20,7 @@ partner-kit/
 partner-kit.zip
 # 交付说明（本地文件，无发布价值）
 交付单-给伙伴的包.md
+
+# 写作台源码已拆到私有仓 Bobbychina/bobbychina-portal-admin（2026-10-15）
+# 本仓库不再管理 admin/：它的部署流水线带 --exclude=./admin，仓库里也禁止再出现
+/admin/
