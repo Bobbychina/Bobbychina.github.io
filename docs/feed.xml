@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Bobby 的博客</title><link>https://bobbycn.cc/</link><description>自己写的东西，放在自己跑的机器上</description>
+<item><title>比比拉布</title><link>https://bobbycn.cc/posts/WeirdStuff2/</link><guid isPermaLink="true">https://bobbycn.cc/posts/WeirdStuff2/</guid><pubDate>Wed, 07 Oct 2026 04:00:00 GMT</pubDate><description>不知道为啥半夜来写</description></item>
+<item><title>测试手写</title><link>https://bobbycn.cc/posts/pure-test/</link><guid isPermaLink="true">https://bobbycn.cc/posts/pure-test/</guid><pubDate>Wed, 30 Sep 2026 04:00:00 GMT</pubDate><description>只是测试一下没啥好看的</description></item>
+<item><title>把站搬到自己机器上：东京 · nginx · 一个容器</title><link>https://bobbycn.cc/posts/self-hosted-in-tokyo/</link><guid isPermaLink="true">https://bobbycn.cc/posts/self-hosted-in-tokyo/</guid><pubDate>Mon, 28 Sep 2026 04:00:00 GMT</pubDate><description>从 GitHub Pages 搬到自建服务器，顺手把 CF Pages Functions 的两块服务端逻辑用 nginx 复刻了。</description></item>
+</channel></rss>

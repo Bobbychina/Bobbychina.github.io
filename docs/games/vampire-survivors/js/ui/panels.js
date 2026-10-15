@@ -1,0 +1,373 @@
+/* ===========================================================
+   面板：开始 / 升级选卡 / 暂停 / 游戏结束
+   这一层是唯一直接操作覆盖层 DOM 的地方。
+   =========================================================== */
+(function (VS) {
+  'use strict';
+
+  var U = VS.Utils;
+
+  var cb = {};                 // 回调
+  var dom = null;
+  var currentChoices = [];     // 当前展示的三张卡
+  var currentPets = [];        // 当前展示的三只宠物
+  var bannerTimer = null;
+
+  function el(id) { return document.getElementById(id); }
+
+  function syncOverlay() {
+    if (!dom || !dom.overlays) return;
+    var anyVisible = false;
+    for (var i = 0; i < dom.panels.length; i++) {
+      if (!dom.panels[i].hidden) { anyVisible = true; break; }
+    }
+    if (anyVisible) dom.overlays.classList.remove('hidden');
+    else dom.overlays.classList.add('hidden');
+  }
+
+  function show(panel) {
+    if (!dom) return;
+    for (var i = 0; i < dom.panels.length; i++) dom.panels[i].hidden = true;
+    panel.hidden = false;
+    syncOverlay();
+  }
+
+  function hideAll() {
+    if (!dom) return;
+    for (var i = 0; i < dom.panels.length; i++) dom.panels[i].hidden = true;
+    syncOverlay();
+  }
+
+  function bindClick(node, fn) {
+    if (!node) return;
+    node.addEventListener('click', function (e) {
+      e.stopPropagation();
+      VS.Audio.play('click');
+      fn();
+    });
+  }
+
+  var Panels = {
+
+    init: function (callbacks) {
+      cb = callbacks || {};
+
+      dom = {
+        overlays: el('overlays'),
+        panelStart: el('panel-start'),
+        panelLevelUp: el('panel-levelup'),
+        panelPetSelect: el('panel-petselect'),
+        panelLevelClear: el('panel-levelclear'),
+        panelPause: el('panel-pause'),
+        panelGameOver: el('panel-gameover'),
+
+        startBest: el('startBest'),
+        startLevels: el('startLevels'),
+        startBtn: el('startBtn'),
+        previewL2Btn: el('previewL2Btn'),
+
+        luLevel: el('luLevel'),
+        luCards: el('luCards'),
+
+        petCards: el('petCards'),
+
+        lcTitle: el('lcTitle'),
+        lcSub: el('lcSub'),
+        lcTime: el('lcTime'),
+        lcKills: el('lcKills'),
+        lcLevel: el('lcLevel'),
+        lcPet: el('lcPet'),
+        lcTotal: el('lcTotal'),
+        nextLevelBtn: el('nextLevelBtn'),
+
+        pauseInfo: el('pauseInfo'),
+        resumeBtn: el('resumeBtn'),
+        pauseRestartBtn: el('pauseRestartBtn'),
+
+        goTitle: el('goTitle'),
+        goReason: el('goReason'),
+        goTime: el('goTime'),
+        goBest: el('goBest'),
+        goNewBest: el('goNewBest'),
+        goKills: el('goKills'),
+        goLevel: el('goLevel'),
+        goStage: el('goStage'),
+        retryBtn: el('retryBtn'),
+
+        banner: el('banner'),
+        bannerTitle: el('bannerTitle'),
+        bannerSub: el('bannerSub')
+      };
+
+      dom.panels = [dom.panelStart, dom.panelLevelUp, dom.panelPetSelect,
+                    dom.panelLevelClear, dom.panelPause, dom.panelGameOver];
+
+      bindClick(dom.startBtn, function () { if (cb.onStart) cb.onStart(); });
+      bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(1); });
+      bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
+      bindClick(dom.resumeBtn, function () { if (cb.onResume) cb.onResume(); });
+      bindClick(dom.pauseRestartBtn, function () { if (cb.onRestart) cb.onRestart(); });
+      bindClick(dom.nextLevelBtn, function () { if (cb.onNextLevel) cb.onNextLevel(); });
+
+      hideAll();
+      return Panels;   // 返回模块本身（而不是内部 dom 缓存）
+    },
+
+    /* ---------------- 阶段播报横幅 ----------------
+       不占用覆盖层，也不拦截点击：游戏照常进行，
+       横幅自己淡入淡出。 */
+
+    showBanner: function (title, sub) {
+      if (!dom || !dom.banner) return;
+
+      if (dom.bannerTitle) dom.bannerTitle.textContent = title || '';
+      if (dom.bannerSub) {
+        dom.bannerSub.textContent = sub || '';
+        dom.bannerSub.hidden = !sub;
+      }
+
+      dom.banner.hidden = false;
+
+      // 先移除再强制重排，让 CSS 动画每次都能重新播放
+      dom.banner.classList.remove('show');
+      void dom.banner.offsetWidth;
+      dom.banner.classList.add('show');
+
+      if (bannerTimer) clearTimeout(bannerTimer);
+      bannerTimer = setTimeout(function () {
+        if (dom && dom.banner) {
+          dom.banner.hidden = true;
+          dom.banner.classList.remove('show');
+        }
+      }, 2600);
+    },
+
+    hideBanner: function () {
+      if (!dom || !dom.banner) return;
+      if (bannerTimer) clearTimeout(bannerTimer);
+      dom.banner.hidden = true;
+      dom.banner.classList.remove('show');
+    },
+
+    /* ---------------- 开始面板 ---------------- */
+
+    showStart: function (bestTime, levelCount) {
+      if (!dom) return;
+      if (dom.startBest) dom.startBest.textContent = bestTime > 0 ? U.formatTime(bestTime) : '--:--';
+      if (dom.startLevels && levelCount) dom.startLevels.textContent = String(levelCount);
+      show(dom.panelStart);
+    },
+
+    /* ---------------- 升级面板 ---------------- */
+
+    showLevelUp: function (choices, level) {
+      if (!dom) return;
+      currentChoices = choices || [];
+
+      if (dom.luLevel) dom.luLevel.textContent = ' Lv.' + level;
+
+      var html = '';
+      for (var i = 0; i < currentChoices.length; i++) {
+        var c = currentChoices[i];
+        // 卡片主色：新武器=青，武器升级=金，增益=紫，流派=跟着武器自身配色
+        var accent = c.color || (c.kind === 'buff' ? '#b58cff' : '#7ee0ff');
+
+        html += '<div class="card' + (c.isSchool ? ' school' : '') + '" data-index="' + i +
+                  '" style="--card-accent:' + accent + '">' +
+                  '<div class="ico">' + c.icon + '</div>' +
+                  '<div class="nm">' + c.name + '</div>' +
+                  '<div class="ds">' + c.desc + '</div>' +
+                  (c.tag ? '<div class="tag' + (c.isNew ? ' new' : (c.isSchool ? ' school' : '')) + '">' +
+                           c.tag + '</div>' : '') +
+                  '<div class="key">按 ' + (i + 1) + ' 选择</div>' +
+                '</div>';
+      }
+
+      if (dom.luCards) {
+        dom.luCards.innerHTML = html;
+
+        var cards = dom.luCards.querySelectorAll('.card');
+        for (var j = 0; j < cards.length; j++) {
+          (function (node) {
+            node.addEventListener('click', function (e) {
+              e.stopPropagation();
+              var idx = parseInt(node.getAttribute('data-index'), 10);
+              Panels.choose(idx);
+            });
+          })(cards[j]);
+        }
+      }
+
+      show(dom.panelLevelUp);
+    },
+
+    /** 玩家点了某张卡（或被键盘 1/2/3 触发） */
+    choose: function (index) {
+      if (!currentChoices[index]) return;
+      if (cb.onChoose) cb.onChoose(index, currentChoices[index]);
+    },
+
+    hideLevelUp: function () {
+      if (!dom) return;
+      dom.panelLevelUp.hidden = true;
+      currentChoices = [];
+      syncOverlay();
+    },
+
+    /* ---------------- 宠物三选一面板 ----------------
+       打完第一只 Boss 才出现，三选一，选完永久生效。 */
+
+    showPetSelect: function (pets) {
+      if (!dom) return;
+      currentPets = pets || [];
+
+      var html = '';
+      for (var i = 0; i < currentPets.length; i++) {
+        var p = currentPets[i];
+        var accent = p.color || '#ffd166';
+
+        html += '<div class="card pet" data-index="' + i + '" style="--card-accent:' + accent + '">' +
+                  '<div class="ico">' + p.icon + '</div>' +
+                  '<div class="nm">' + p.name + '</div>' +
+                  '<div class="ds">' + p.desc + '</div>' +
+                  '<div class="tag">' + (p.detail || '永久生效') + '</div>' +
+                  '<div class="key">按 ' + (i + 1) + ' 选择</div>' +
+                '</div>';
+      }
+
+      if (dom.petCards) {
+        dom.petCards.innerHTML = html;
+
+        var cards = dom.petCards.querySelectorAll('.card');
+        for (var j = 0; j < cards.length; j++) {
+          (function (node) {
+            node.addEventListener('click', function (e) {
+              e.stopPropagation();
+              var idx = parseInt(node.getAttribute('data-index'), 10);
+              Panels.choosePet(idx);
+            });
+          })(cards[j]);
+        }
+      }
+
+      show(dom.panelPetSelect);
+    },
+
+    /** 玩家点了某只宠物（或被键盘 1/2/3 触发） */
+    choosePet: function (index) {
+      if (!currentPets[index]) return;
+      if (cb.onChoosePet) cb.onChoosePet(index, currentPets[index]);
+    },
+
+    hidePetSelect: function () {
+      if (!dom) return;
+      dom.panelPetSelect.hidden = true;
+      currentPets = [];
+      syncOverlay();
+    },
+
+    /* ---------------- 过关面板 ----------------
+       本关时间到就弹出来：最后一关的按钮变成「查看结算」。 */
+
+    showLevelClear: function (info) {
+      if (!dom) return;
+      info = info || {};
+
+      if (dom.lcTitle) {
+        dom.lcTitle.textContent = info.last
+          ? (info.label + ' 通过')
+          : (info.label + ' 通过');
+      }
+      if (dom.lcSub) {
+        dom.lcSub.textContent = info.last
+          ? '所有关卡都打完了 · 看看这一局的成绩'
+          : ('下一关：' + (info.nextLabel || '') +
+             (info.nextFresh ? ' · 从 1 级重新开始，怪是这一关的 1.5 倍强度'
+                             : ' · 构筑 / 等级 / 宠物都带过去'));
+      }
+      if (dom.lcTime) dom.lcTime.textContent = U.formatTime(info.time || 0);
+      if (dom.lcKills) dom.lcKills.textContent = U.group(info.kills || 0);
+      if (dom.lcLevel) dom.lcLevel.textContent = String(info.playerLevel || 1);
+      if (dom.lcPet) dom.lcPet.textContent = info.pet || '—';
+      if (dom.lcTotal) dom.lcTotal.textContent = U.formatTime(info.total || 0);
+      if (dom.nextLevelBtn) {
+        dom.nextLevelBtn.textContent = info.last ? '查看结算' : ('进入' + (info.nextLabel || '下一关'));
+      }
+
+      show(dom.panelLevelClear);
+    },
+
+    hideLevelClear: function () {
+      if (!dom) return;
+      dom.panelLevelClear.hidden = true;
+      syncOverlay();
+    },
+
+    /* ---------------- 暂停面板 ---------------- */
+
+    showPause: function (info) {
+      if (!dom) return;
+      if (dom.pauseInfo) dom.pauseInfo.textContent = info || '';
+      show(dom.panelPause);
+    },
+
+    /* ---------------- 结束面板 ---------------- */
+
+    showGameOver: function (r) {
+      if (!dom) return;
+
+      /* 通关 / 阵亡 / 时间到但没打死最终 Boss —— 三种结局共用一个面板 */
+      if (dom.goTitle) {
+        if (r.victory) {
+          dom.goTitle.textContent = '通 关 ！';
+          dom.goTitle.className = 'clear';
+        } else if (r.failedClear) {
+          dom.goTitle.textContent = '没 能 通 关';
+          dom.goTitle.className = 'dead';
+        } else {
+          dom.goTitle.textContent = '你已阵亡';
+          dom.goTitle.className = 'dead';
+        }
+      }
+      if (dom.goReason) {
+        dom.goReason.textContent = r.reason || '';
+        dom.goReason.hidden = !r.reason;
+      }
+      if (dom.goTime) dom.goTime.textContent = U.formatTime(r.time);
+      if (dom.goBest) dom.goBest.textContent = U.formatTime(r.best);
+      if (dom.goKills) dom.goKills.textContent = U.group(r.kills);
+      if (dom.goLevel) dom.goLevel.textContent = String(r.level);
+      if (dom.goStage) {
+        dom.goStage.textContent = r.stageLabel || String(r.stage || 1);
+      }
+      if (dom.goNewBest) dom.goNewBest.hidden = !r.isNewBest;
+
+      show(dom.panelGameOver);
+    },
+
+    hideAll: hideAll,
+
+    /** 当前是否有面板挡住画面（用于决定要不要接受移动输入） */
+    anyVisible: function () {
+      if (!dom) return false;
+      for (var i = 0; i < dom.panels.length; i++) {
+        if (!dom.panels[i].hidden) return true;
+      }
+      return false;
+    },
+
+    which: function () {
+      if (!dom) return null;
+      if (!dom.panelLevelUp.hidden) return 'levelup';
+      if (dom.panelPetSelect && !dom.panelPetSelect.hidden) return 'petselect';
+      if (dom.panelLevelClear && !dom.panelLevelClear.hidden) return 'levelclear';
+      if (!dom.panelPause.hidden) return 'pause';
+      if (!dom.panelGameOver.hidden) return 'gameover';
+      if (!dom.panelStart.hidden) return 'start';
+      return null;
+    }
+  };
+
+  VS.register('Panels', Panels);
+
+})(window.VS = window.VS || {});

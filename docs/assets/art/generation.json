@@ -1,0 +1,18 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-09",
+  "assets": {
+    "survival": {
+      "prompt": "Create one original landscape 16:9 indie browser survival game thumbnail, no text, no lettering, no logos, no watermark. Art direction: restrained woodcut print combined with readable isometric pixel-art illustration, olive green, charcoal, warm bone paper, rust orange accents, small acid yellow light. Scene: an abandoned small city block, one fortified improvised safehouse with a dim warm window and rooftop water tank, a lone backpack survivor in the foreground, a few silhouetted shambling zombies far away, broken streets and sparse foliage. Strong asymmetrical composition, crisp silhouettes, sparse detail and three value groups so readable at 320px. Atmospheric and handmade, flat graphic light, not photorealistic or glossy AAA key art, no gore. Actual game is a map-based turn-based survival game, so convey exploration and shelter rather than first person shooting. Image fills frame edge to edge.",
+      "file": "survival-cover.jpg"
+    },
+    "racing": {
+      "prompt": "Create one original landscape 16:9 thumbnail for a low-poly browser 3D racing game, no text, no lettering, no logos, no watermark. Art direction: premium restrained retro motorsport screenprint, clear low-poly shapes with crisp edges, muted forest green and blue slate, warm cream sky and amber accents, matching an independent studio catalog. Scene: a small angular unbranded red-orange sports car sweeping through a racetrack hairpin, visible tire skid curve, cream and terracotta striped curbs, two tiny opposing cars in background, geometric pine trees and modest circuit infrastructure. Dynamic asymmetrical diagonal composition with a clearly readable track curve. Strong foreground vehicle silhouette, limited colors, flat cinematic afternoon lighting, deliberate printed grain, illustrative rather than photorealistic. Readable at 320px. No manufacturer emblems, no advertising, no dense dashboard overlays. Edge-to-edge scene.",
+      "file": "racing-cover.jpg"
+    },
+    "nightfall": {
+      "prompt": "Create one original landscape 16:9 indie game thumbnail for a dark fantasy pixel-art survival game, no text, no lettering, no logos, no watermark. Art direction: moody woodcut print crossed with crisp pixel-art concept illustration, charcoal plum, warm pale bone, muted antique gold, restrained crimson and sage accents. Scene: one small cloaked witch holding a glowing spell, in a ruined stone courtyard under a crescent moon, silhouettes of bats, skeletons and spectral enemies approaching at the edges, enough empty space around the character to read clearly. Strong asymmetrical composition, limited color palette, bold graphic moon and gothic arch silhouettes, sparse engraved shading. Handmade screenprint feel, no glossy neon glow, no photorealism, no gore. Convey an overhead auto-attack swarm survival game, original characters and architecture, no recognizable existing franchise characters. Readable at 320px, edge-to-edge landscape composition.",
+      "file": "nightfall-cover.jpg"
+    }
+  }
+}

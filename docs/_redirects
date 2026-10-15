@@ -1,0 +1,14 @@
+/login https://bobbycn.cc/login/ 302
+/login/* https://bobbycn.cc/login/:splat 302
+/register https://bobbycn.cc/register/ 302
+/register/* https://bobbycn.cc/register/:splat 302
+/account https://bobbycn.cc/account/ 302
+/account/* https://bobbycn.cc/account/:splat 302
+/reset-password https://bobbycn.cc/reset-password/ 302
+/reset-password/* https://bobbycn.cc/reset-password/:splat 302
+/verify-email https://bobbycn.cc/verify-email/ 302
+/verify-email/* https://bobbycn.cc/verify-email/:splat 302
+/admin https://bobbycn.cc/admin/ 302
+/admin/* https://bobbycn.cc/admin/:splat 302
+/stock https://game.bobbycn.cc/ 302
+/stock/* https://game.bobbycn.cc/:splat 302

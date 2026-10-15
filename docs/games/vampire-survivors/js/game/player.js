@@ -1,0 +1,285 @@
+/* ===========================================================
+   玩家：移动、击退、血量/无敌帧/回血、经验与升级、增益应用
+   只负责"玩家自己的状态与演化"，不碰渲染和 DOM。
+   =========================================================== */
+(function (VS) {
+  'use strict';
+
+  var C = VS.Config;
+  var U = VS.Utils;
+
+  /** 从 level 升到 level+1 所需经验 */
+  function xpForLevel(level) {
+    return Math.round(C.XP.BASE * Math.pow(C.XP.GROWTH, level - 1));
+  }
+
+  var Player = {
+
+    xpForLevel: xpForLevel,
+
+    create: function (world) {
+      return {
+        x: world.w / 2,
+        y: world.h / 2,
+        radius: C.PLAYER.RADIUS,
+
+        /* 击退产生的额外速度（与操作移动分开结算） */
+        kx: 0,
+        ky: 0,
+
+        baseSpeed: C.PLAYER.SPEED,
+        speed: C.PLAYER.SPEED,
+
+        hp: C.PLAYER.MAX_HP,
+        maxHp: C.PLAYER.MAX_HP,
+        regen: C.PLAYER.REGEN,
+        armor: C.PLAYER.ARMOR,
+        pickupRadius: C.PLAYER.PICKUP_RADIUS,
+
+        invuln: 0,
+        hurtFlash: 0,
+        healFlash: 0,
+
+        level: 1,
+        xp: 0,
+        xpNeeded: xpForLevel(1),
+
+        kills: 0,
+        damageDealt: 0,
+        alive: true,
+
+        facing: { x: 1, y: 0 },
+        moving: false,
+
+        /* 增益带来的乘区 */
+        damageMul: 1,
+        attackSpeedMul: 1,
+        areaMul: 1,
+        projBonus: 0,
+        luck: 1,
+        critChance: 0,
+
+        /* 第二关专属增益带来的属性 */
+        acidResist: 0,          // 酸液伤害减免（0~1）
+        lifesteal: 0,           // 每次击杀回血
+
+        upgrades: {},           // 增益 id -> 已叠加层数
+        weapons: [],            // [{ id, level, cd }]
+
+        dashT: 0,               // 闪避剩余时长
+        dashCd: 0,              // 闪避冷却
+        dashX: 0,               // 闪避方向（单位向量）
+        dashY: 0
+      };
+    },
+
+    /**
+     * 闪避（Shift）：朝当前移动方向冲一段，期间无敌。
+     * 没在移动就朝面朝方向冲 —— 手感上"不动就往后撤"容易误触，所以定为面朝方向。
+     * @returns {boolean} 是否真的冲出去了（冷却中返回 false）
+     */
+    dash: function (p, axis, game) {
+      if (!p || !p.alive || p.dashCd > 0 || p.dashT > 0) return false;
+      var dx = axis ? axis.x : 0, dy = axis ? axis.y : 0;
+      if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) { dx = p.facing.x; dy = p.facing.y; }
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      p.dashX = dx / len;
+      p.dashY = dy / len;
+      p.facing.x = p.dashX;
+      p.facing.y = p.dashY;
+      p.dashT = C.PLAYER.DASH.TIME;
+      p.dashCd = C.PLAYER.DASH.CD;
+      /* 无敌帧比位移略长：按得准就能"穿"过弹幕和冲撞 */
+      p.invuln = Math.max(p.invuln, C.PLAYER.DASH.IFRAME);
+      if (game) {
+        VS.Audio.play('hit');
+        VS.Effects.burst(game.fx, p.x, p.y, '#7ee0ff', 12, { speed: 190, life: 0.32, size: 2.8 });
+      }
+      return true;
+    },
+
+    /** 每帧更新；axis 由输入模块提供 */
+    update: function (p, dt, world, axis) {
+      if (!p.alive) return;
+
+      /* --- 闪避位移（优先于普通移动；无敌帧从按下那一刻算） --- */
+      if (p.dashT > 0) {
+        p.dashT = Math.max(0, p.dashT - dt);
+        p.x += p.dashX * C.PLAYER.DASH.SPEED * dt;
+        p.y += p.dashY * C.PLAYER.DASH.SPEED * dt;
+        p.moving = true;
+      }
+      if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
+
+      /* --- 操作移动 --- */
+      var ax = axis ? axis.x : 0;
+      var ay = axis ? axis.y : 0;
+
+      if (p.dashT <= 0) p.moving = (ax !== 0 || ay !== 0);
+
+      if (p.dashT <= 0 && p.moving) {
+        p.x += ax * p.speed * dt;
+        p.y += ay * p.speed * dt;
+
+        var alen = Math.sqrt(ax * ax + ay * ay);
+        if (alen > 0.001) {
+          p.facing.x = ax / alen;
+          p.facing.y = ay / alen;
+        }
+      }
+
+      /* --- 击退位移 + 阻尼 --- */
+      if (p.kx !== 0 || p.ky !== 0) {
+        p.x += p.kx * dt;
+        p.y += p.ky * dt;
+        var damp = Math.exp(-C.PLAYER.PUSH_DAMP * dt);
+        p.kx *= damp;
+        p.ky *= damp;
+        if (Math.abs(p.kx) < 1 && Math.abs(p.ky) < 1) { p.kx = 0; p.ky = 0; }
+      }
+
+      /* --- 地图边界 --- */
+      VS.World.clampEntity(world, p);
+
+      /* --- 生命回复 --- */
+      if (p.hp < p.maxHp && p.regen > 0) {
+        p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
+      }
+
+      /* --- 计时器 --- */
+      if (p.invuln > 0) p.invuln = Math.max(0, p.invuln - dt);
+      if (p.hurtFlash > 0) p.hurtFlash = Math.max(0, p.hurtFlash - dt);
+      if (p.healFlash > 0) p.healFlash = Math.max(0, p.healFlash - dt);
+    },
+
+    /**
+     * 受伤：扣血 + 无敌帧 + 击退
+     * @param {object} [opt] { acid: true } 表示这是酸液伤害（吃"酸液抗性"的减免）
+     * @returns {number} 实际扣掉的血量（0 表示被无敌帧挡下）
+     */
+    takeDamage: function (p, amount, game, srcX, srcY, opt) {
+      if (!p.alive || p.invuln > 0) return 0;
+
+      /* 酸液伤害先过抗性（第二关专属增益 / 柠檬猪宠物，最多 -100%）。
+         注意：完全免疫时**直接返回 0** —— 不能掉进下面的 Math.max(1, ...) 保底，
+         否则"免疫酸液"还是每跳掉 1 点血。 */
+      if (opt && opt.acid && p.acidResist > 0) {
+        amount *= Math.max(0, 1 - p.acidResist);
+        if (amount <= 0) return 0;
+      }
+
+      var dmg = Math.max(1, amount - p.armor);
+      p.hp -= dmg;
+      p.invuln = C.PLAYER.INVULN;
+      p.hurtFlash = 0.28;
+
+      /* 击退：从伤害来源指向玩家 */
+      if (srcX !== undefined && srcY !== undefined) {
+        var dx = p.x - srcX, dy = p.y - srcY;
+        var len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 0.001) {
+          p.kx += (dx / len) * C.PLAYER.KNOCKBACK;
+          p.ky += (dy / len) * C.PLAYER.KNOCKBACK;
+        }
+      }
+
+      if (game) {
+        VS.Audio.play('hurt');
+        VS.Effects.burst(game.fx, p.x, p.y, '#ff6b6b', 10, { speed: 150, life: 0.4, size: 3 });
+      }
+
+      if (p.hp <= 0) {
+        p.hp = 0;
+        p.alive = false;
+      }
+      return dmg;
+    },
+
+    /** 回血（红心等） */
+    heal: function (p, amount, game) {
+      if (!p.alive) return 0;
+      var before = p.hp;
+      p.hp = Math.min(p.maxHp, p.hp + amount);
+      var gained = p.hp - before;
+      if (gained > 0) {
+        p.healFlash = 0.35;
+        if (game) {
+          VS.Audio.play('heal');
+          VS.Effects.burst(game.fx, p.x, p.y, '#7ee787', 8, { speed: 70, life: 0.5, size: 2.6 });
+        }
+      }
+      return gained;
+    },
+
+    /**
+     * 直接提升一级，不经过经验条。
+     * 超级经验球与"打完 Boss 的奖励"都走这里。
+     * @returns {boolean} 是否成功（已满级返回 false）
+     */
+    grantLevel: function (p) {
+      if (p.level >= C.XP.MAX_LEVEL) return false;
+      p.level++;
+      p.xpNeeded = xpForLevel(p.level);
+      if (p.level >= C.XP.MAX_LEVEL) {
+        p.xp = 0;
+        p.xpNeeded = Infinity;
+      }
+      return true;
+    },
+
+    /**
+     * 获得经验，返回本次升了几级
+     * （一次吃一大把经验石可能连升多级，升级面板要排队处理）
+     */
+    gainXp: function (p, amount) {
+      if (amount <= 0) return 0;
+      if (p.level >= C.XP.MAX_LEVEL) return 0;
+
+      p.xp += amount;
+      var levels = 0;
+
+      while (p.xp >= p.xpNeeded && p.level < C.XP.MAX_LEVEL) {
+        p.xp -= p.xpNeeded;
+        p.level++;
+        levels++;
+        p.xpNeeded = xpForLevel(p.level);
+      }
+
+      if (p.level >= C.XP.MAX_LEVEL) {
+        p.xp = 0;
+        p.xpNeeded = Infinity;
+      }
+
+      return levels;
+    },
+
+    /** 经验条进度 0..1 */
+    xpProgress: function (p) {
+      if (!isFinite(p.xpNeeded) || p.xpNeeded <= 0) return 1;
+      return U.clamp(p.xp / p.xpNeeded, 0, 1);
+    },
+
+    hpProgress: function (p) {
+      return p.maxHp > 0 ? U.clamp(p.hp / p.maxHp, 0, 1) : 0;
+    },
+
+    /**
+     * 应用一个增益
+     * @param {object} p
+     * @param {object} up 配置里的增益对象（含 apply）
+     */
+    applyUpgrade: function (p, up) {
+      p.upgrades[up.id] = (p.upgrades[up.id] || 0) + 1;
+      up.apply(p);
+      return p.upgrades[up.id];
+    },
+
+    /** 某个增益已经叠了几层 */
+    upgradeLevel: function (p, id) {
+      return p.upgrades[id] || 0;
+    }
+  };
+
+  VS.register('Player', Player);
+
+})(window.VS = window.VS || {});

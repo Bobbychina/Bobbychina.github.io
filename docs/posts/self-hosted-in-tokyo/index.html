@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark"><head>
+<script src="/mirror-runtime.js?v=20261015a"></script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>把站搬到自己机器上：东京 · nginx · 一个容器 · Bobby 的博客</title><meta name="description" content="从 GitHub Pages 搬到自建服务器，顺手把 CF Pages Functions 的两块服务端逻辑用 nginx 复刻了。">
+<link rel="canonical" href="https://bobbycn.cc/posts/self-hosted-in-tokyo/">
+<link rel="alternate" type="application/rss+xml" title="Bobby 的博客" href="/feed.xml">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/assets/site.css?v=20261011reset1">
+<link rel="stylesheet" href="/assets/atelier.css?v=20261011reset1">
+<style>article{padding-bottom:8px}
+.tagline{color:var(--dim);font-size:13px;margin:0 0 6px}</style>
+<script src="/i18n/i18n.js?v=20261014full1"></script>
+<script src="/assets/site.js?v=20261014full1" defer></script>
+<script src="/assets/blog.js?v=20261014full1" defer></script></head><body data-slug="self-hosted-in-tokyo">
+<div class="wrap">
+<header class="top site-header">
+  <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
+  <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" data-i18n="nav.projects">作品</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/posts/" class="on" aria-current="page" data-i18n="nav.posts">文章</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
+  <div class="header-actions"><span data-i18n-switch></span><span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut" data-i18n="games.acct.signOut">退出</button></span><a class="iconbtn" id="btnReg" href="/register/" data-i18n="site.copy.c4fb62202bad">注册</a><a class="iconbtn" id="btnIn" href="/login/" data-i18n="games.login.do">登录</a><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" data-i18n-attr="aria-label:theme.switch;title:theme.switch" title="切换深浅色">☾ 深色</button></div></div>
+ </header>
+<div class="articlewrap">
+  <main id="post">
+    <h1 data-i18n-ignore>把站搬到自己机器上：东京 · nginx · 一个容器</h1>
+    <p class="meta">2026-09-28 · <a href="/posts/#自建" data-i18n-ignore>#自建</a> <a href="/posts/#nginx" data-i18n-ignore>#nginx</a> <a href="/posts/#cloudflare" data-i18n-ignore>#cloudflare</a><span class="pv"> · <b id="pv">—</b> <span data-i18n="blog.viewsLabel">次浏览</span></span></p>
+    <article data-i18n-ignore><h2>为什么搬</h2>
+<p>不是说 Pages 不好。Pages 的问题是<strong>它只负责发文件</strong>：没有服务端钩子、不能按平台拒客、出不了 RSS 之外的任何东西。</p>
+<p>而我想让它变成「我的站」，不是「我在别人地盘上的一个目录」。</p>
+<h2>现在是什么样</h2>
+<pre><code>访客 ──► Cloudflare（橙云：缓存 / 防护 / 证书）
+           └─► 东京 43.133.165.x · 宿主 nginx
+                 ├─ /            主页（静态）
+                 ├─ /posts/      博客（构建产物）
+                 ├─ /games/      游戏厅
+                 └─ /api/  ──►   云账号 / 云存档 / 全站榜（转发）
+                       └─ 127.0.0.1:8000  一个 NestJS 容器（游戏后端）</code></pre>
+<p>源站只允许 Cloudflare 回源段访问——直连 IP 一律 403。</p>
+<h2>两个必须一起搬的东西</h2>
+<p>静态文件谁都会搬，真正麻烦的是藏在 <code>functions/</code> 里的两块服务端逻辑：</p>
+<ol>
+<li>**<code>/api/<em></code> 全路径中继</em>*：账号、云存档、全站榜都得从这儿转发出去。以前在 CF Pages 的边缘上跑，现在换成 nginx 的一行 <code>proxy_pass</code>。</li>
+<li><strong>macOS 服务端拒绝</strong>：要求是「不要客户端软拦截，直接服务端拒绝」，所以判定必须发生在发资源之前。现在由 nginx 的 <code>map</code> 判定，命中直接 403，页面的一个字节都不下发。</li>
+</ol>
+<p>搬完的验证口径：经 CF 200、直连 IP 403、Mac UA 403、iPad 200。四条全过才算数。</p>
+<h2>踩到的坑</h2>
+<ul>
+<li><strong><code>allow/deny</code> 和 realip 会打架</strong>：日志里想看到访客真实 IP，就得让 realip 改写 <code>$remote_addr</code>；可 <code>allow &lt;CF 段&gt;; deny all;</code> 恰好用的就是 <code>$remote_addr</code>——结果把访客一起拒了，全站 403。正解是用 <code>$realip_remote_addr</code>（改写<strong>之前</strong>的对端地址）做判断。</li>
+<li><strong>healthcheck 写成 exec 形式的 <code>||</code></strong>：<code>[&quot;CMD&quot;,&quot;wget&quot;,…,&quot;||&quot;,&quot;exit&quot;,&quot;1&quot;]</code> 里 <code>||</code> 会被当成 wget 的参数，容器永远 <code>unhealthy</code>。要么 <code>CMD-SHELL</code>，要么别写。</li>
+</ul>
+<p>这两条都已写进部署手册的坑清单里。下一篇写博客这套构建器怎么做到零依赖。</p></article>
+
+    <section class="comments" id="comments">
+      <h3><span data-i18n="blog.comments">评论</span> <span class="pv">(<b id="cmt-count">0</b>)</span></h3>
+      <p class="hint" style="margin-top:6px" data-i18n="blog.commentHint">登录本站账号后就能评论（一个账号走全站）。</p>
+      <div id="cmt-list"></div>
+      <div id="cmt-form"></div>
+    </section>
+  </main>
+  <aside class="side">
+    <h4 data-i18n="blog.toc">目录</h4>
+    <nav id="toc"></nav>
+    <h4 data-i18n="blog.thisPost">这篇</h4>
+    <div class="facts2"><a href="/posts/" data-i18n="blog.all">← 全部文章</a><a href="#comments" data-i18n="blog.jumpComments">跳到评论</a><a href="#top" data-i18n="blog.top">回到顶部</a></div>
+  </aside>
+</div>
+<footer><span>© 2026 Bobbychina</span><div><a href="/" data-i18n="sponsor.home">首页</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/feed.xml">RSS</a></div></footer>
+</div>
+</body></html>

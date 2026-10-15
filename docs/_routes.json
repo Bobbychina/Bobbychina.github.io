@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "include": [
+    "/api",
+    "/api/*",
+    "/oauth/access_token",
+    "/login/device/code"
+  ],
+  "exclude": []
+}

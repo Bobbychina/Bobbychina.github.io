@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script src="/mirror-runtime.js?v=20261015a"></script>
+<script src="/i18n/i18n.js?v=20261014full1"></script>
+<meta charset="UTF-8">
+<script src="/mac-block.js"></script>   <!-- macOS 拦截：同步执行、紧跟 charset（见文件头注释） -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<!-- CSP：本站托管的共创作品同样不许外联 —— 游戏本体完全自包含（精灵是 data:image/png;base64、音效走 WebAudio）。
+     connect-src 放行的那几个是**云存档**要用的：api.github.com（你自己的私有 Gist）、
+     中继/云账号后端（auth-config.js 里那台 Cloudflare）。不登录就一个请求都不会发。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://bobbycn.cc https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev; base-uri 'self'; form-action 'none'">
+<title>吸血鬼幸存者 · Vampire Survivors</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/nightfall-edition.css?v=20261009art">
+<link rel="stylesheet" href="css/art-reset.css?v=20261010">
+</head>
+<body>
+
+<div id="site-bar" style="position:fixed;left:10px;top:calc(var(--beta-h, 0px) + 8px);z-index:9999;display:flex;gap:8px;align-items:center;font:12.5px/1.6 'Segoe UI',system-ui,'Microsoft YaHei',sans-serif">
+  <a href="/games/" style="text-decoration:none;color:#d7e2ea;background:rgba(10,14,20,.72);border:1px solid #1f2733;border-radius:20px;padding:4px 12px">← 回游戏厅</a>
+  <span style="color:#3fd07a;background:rgba(10,14,20,.72);border:1px solid #2b5f45;border-radius:20px;padding:4px 12px">🤝 共创</span>
+</div>
+
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ======== 顶部 HUD ======== -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="bar bar-hp">
+        <span class="bar-ico" id="hpIcon"></span>
+        <i id="hpFill"></i>
+        <b id="hpText">100 / 100</b>
+      </div>
+      <div class="bar bar-xp">
+        <span class="bar-ico" id="xpIcon"></span>
+        <i id="xpFill"></i>
+        <b id="xpText">Lv.1</b>
+      </div>
+    </div>
+    <div class="hud-stats">
+      <div class="stat"><span class="k">存活</span><span class="v" id="timer">00:00</span></div>
+      <div class="stat stage"><span class="k">关卡</span><span class="v" id="stage">1</span></div>
+      <div class="stat phase"><span class="k">阶段</span><span class="v" id="phase">正常</span></div>
+      <div class="stat gold"><span class="k">波次</span><span class="v" id="wave">1</span></div>
+      <div class="stat"><span class="k">击杀</span><span class="v" id="kills">0</span></div>
+      <div class="stat cyan"><span class="k">等级</span><span class="v" id="level">1</span></div>
+      <button class="icon-btn" id="muteBtn" title="静音 (M)">♪</button>
+      <button class="icon-btn" id="pauseBtn" title="暂停 (Esc)">❚❚</button>
+    </div>
+    <div class="weapon-strip" id="weaponStrip"></div>
+
+    <!-- Boss 血条：第 5 分钟 Boss 出现时显示 -->
+    <div class="boss-bar" id="bossBar" hidden>
+      <div class="boss-head">
+        <span class="boss-name" id="bossName">尸潮之王</span>
+        <span class="boss-hp" id="bossHpText">0 / 0</span>
+      </div>
+      <div class="boss-track"><i id="bossFill"></i></div>
+    </div>
+  </div>
+
+  <!-- 阶段播报横幅（不拦截点击，自动淡出） -->
+  <div class="banner" id="banner" hidden>
+    <div class="banner-title" id="bannerTitle"></div>
+    <div class="banner-sub" id="bannerSub"></div>
+  </div>
+
+  <!-- ======== 覆盖层 / 面板 ======== -->
+  <div id="overlays">
+
+    <section class="panel" id="panel-start">
+      <h1>吸血鬼幸存者</h1>
+      <p class="sub">在无尽的怪物潮中活下去 · 共 <b id="startLevels">2</b> 关，第一关 <b>15 分钟</b>过关</p>
+      <div class="best">最高存活时间：<b id="startBest">--:--</b></div>
+      <details class="field-guide"><summary>猎人手册 · 操作与关卡规则</summary><ul class="keys">
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 武器<b>自动攻击</b> · <kbd>Shift</kbd> <b>闪避</b> · <kbd>E</kbd> <b>切骨刃范围</b> · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
+        <li>拾取经验球升级，三张卡里选一项增益（含"缺什么补什么"的<b>流派增益</b>）</li>
+        <li>满 <b>3 分钟</b>起击杀有 <b>5%</b> 掉<b>金色经验球</b>（顶 100 颗）；打完 5 分钟的 Boss 升到 <b>20%</b></li>
+        <li><b>5 分钟</b>的 Boss 送<b>等级 +1 + 宠物</b>；<b>10 分钟</b>柠檬猪登场（扇形 / 环形 / 酸液池三种轮换）</li>
+        <li><b>15 分钟</b>过关进<b>第二关</b>：<b>从 1 级重来</b>、怪血 ×1.3、<b>没有喘息</b>、地上冒<b>柠檬酸池</b>、技能<b>小幅加强</b>，另有新武器/增益/宠物</li>
+        <li>第二关 <b>12:00</b> 刷最终 Boss，<b>15:00 前必须打死</b>它，否则这一局无法通关</li>
+      </ul></details>
+      <div class="phases">
+        <div><b>0–2 分</b><span>正常</span></div>
+        <div class="ph-horde"><b>2–4 分</b><span>尸潮 · 僵尸暴增</span></div>
+        <div class="ph-rest"><b>4–5 分</b><span>第一关歇口气</span></div>
+        <div class="ph-boss"><b>5 分</b><span>尸潮之王 · 送宠物</span></div>
+        <div class="ph-boss"><b>10 分</b><span>柠檬猪 · 三种酸液</span></div>
+      </div>
+      <div class="skins" id="skinRow">
+        <span class="skins-label">主角皮肤</span>
+        <div class="skins-list" id="skinList"></div>
+      </div>
+      <button class="btn primary" id="startBtn">开始游戏</button>
+      <button class="btn" id="previewL2Btn">跳到第二关（自己选宠物 + 8 张卡）</button>
+      <p class="tip">手机端：在画面上拖动即可移动 · 跳关不会替你配装：先自己选宠物，再连抽 8 张升级卡</p>
+    </section>
+
+    <section class="panel" id="panel-levelup" hidden>
+      <h2>升级！<span class="lv" id="luLevel"></span></h2>
+      <p class="sub">从下面三项中选择一项增益</p>
+      <div class="cards" id="luCards"></div>
+      <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
+    </section>
+
+    <section class="panel" id="panel-petselect" hidden>
+      <h2>宠物选择</h2>
+      <p class="sub">击杀尸潮之王的奖励 · <b>等级 +1</b> · 只能选一次，永久生效（第二关会多一只专属宠物）</p>
+      <div class="cards pet-cards" id="petCards"></div>
+      <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
+    </section>
+
+    <section class="panel" id="panel-levelclear" hidden>
+      <h2 class="clear"><span id="lcTitle">第一关 通过</span></h2>
+      <p class="sub" id="lcSub"></p>
+      <div class="result">
+        <div class="big" id="lcTime">15:00</div>
+        <div class="grid">
+          <div><span>本关击杀</span><b id="lcKills">0</b></div>
+          <div><span>等级</span><b id="lcLevel">1</b></div>
+          <div><span>宠物</span><b id="lcPet">—</b></div>
+          <div><span>总用时</span><b id="lcTotal">15:00</b></div>
+        </div>
+      </div>
+      <button class="btn primary" id="nextLevelBtn">进入第二关</button>
+      <p class="tip">构筑、等级、宠物都会带进下一关；血量回满，并给 3 秒无敌</p>
+    </section>
+
+    <section class="panel" id="panel-pause" hidden>
+      <h2>已暂停</h2>
+      <p class="sub" id="pauseInfo"></p>
+      <button class="btn primary" id="resumeBtn">继续游戏</button>
+      <button class="btn" id="pauseRestartBtn">重新开始</button>
+    </section>
+
+    <section class="panel" id="panel-gameover" hidden>
+      <h2 class="dead" id="goTitle">你已阵亡</h2>
+      <p class="sub go-reason" id="goReason" hidden></p>
+      <div class="result">
+        <div class="big" id="goTime">00:00</div>
+        <div class="newbest" id="goNewBest" hidden>★ 新纪录 ★</div>
+        <div class="grid">
+          <div><span>最高纪录</span><b id="goBest">00:00</b></div>
+          <div><span>击杀</span><b id="goKills">0</b></div>
+          <div><span>等级</span><b id="goLevel">1</b></div>
+          <div><span>关卡</span><b id="goStage">1</b></div>
+        </div>
+      </div>
+      <button class="btn primary" id="retryBtn">再来一局</button>
+    </section>
+
+  </div>
+
+  <noscript>
+    <div id="noscript-warn">本页需要 JavaScript 才能运行，当前浏览器已禁用了它。</div>
+  </noscript>
+
+  <!-- 仅在脚本完全没执行时才会停留可见 -->
+  <div id="boot">正在加载脚本…（若此提示不消失，说明浏览器没有执行本页脚本，或 js 文件未被正确加载）</div>
+</div>
+
+<!-- ======== 模块加载顺序（经典 script + VS 命名空间，file:// 双击即可运行）=======
+     defer：线上 20 个文件串行下载约 15s（每请求 0.6~1.0s），defer 后并行拉取且仍保证执行顺序 -->
+<!-- 云存档：站点既有的账号库（登录 + 私有 Gist 读写都在它里面），没登录时零请求 -->
+<script defer src="/games/auth-config.js?v=20261014full1"></script>
+<script defer src="/games/site-auth.js?v=20261014full1"></script>
+<script defer src="/games/site-saves.js?v=20261014full1"></script>
+<script defer src="/games/account.js?v=20261014full1"></script>
+<script defer src="js/core/namespace.js"></script>
+<script defer src="js/core/utils.js"></script>
+<script defer src="js/game/config.js"></script>
+<script defer src="js/game/phases.js"></script>
+<script defer src="js/game/levels.js"></script>
+<script defer src="js/core/save.js"></script>
+<script defer src="js/core/scores.js"></script>
+<script defer src="js/core/cloud.js?v=20261014full1"></script>
+<script defer src="js/core/leaderboard.js"></script>
+<!-- 留言板：两边各写各的分文件，notes.js 只做聚合（谁都不用改对方那一段，git 合并不再打架） -->
+<script defer src="js/data/notes/bobbychina.js"></script>
+<script defer src="js/data/notes/alan.js"></script>
+<script defer src="js/data/notes.js"></script>
+<script defer src="js/core/audio.js"></script>
+<script defer src="js/core/input.js"></script>
+<script defer src="js/game/world.js"></script>
+<script defer src="js/game/effects.js"></script>
+<script defer src="js/game/player.js"></script>
+<script defer src="js/game/weapons.js"></script>
+<script defer src="js/game/enemies.js"></script>
+<script defer src="js/game/bosskit.js"></script>
+<script defer src="js/game/pickups.js"></script>
+<script defer src="js/game/pets.js"></script>
+<script defer src="js/render/sprites.js"></script>
+<script defer src="js/render/assets.js"></script>
+<script defer src="js/render/renderer.js"></script>
+<script defer src="js/ui/hud.js"></script>
+<script defer src="js/ui/panels.js"></script>
+<script defer src="js/ui/cloud-ui.js?v=20261014full1"></script>
+<script defer src="js/ui/scores-ui.js"></script>
+<script defer src="js/ui/leaderboard-ui.js"></script>
+<script defer src="js/ui/notes-ui.js"></script>
+<script defer src="js/game/game.js"></script>
+<script defer src="js/main.js"></script>
+
+<!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
+
+<aside id="site-language" data-i18n-switch aria-label="Language" style="position:fixed;right:12px;bottom:12px;z-index:10000;padding:6px;background:var(--bg,#121110);border-radius:8px"></aside>
+</body>
+</html>
