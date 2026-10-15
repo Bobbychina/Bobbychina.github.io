@@ -5053,7 +5053,7 @@ async function onlineRaw(base, path, opts, needAuth) {
   const r = await fetch(base + path, Object.assign({ headers: h, mode: 'cors' }, opts || {}));
   let d = null;
   try { d = await r.json(); } catch (e) { d = null; }
-  if (!r.ok) return { ok: false, status: r.status, fatal: true, data: d, err: (d && (d.message || d.error)) || ('HTTP ' + r.status) };
+  if (!r.ok) return { ok: false, status: r.status, fatal: true, data: d, err: (d && (d.message || d.error || d.err)) || ('HTTP ' + r.status) };
   return { ok: true, data: d };
 }
 
@@ -5077,7 +5077,7 @@ async function onlineReq(path, opts, needAuth) {
 
 /** 把服务端的机器码翻译成人话（页面直接显示 `Online.msg`） */
 function onlineErrText(r) {
-  const code = (r && r.data && (r.data.error || r.data.error)) || '';
+  const code = (r && r.data && (r.data.error || r.data.err)) || '';
   const raw = (r && r.err) || '';
   if (code === 'bad_game' || code === 'bad_track') {
     /* 站点已经上线、云后端还没更新时就是这个码 —— 说清楚"不是你的问题，等一会儿" */
@@ -5085,15 +5085,19 @@ function onlineErrText(r) {
   }
   if (code === 'cooldown') return '刚提交过（60 秒冷却），稍后再来';
   if (code === 'origin_not_allowed') return '这个来源不被排行榜接受（换站点域名打开试试）';
+  if (code === 'bad_data') return '幽灵数据格式或大小不符合服务器要求，请更新游戏后重试';
+  if (code === 'bad_lap') return '幽灵圈速不符合服务器要求';
   return raw || '读排行榜失败';
 }
 
 /** 读榜（公开，不用登录） */
 async function onlineFetchBoard(trackId) {
   const tid = trackId || onlineTrackId();
+  const requestId = Online.boardRequest = (Online.boardRequest || 0) + 1;
   Online.state = 'loading'; Online.msg = '正在读排行榜…';
   if (Online.panelOpen) onlineRenderPanel();
   const r = await onlineReq('/api/score?game=' + Online.GAME + '&track=' + encodeURIComponent(tid), { method: 'GET' }, false);
+  if (requestId !== Online.boardRequest || tid !== onlineTrackId()) return r;
   if (r.ok && r.data && Array.isArray(r.data.list)) {
     Online.board = r.data.list;
     Online.boardTrack = tid;
@@ -5111,17 +5115,20 @@ async function onlineFetchBoard(trackId) {
 
 /** 提交一圈成绩（要登录云账号）；单圈毫秒数越小越好 */
 async function onlineSubmit(run) {
+  const tid = onlineTrackId();
   const lap = Math.round(run.lap * 1000);
   const total = Math.round(run.total * 1000);
   const speed = Math.round(run.speed);
   const body = JSON.stringify({
-    game: Online.GAME, track: onlineTrackId(),
+    game: Online.GAME, track: tid,
     lap: lap, total: total, speed: speed
   });
   const r = await onlineReq('/api/score', { method: 'POST', body: body }, true);
+  if (tid !== onlineTrackId()) return r;
   if (r.ok && r.data && r.data.ok) {
     Online.lastRank = r.data.rank || 0;
     Online.board = r.data.list || Online.board;
+    Online.boardTrack = tid;
     Online.state = 'ok';
     Online.lastSubmit = '已上榜：第 ' + Online.lastRank + ' 名';
   } else {
@@ -5240,7 +5247,11 @@ function onlineRenderPanel() {
 /** 刚登录/注册成功后：如果这一局已经有最好单圈，直接传上去（省得再跑一趟） */
 async function onlineCatchUpSubmit() {
   const p = G.player;
-  if (!p || !(p.bestLap > 0) || !onlineCanSubmit()) return '';
+  const tid = onlineTrackId();
+  if (!onlineCanSubmit()) return '';
+  if (Ghost.pending && Ghost.pending.track === onlineTrackId()) await ghostPublish();
+  if (tid !== onlineTrackId() || p !== G.player) return '';
+  if (!p || !(p.bestLap > 0)) return Ghost.uploadNote || '';
   const r = await onlineSubmit({ lap: p.bestLap, total: p.finishTime || 0, speed: (p.topSpeed || 0) * 3.6 });
   if (r.ok && r.data && r.data.ok) return '已把这一局的最好单圈（' + onlineFmt(p.bestLap * 1000) + '）传上去了：第 ' + (r.data.rank || '?') + ' 名';
   return String(Online.lastSubmit || '');
@@ -5313,6 +5324,7 @@ function onlineTogglePanel(force) {
 async function onlineAfterRace() {
   const line = document.getElementById('resLb');
   const p = G.player;
+  const tid = onlineTrackId();
   if (!line) return;
   const lap = p.bestLap || 0;
   if (!(lap > 0)) { line.textContent = ''; return; }
@@ -5334,6 +5346,7 @@ async function onlineAfterRace() {
   }
   line.textContent = '正在上传成绩…';
   const r = await onlineSubmit({ lap: lap, total: p.finishTime || 0, speed: p.topSpeed * 3.6 });
+  if (tid !== onlineTrackId() || p !== G.player) return;
   if (r.ok && r.data && r.data.ok) {
     const best = r.data.best || {};
     line.innerHTML = '官方榜：<b>第 ' + (r.data.rank || '?') + ' 名</b> · 单圈 ' + onlineFmt(best.lap || lap * 1000) +
@@ -5341,7 +5354,7 @@ async function onlineAfterRace() {
     const b = document.getElementById('btnResLbShow');
     if (b) b.addEventListener('click', function () { onlineTogglePanel(true); }, false);
     /* 成绩上榜成功 => 顺手把这一圈的幽灵也传上去（别人就能跟你的幽灵跑） */
-    if (Ghost.pending && Ghost.pending.lap === Math.round(lap * 1000)) {
+    if (Ghost.pending && Ghost.pending.track === onlineTrackId() && Ghost.pending.lap <= Math.round(lap * 1000)) {
       ghostPublish().then(function () {
         if (Ghost.uploadNote) line.innerHTML += ' <span class="dim">· ' + onlineEsc(Ghost.uploadNote) + '</span>';
       });
@@ -5358,10 +5371,11 @@ async function onlineAfterRace() {
 function onlineRenderGhostPick() {
   const box = document.getElementById('ghostPick');
   if (!box) return;
-  const mine = Ghost.best || ghostLoadLocal(onlineTrackId());
+  const tid = onlineTrackId();
+  const mine = Ghost.best && Ghost.best.track === tid ? Ghost.best : ghostLoadLocal(tid);
   const items = [{ id: 'off', name: '不跟幽灵跑', sub: '只有 5 台 AI' }];
   items.push({ id: 'mine', name: '我的最佳', sub: mine ? onlineFmt(mine.lap) : '本机还没纪录' });
-  const list = (Online.board || []).slice(0, 3);
+  const list = (Online.boardTrack === tid ? Online.board || [] : []).slice(0, 3);
   const probes = [];
   for (let i = 0; i < list.length; i++) {
     const row = list[i];
@@ -5378,6 +5392,7 @@ function onlineRenderGhostPick() {
   }
   box.innerHTML = html;
   const btns = box.querySelectorAll('.dbtn');
+  const subs = box.querySelectorAll('[data-sub]');
   for (let i = 0; i < btns.length; i++) {
     (function (el) {
       el.addEventListener('click', function () { ghostSetPick(el.getAttribute('data-ghost')); }, false);
@@ -5387,19 +5402,19 @@ function onlineRenderGhostPick() {
      逐个探一下并在按钮上写明, 免得玩家点了没反应以为坏了 */
   for (let i = 0; i < probes.length; i++) {
     (function (nm) {
-      ghostProbe(nm).then(function (res) {
-        const el = box.querySelector('[data-sub="' + nm + '"]');
-        if (!el) return;
+      const el = Array.from(subs).find(function (node) { return node.getAttribute('data-sub') === nm; });
+      ghostProbe(nm, tid).then(function (res) {
+        if (!el || !box.contains(el) || onlineTrackId() !== tid) return;
         if (res === null) { el.textContent = '幽灵：读不到（没网？）'; return; }
         el.textContent = res.ok
           ? '有幽灵 · ' + onlineFmt(res.lap)
-          : '还没传幽灵（他跑的时候还没有这功能）';
+          : '暂无可用幽灵';
       });
     })(probes[i]);
   }
   const st = document.getElementById('ghostState');
   if (st) {
-    const anyGhost = (Online.board || []).length > 0;
+    const anyGhost = list.length > 0;
     st.textContent = '幽灵对手：' + (Ghost.state || (Ghost.pick === 'off' ? '不跟幽灵跑（AI 照常）' : Ghost.pick)) +
       (anyGhost && Ghost.pick === 'off' ? ' · 榜上的名字带「有幽灵」的才能选中' : '');
   }
@@ -5445,7 +5460,7 @@ function onlineRefreshHud() {
  *    ① 我的最佳（localStorage，按赛道分开 —— 没网、没账号也能跟自己比）
  *    ② 官方榜上的某个人（GET /api/ghost?game=racing3d&track=&name=）
  *    ③ 关掉（默认；AI 照常跑）
- *  上传: 只在"这一局刷新了个人最佳 + 前面成绩提交成功"时把幽灵一起 POST /api/ghost。
+ *  上传: 刷新本机最佳且已登录时 POST /api/ghost；结算提交成绩后可重试。
  *
  *  回放口径: 幽灵不吃物理、不参与碰撞（纯视觉），按玩家每圈开始重置到 t=0 循环跑；
  *            高度按同一套赛道函数算，所以上下坡也贴地。
@@ -5463,45 +5478,64 @@ const Ghost = {
   best: null,              // 本机最佳幽灵 {lap, model, data}（当前赛道）
   pending: null,           // 待上传 {track, lap, data}（这一局刷新 PB 时挂上）
   uploadNote: '',          // 上传结果一句话
+  requestId: 0,            // 只接受当前选择、当前赛道发出的请求
+  local: Object.create(null), // 存储被浏览器拒绝时，本次打开仍能使用已录制的幽灵
+  uploads: new Map(),
   LOADED: false
 };
 
 /* ------------------------------ 编解码 ------------------------------ */
 function ghostEncode(o) {
   const parts = ['g1', String(o.model || 'coupe'), String(Math.round(o.lapMs || 0))];
-  let s = '';
+  const rows = [];
   for (let i = 0; i < o.t.length; i++) {
-    if (i) s += ';';
-    s += Math.round(o.t[i]) + ',' + Math.round(o.x[i] * 100) + ',' +
-      Math.round(o.z[i] * 100) + ',' + Math.round(o.yaw[i] * 1000);
+    rows.push(Math.round(o.t[i]) + ',' + Math.round(o.x[i] * 100) + ',' +
+      Math.round(o.z[i] * 100) + ',' + Math.round(o.yaw[i] * 1000));
   }
-  parts.push(s);
-  return parts.join('|');
+  const header = parts.join('|') + '|';
+  let stride = 1, data;
+  do {
+    const kept = [];
+    for (let i = 0; i < rows.length - 1; i += stride) kept.push(rows[i]);
+    if (rows.length) kept.push(rows[rows.length - 1]);
+    data = header + kept.join(';');
+    stride++;
+  } while (data.length > 24000 && stride <= rows.length);
+  return data;
 }
 
 function ghostDecode(str) {
   if (!str || typeof str !== 'string') return null;
   const p = str.split('|');
-  if (p.length < 4 || p[0] !== 'g1') return null;
-  const o = { model: p[1] || 'coupe', lapMs: parseInt(p[2], 10) || 0, t: [], x: [], z: [], yaw: [] };
+  if (p.length !== 4 || p[0] !== 'g1' || !/^[a-z0-9_-]+$/i.test(p[1]) || !/^\d+$/.test(p[2])) return null;
+  const o = { model: p[1], lapMs: Number(p[2]), t: [], x: [], z: [], yaw: [] };
+  if (!(o.lapMs > 0) || !Number.isSafeInteger(o.lapMs)) return null;
   const rows = p[3].split(';');
   for (let i = 0; i < rows.length; i++) {
     const f = rows[i].split(',');
-    if (f.length < 4) continue;
-    const t = parseInt(f[0], 10), x = parseInt(f[1], 10), z = parseInt(f[2], 10), y = parseInt(f[3], 10);
-    if (!isFinite(t) || !isFinite(x) || !isFinite(z) || !isFinite(y)) continue;
+    if (f.length !== 4 || f.some(function (v) { return !/^-?\d+$/.test(v) || !Number.isSafeInteger(Number(v)); })) return null;
+    const t = Number(f[0]), x = Number(f[1]), z = Number(f[2]), y = Number(f[3]);
+    if (t < 0 || t > o.lapMs || (o.t.length && t <= o.t[o.t.length - 1])) return null;
     o.t.push(t); o.x.push(x / 100); o.z.push(z / 100); o.yaw.push(y / 1000);
   }
   if (o.t.length < 2) return null;
-  o.seconds = o.t[o.t.length - 1] / 1000;
+  o.seconds = o.lapMs / 1000;
   return o;
 }
 
 /* ------------------------------ 录制 ------------------------------ */
 /** 玩家过起点线（开始计圈）时调用：开始录这一圈 */
-function ghostBeginLap(model) {
+function ghostBeginLap(model, car) {
   Ghost.rec = { t: [], x: [], z: [], yaw: [], model: model || 'coupe', lapMs: 0 };
   Ghost.recAcc = 0;
+  if (car) ghostRecordPose(Ghost.rec, 0, car);
+}
+
+function ghostRecordPose(r, ms, car) {
+  if (!car || ![ms, car.x, car.z, car.yaw].every(Number.isFinite)) return;
+  const last = r.t.length - 1;
+  if (last >= 0 && ms <= r.t[last]) return;
+  r.t.push(ms); r.x.push(car.x); r.z.push(car.z); r.yaw.push(car.yaw);
 }
 
 /** 每帧采样（在 simulate 里、物理步进之后调用） */
@@ -5510,29 +5544,35 @@ function ghostSample(dt, car, lapT) {
   Ghost.recAcc += dt;
   const step = 1 / Ghost.HZ;
   if (Ghost.recAcc < step && Ghost.rec.t.length) return;
-  Ghost.recAcc = 0;
+  Ghost.recAcc %= step;
   const r = Ghost.rec;
-  r.t.push(Math.round(lapT * 1000));
-  r.x.push(car.x); r.z.push(car.z); r.yaw.push(car.yaw);
+  ghostRecordPose(r, Math.round(lapT * 1000), car);
 }
 
 /** 一圈跑完：这一圈是个人最佳就留成本地幽灵（并准备上传） */
-function ghostEndLap(lapT, isBest, model) {
+function ghostEndLap(lapT, isBest, model, car) {
   const r = Ghost.rec;
   Ghost.rec = null;
   if (!r || r.t.length < 20 || !isBest) return false;
   r.lapMs = Math.round(lapT * 1000);
+  if (!(r.lapMs > 0)) return false;
   r.model = model || r.model;
-  const data = ghostEncode(r);
   const track = onlineTrackId();
+  const previous = ghostLoadLocal(track);
+  if (previous && previous.lap <= r.lapMs) return false;
+  const last = r.t.length - 1;
+  ghostRecordPose(r, r.lapMs, car || { x: r.x[last], z: r.z[last], yaw: r.yaw[last] });
+  const data = ghostEncode(r);
+  if (!ghostDecode(data)) return false;
   Ghost.best = { track: track, lap: r.lapMs, model: r.model, data: data };
-  ghostSaveLocal(track, Ghost.best);
-  /* 挂上待上传：等成绩提交成功后一起 POST（没登录/没网就留在本地） */
+  const saved = ghostSaveLocal(track, Ghost.best);
+  /* 挂上待上传，结算提交成绩后还可重试（没登录/没网就留在本地） */
   Ghost.pending = { track: track, lap: r.lapMs, data: data };
   if (Ghost.pick === 'mine') ghostUseLocal();
   /* 明说一句, 否则玩家根本不知道"刚才那圈被存成幽灵了" */
   if (typeof uiFlash === 'function') {
-    uiFlash('已存下你的幽灵 ' + fmtTime(r.lapMs / 1000), '下一局可以选「我的最佳」跟它跑', '#8fe3ff', 2.2);
+    uiFlash((saved ? '已存下你的幽灵 ' : '幽灵暂存在本次游戏 ') + fmtTime(r.lapMs / 1000),
+      saved ? '下一局可以选「我的最佳」跟它跑' : '浏览器阻止了本地存储，关闭页面后不会保留', '#8fe3ff', 2.2);
   }
   /* 顺手尝试上传（不用等成绩提交成功 —— 圈速没上榜但幽灵照样可以传，别人就能跟你跑） */
   if (Ghost.pending && onlineCanSubmit()) {
@@ -5550,15 +5590,20 @@ function ghostEndLap(lapT, isBest, model) {
 function ghostLocalKey(track) { return 'racing3d.ghost.v1.' + (track || onlineTrackId()); }
 
 function ghostSaveLocal(track, o) {
-  try { window.localStorage.setItem(ghostLocalKey(track), JSON.stringify(o)); } catch (e) { /* file:// 下可能被拒 */ }
+  Ghost.local[track] = o;
+  try { window.localStorage.setItem(ghostLocalKey(track), JSON.stringify(o)); return true; } catch (e) { return false; }
 }
 
 function ghostLoadLocal(track) {
+  track = track || onlineTrackId();
+  if (Ghost.local[track]) return Ghost.local[track];
   try {
     const s = window.localStorage.getItem(ghostLocalKey(track));
     if (!s) return null;
     const o = JSON.parse(s);
-    return (o && o.data) ? o : null;
+    const decoded = o && ghostDecode(o.data);
+    if (!decoded || (o.track && o.track !== track)) return null;
+    return { track: track, lap: decoded.lapMs, model: decoded.model, data: o.data };
   } catch (e) { return null; }
 }
 
@@ -5566,8 +5611,13 @@ function ghostLoadLocal(track) {
 function ghostDispose() {
   if (Ghost.mesh && Ghost.mesh.parent) Ghost.mesh.parent.remove(Ghost.mesh);
   Ghost.mesh = null;
+  if (Ghost.materials) Ghost.materials.forEach(function (m) { if (m.dispose) m.dispose(); });
+  Ghost.materials = [];
+  Ghost.meshModel = null;
+  Ghost.pose = null;
   Ghost.play = null;
   Ghost.clock = 0;
+  Ghost._idx = 0;
 }
 
 /** 造一台半透明的幽灵车（复用玩家车库的几何体，只是材质透明） */
@@ -5577,15 +5627,23 @@ function ghostBuildMesh(model) {
   let m;
   try { m = createCar(0x8fe3ff, model || 'coupe'); }
   catch (e) { Ghost.buildErr = String((e && e.message) || e); return; }
+  const materials = new Map();
   m.group.traverse(function (o) {
     if (!o.material) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     for (let i = 0; i < mats.length; i++) {
-      mats[i].transparent = true;
-      mats[i].opacity = 0.40;
-      mats[i].depthWrite = false;
+      if (!materials.has(mats[i])) {
+        const material = mats[i].clone();
+        material.transparent = true;
+        material.opacity = 0.40;
+        material.depthWrite = false;
+        materials.set(mats[i], material);
+      }
     }
+    const cloned = mats.map(function (material) { return materials.get(material); });
+    o.material = Array.isArray(o.material) ? cloned : cloned[0];
   });
+  Ghost.materials = Array.from(materials.values());
   scene.add(m.group);
   m.group.visible = false;      // 过起点线(开始计圈)之前不显示, 免得在开场卡片后面杵着
   Ghost.mesh = m.group;
@@ -5598,9 +5656,10 @@ function ghostSet(o, name) {
   /* 顺序很重要: ghostBuildMesh 内部先 ghostDispose(), 而它会清空 Ghost.play,
      所以必须"先建模、后挂 play"(否则刚装上就被自己清掉 —— 自检里踩过一次) */
   ghostBuildMesh(o.model);
+  if (!Ghost.mesh) { Ghost.state = '幽灵模型加载失败'; return false; }
   Ghost.play = o;
   Ghost.play.name = name || '';
-  Ghost.playSeconds = (o.t[o.t.length - 1] || 0) / 1000;
+  Ghost.playSeconds = o.lapMs / 1000;
   Ghost.clock = 0;
   Ghost._idx = 0;
   Ghost.state = (name ? name + ' · ' : '') + fmtTime((o.lapMs || 0) / 1000) + ' 的幽灵';
@@ -5614,7 +5673,7 @@ function ghostUpdate(dt, lapT) {
   if (!Ghost.play || !Ghost.mesh) return;
   const g = Ghost.play;
   const tt = lapT === undefined ? (Ghost.clock += dt) : lapT;
-  const period = g.t[g.t.length - 1] / 1000;
+  const period = g.lapMs / 1000;
   if (!(period > 0.5)) return;
   const t = tt - Math.floor(tt / period) * period;      // 循环
   Ghost.lapNo = Math.floor(tt / period) + 1;            // 第几圈（显示用）
@@ -5632,6 +5691,7 @@ function ghostUpdate(dt, lapT) {
   const yaw = wrapPi(g.yaw[i] + dy * k);
   Ghost.mesh.position.set(x, trackHeightAtS(projectTrack(x, z).s), z);
   Ghost.mesh.rotation.y = yaw;
+  Ghost.mesh.visible = true;
   /* 车轮跟着转（纯视觉）: 用上一帧的位移反推速度, 幽灵不走物理 */
   const mm = Ghost.meshModel;
   const prev = Ghost.pose;
@@ -5646,6 +5706,7 @@ function ghostUpdate(dt, lapT) {
 
 /* ------------------------------ 选择 / 拉取 ------------------------------ */
 function ghostUseLocal() {
+  Ghost.requestId++;
   const o = ghostLoadLocal(onlineTrackId());
   if (!o) { ghostDispose(); Ghost.state = '这台设备还没有你自己的幽灵（先跑一圈刷个最佳）'; return false; }
   Ghost.best = o;
@@ -5656,6 +5717,8 @@ function ghostUseLocal() {
 /** 从云后端拉一条别人的幽灵 */
 async function ghostFetch(name, track) {
   const tid = track || onlineTrackId();
+  const requestId = ++Ghost.requestId;
+  ghostDispose();
   if (typeof fetch !== 'function' || !onlineBases().length) {
     Ghost.state = '没配云后端，只能跟自己的幽灵跑';
     return false;
@@ -5663,7 +5726,8 @@ async function ghostFetch(name, track) {
   Ghost.state = '正在读取 ' + name + ' 的幽灵…';
   const r = await onlineReq('/api/ghost?game=' + Online.GAME + '&track=' + encodeURIComponent(tid) +
     '&name=' + encodeURIComponent(name), { method: 'GET' }, false);
-  if (!r.ok) { Ghost.state = '读不到幽灵：' + (r.err || '网络问题'); return false; }
+  if (requestId !== Ghost.requestId || tid !== onlineTrackId()) return false;
+  if (!r.ok) { Ghost.state = '读不到幽灵：' + onlineErrText(r); return false; }
   const gh = r.data && r.data.ghost;
   if (!gh || !gh.data) {
     /* 榜上那个人（很可能是在幽灵功能上线之前跑的）没有幽灵数据:
@@ -5699,52 +5763,76 @@ async function ghostProbe(name, track) {
       '&name=' + encodeURIComponent(name), { method: 'GET' }, false);
     if (!r.ok) return null;
     const gh = r.data && r.data.ghost;
-    return gh && gh.data ? { ok: true, lap: gh.lap || 0 } : { ok: false };
+    return gh && ghostDecode(gh.data) ? { ok: true, lap: gh.lap || 0 } : { ok: false };
   } catch (e) { return null; }
 }
 
-/** 把这一局的幽灵传上去（成绩提交成功后调用；失败只是少一条幽灵，不挡玩法） */async function ghostPublish() {
+/** 同一条幽灵只传一次；旧请求完成时不能清掉刚录下的新最佳。 */async function ghostPublish() {
   if (!Ghost.pending) return { ok: false, err: '没有待上传的幽灵' };
   if (!onlineCanSubmit()) { Ghost.uploadNote = '没登录云账号，幽灵只存在本机'; return { ok: false, err: 'need_login' }; }
   const p = Ghost.pending;
-  const r = await onlineReq('/api/ghost', {
-    method: 'POST',
-    body: JSON.stringify({ game: Online.GAME, track: p.track, lap: p.lap, data: p.data })
-  }, true);
-  if (r.ok && r.data && r.data.ok) {
-    Ghost.pending = null;
-    Ghost.uploadNote = r.data.kept === false ? '榜上已有更快的幽灵，没覆盖' : '幽灵已上传';
-    return { ok: true, kept: r.data.kept !== false };
-  }
-  Ghost.uploadNote = onlineErrText(r);
-  return r;
+  if (Ghost.uploads.has(p)) return Ghost.uploads.get(p);
+  const upload = (async function () {
+    const r = await onlineReq('/api/ghost', {
+      method: 'POST',
+      body: JSON.stringify({ game: Online.GAME, track: p.track, lap: p.lap, data: p.data })
+    }, true);
+    if (r.ok && r.data && r.data.ok) {
+      if (Ghost.pending === p) {
+        Ghost.pending = null;
+        Ghost.uploadNote = r.data.kept === false ? '榜上已有更快的幽灵，没覆盖' : '幽灵已上传';
+      }
+      return { ok: true, kept: r.data.kept !== false };
+    }
+    if (Ghost.pending === p) {
+      const code = r.data && (r.data.err || r.data.error);
+      Ghost.uploadNote = code === 'cooldown' ? '幽灵刚上传过（30 秒冷却），稍后重试' : onlineErrText(r);
+    }
+    return r;
+  })();
+  Ghost.uploads.set(p, upload);
+  try { return await upload; } finally { Ghost.uploads.delete(p); }
 }
 
 /** 开场卡片上点选幽灵来源 */
 function ghostSetPick(v) {
+  Ghost.requestId++;
   Ghost.pick = v || 'off';
   try { window.localStorage.setItem('racing3d.ghostPick', Ghost.pick); } catch (e) { /* 忽略 */ }
+  let result;
+  if (Ghost.pick === 'off') { ghostDispose(); Ghost.state = '不跟幽灵跑'; }
+  else if (Ghost.pick === 'mine') result = ghostUseLocal();
+  else result = ghostFetch(Ghost.pick).then(function () { onlineRenderGhostPick(); });
   onlineRenderGhostPick();
-  if (Ghost.pick === 'off') { ghostDispose(); Ghost.state = '不跟幽灵跑'; return; }
-  if (Ghost.pick === 'mine') { ghostUseLocal(); return; }
-  ghostFetch(Ghost.pick).then(function () { onlineRenderGhostPick(); });
+  return result;
 }
 
 function ghostLoadPick() {
   let v = 'off';
   try { v = window.localStorage.getItem('racing3d.ghostPick') || 'off'; } catch (e) { v = 'off'; }
-  Ghost.pick = v || 'off';
   Ghost.best = ghostLoadLocal(onlineTrackId());
-  if (Ghost.pick === 'mine') ghostUseLocal();
+  ghostRestorePending();
+  return ghostSetPick(v);
+}
+
+/** 上次离线或上传失败的最佳也能补传；老存档先压到服务器接收的长度。 */
+function ghostRestorePending() {
+  const best = Ghost.best;
+  const decoded = best && ghostDecode(best.data);
+  Ghost.pending = decoded ? {
+    track: onlineTrackId(), lap: decoded.lapMs, data: ghostEncode(decoded)
+  } : null;
 }
 
 /** 换赛道：丢掉旧幽灵（榜与幽灵都是按赛道分的） */
 function ghostOnTrackChange() {
+  Ghost.requestId++;
   ghostDispose();
   Ghost.best = ghostLoadLocal(onlineTrackId());
-  Ghost.pending = null;
+  ghostRestorePending();
   if (Ghost.pick === 'mine') ghostUseLocal();
-  else if (Ghost.pick !== 'off') ghostFetch(Ghost.pick);
+  else if (Ghost.pick !== 'off') return ghostFetch(Ghost.pick).then(function () { onlineRenderGhostPick(); });
+  onlineRenderGhostPick();
 }
 
 /* ===== 80_main.js ===== */
@@ -6046,6 +6134,12 @@ function resetCarRaceState(car) {
 }
 
 function setupRace() {
+  Ghost.rec = null;
+  Ghost.recAcc = 0;
+  Ghost.pose = null;
+  Ghost.clock = 0;
+  Ghost._idx = 0;
+  if (Ghost.mesh) Ghost.mesh.visible = false;
   /* 比赛圈数跟随当前赛道 */
   CFG.RACE_LAPS = trackDef().laps;
   /* 清理旧车 */
@@ -6084,6 +6178,7 @@ function setupRace() {
   updateRanking();
   uiShowCard('start');
   uiUpdate(G.player, 'intro', 0, G.player.pos, G.cars.length);
+  onlineRenderGhostPick();
 }
 
 function startRace() {
@@ -6136,8 +6231,7 @@ function updateLap(car) {
     car.nextSplit = TRACK.len;
     if (car === G.player) {
       uiBanner('第 1 圈', '#8fe3ff');
-      ghostBeginLap(car.model);                  // 幽灵: 从这一圈开始录
-      if (Ghost.mesh) Ghost.mesh.visible = true; // 上圈的幽灵重新上路
+      ghostBeginLap(car.model, car);             // 从过线位置和 t=0 开始录
     }
   } else {
     const lapT = G.raceTime - car.lapStartTime;
@@ -6156,10 +6250,10 @@ function updateLap(car) {
       }
       if (isBest) uiFlash('NEW BEST  ' + fmtTime(lapT), '第 ' + car.lap + ' 圈 · 刷新最佳纪录', '#ffd76a', 2.4);
       else uiBanner('第 ' + car.lap + ' 圈   ' + fmtTime(lapT), '#bfe0ff');
-      ghostEndLap(lapT, isBest, car.model);      // 幽灵: 刷新个人最佳就存下这一圈
+      ghostEndLap(lapT, isBest, car.model, car);
       /* 关键: **每一圈**都要重新开始录 —— 以前只在第一次过线时启动录制,
          于是只有第 1 圈能变成幽灵, 第 2/3 圈跑出个人最佳反而存不下来(玩家会觉得"幽灵模式没生效") */
-      ghostBeginLap(car.model);
+      if (car.lap < CFG.RACE_LAPS) ghostBeginLap(car.model, car);
     }
     if (car.lap >= CFG.RACE_LAPS) {
       car.finished = true;
@@ -6251,10 +6345,9 @@ function simulate(dt) {
   for (let i = 0; i < G.cars.length; i++) updateLap(G.cars[i]);
   if (G.state === 'finished') updateRanking();
   /* 幽灵: 录制玩家这一圈 + 回放对手幽灵（都用"本圈已经跑了多久"做时钟） */
-  if (G.player.lapStartTime > 0) {
+  if (G.player.nextSplit > 0 && !G.player.finished) {
     const lapT = G.raceTime - G.player.lapStartTime;
     ghostSample(dt, G.player, lapT);
-    if (Ghost.pose) Ghost.mesh.visible = true;     // 中途才选幽灵也要能立刻看到
     ghostUpdate(dt, lapT);
   } else if (Ghost.mesh) {
     Ghost.mesh.visible = false;      // 还没过起点线（发车格上）先别显示
@@ -6436,6 +6529,7 @@ function boot() {
   uiLoadDiff();          // 上次选的 AI 难度 (在发车前读, 影响首局的 AI)
   ghostLoadPick();       // 上次选的幽灵对手(我的最佳 / 榜上某人 / 关)
   setupRace();
+  if (onlineAvailable()) onlineFetchBoard();
   camReset(G.player);
   updateTrackPickUI();
   updateCarPickUI();
@@ -6512,6 +6606,7 @@ try {
     String(err && err.message ? err.message : err) + '</span></div>';
   throw err;
 }
+
 
 })();
 </script>
