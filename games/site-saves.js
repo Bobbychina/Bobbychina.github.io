@@ -30,8 +30,29 @@
   var SAVES_PATH = '/api/auth/identity/saves';
   var keyCache = null;      // CryptoKey（内存；刷新页面即忘）
   var rawKeyHex = '';       // 迁移/排障用：拿原始字节（不落盘）
+  var keyOwner = '';
+  var keyPending = null;
+  var keyGeneration = 0;
 
   function auth() { return global.SiteAuth || null; }
+
+  function identity() {
+    var a = auth();
+    var s = a && a.status ? a.status() : null;
+    return s && s.signedIn && s.user && s.user.sub ? String(s.user.sub) : '';
+  }
+
+  function assertIdentity(owner) {
+    if (!owner || identity() !== owner) throw new Error((global.I18N ? global.I18N.t("site.copy.c89a93aa42c5") : "账号已变更，请重新操作存档"));
+  }
+
+  function forgetKey() {
+    keyGeneration++;
+    keyCache = null;
+    keyPending = null;
+    keyOwner = '';
+    rawKeyHex = '';
+  }
 
   function endpoint(path) {
     var a = auth();
@@ -65,21 +86,37 @@
 
   /** 取身份存档钥匙（32 字节 → AES-GCM CryptoKey）；同一页面只取一次 */
   async function key(force) {
-    if (keyCache && !force) return keyCache;
     var a = auth();
-    if (!a) throw new Error('没有加载 SiteAuth');
+    if (!a) throw new Error((global.I18N ? global.I18N.t("site.copy.08cd48a31a8d") : "没有加载 SiteAuth"));
+    // Older tokens may not have a profile until the SDK fetches /userinfo.
+    if (!identity() && a.refreshProfile) await a.refreshProfile();
+    var owner = identity();
+    assertIdentity(owner);
+    if (force || keyOwner !== owner) forgetKey();
+    keyOwner = owner;
+    if (keyCache) return keyCache;
+    if (keyPending) return keyPending;
+    var generation = keyGeneration;
+    var pending = (async function () {
     var res = await a.authFetch(endpoint(SAVES_PATH + '/key'), { headers: { Accept: 'application/json' } });
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) throw new Error('站点授权已失效，请重新授权登录');
-      throw new Error('取存档钥匙失败（HTTP ' + res.status + '）');
+      if (res.status === 401 || res.status === 403) throw new Error((global.I18N ? global.I18N.t("site.copy.d79eb92046d1") : "站点授权已失效，请重新授权登录"));
+      throw new Error((global.I18N ? global.I18N.t("site.copy.90e514219f90") : "取存档钥匙失败（HTTP ") + res.status + '）');
     }
     var data = await res.json();
-    if (!data || !data.key) throw new Error('后端没有返回存档钥匙');
+    if (!data || !data.key) throw new Error((global.I18N ? global.I18N.t("site.copy.6c6cabc0bb0c") : "后端没有返回存档钥匙"));
     var raw = b64decode(data.key);
-    if (raw.length !== 32) throw new Error('存档钥匙长度异常（应为 32 字节）');
+    if (raw.length !== 32) throw new Error((global.I18N ? global.I18N.t("site.copy.d77233aa214c") : "存档钥匙长度异常（应为 32 字节）"));
+    var imported = await cryptoObj().subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    assertIdentity(owner);
+    if (generation !== keyGeneration) throw new Error((global.I18N ? global.I18N.t("site.copy.fb2d5cabba28") : "存档密钥缓存已失效，请重试"));
     rawKeyHex = Array.prototype.map.call(raw, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
-    keyCache = await cryptoObj().subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    keyCache = imported;
     return keyCache;
+    })();
+    keyPending = pending;
+    try { return await pending; }
+    finally { if (keyPending === pending) keyPending = null; }
   }
 
   function rawKey() { return rawKeyHex; }
@@ -108,7 +145,7 @@
       return JSON.parse(new TextDecoder().decode(plain));
     } catch (e) {
       // 钥匙不对 / 密文损坏：明确报错，别返回 null 让调用方当成"格式不对"
-      throw new Error('存档解密失败（钥匙不匹配或数据损坏）');
+      throw new Error((global.I18N ? global.I18N.t("site.copy.ee7e59d01cf3") : "存档解密失败（钥匙不匹配或数据损坏）"));
     }
   }
 
@@ -118,7 +155,7 @@
 
   async function call(path, opts) {
     var a = auth();
-    if (!a) throw new Error('没有加载 SiteAuth');
+    if (!a) throw new Error((global.I18N ? global.I18N.t("site.copy.08cd48a31a8d") : "没有加载 SiteAuth"));
     var res = await a.authFetch(endpoint(path), Object.assign({ headers: { Accept: 'application/json' } }, opts || {}));
     var text = await res.text();
     var data = null;
@@ -134,7 +171,10 @@
   }
 
   async function put(game, slot, obj, meta, migrated) {
+    if (!identity() && auth() && auth().refreshProfile) await auth().refreshProfile();
+    var owner = identity();
     var env = await seal(obj);
+    assertIdentity(owner);
     var qs = '?game=' + encodeURIComponent(game) + '&slot=' + encodeURIComponent(slot);
     var out = await call(SAVES_PATH + qs, {
       method: 'PUT',
@@ -146,6 +186,8 @@
 
   /** 读存档并解密；没有这份存档返回 null（调用方可回退到本地/老存档） */
   async function get(game, slot) {
+    if (!identity() && auth() && auth().refreshProfile) await auth().refreshProfile();
+    var owner = identity();
     var qs = '?game=' + encodeURIComponent(game) + '&slot=' + encodeURIComponent(slot);
     var row;
     try {
@@ -153,14 +195,16 @@
     } catch (e) {
       if (e.status === 404) return null;
       if (e.status === 401 || e.status === 403) {
-        var err = new Error('站点授权已失效，请重新授权登录');
+        var err = new Error((global.I18N ? global.I18N.t("site.copy.d79eb92046d1") : "站点授权已失效，请重新授权登录"));
         err.status = e.status;
         throw err;
       }
       throw e;
     }
     if (!row || !row.data) return null;
+    assertIdentity(owner);
     var data = await open(row.data);
+    assertIdentity(owner);
     return { data: data, meta: row.meta || null, updatedAt: row.updatedAt, migrated: !!row.migrated, raw: row.data };
   }
 
@@ -221,6 +265,9 @@
     summary: summary,
     importLegacy: importLegacy,
     importMany: importMany,
-    forgetKey: function () { keyCache = null; rawKeyHex = ''; },
+    forgetKey: forgetKey,
   };
+  if (auth() && auth().onChange) auth().onChange(function () {
+    if (keyOwner && keyOwner !== identity()) forgetKey();
+  });
 })(typeof window !== 'undefined' ? window : globalThis);

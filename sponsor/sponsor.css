@@ -1,0 +1,39 @@
+.sponsor-intro{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:88px;align-items:start;padding:52px 0 48px}
+.sponsor-copy{padding-top:24px;max-width:570px}
+.sponsor-copy h1{font-size:38px;letter-spacing:-.8px;margin:0 0 22px}
+.sponsor-copy>p:not(.section-label){color:var(--soft);font-size:14px;line-height:1.95}
+.sponsor-copy .sponsor-lead{font-size:18px!important;line-height:1.85!important;margin-bottom:18px}
+.support-note{display:flex;align-items:center;gap:22px;border-left:2px solid var(--line);padding:8px 0 8px 22px;margin:34px 0 26px}
+.support-note .note-mark{font-size:34px;letter-spacing:-2px;margin:0}
+.support-note p{margin:0;color:var(--soft);font-size:13px;max-width:28ch;line-height:1.85}
+.payment-card{background:var(--paper2);border:1px solid var(--line);border-radius:12px;padding:22px}
+.payment-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.payment-heading h2{font-size:18px;margin:0;letter-spacing:0}
+.payment-heading>span{font-size:11px;color:var(--dim)}
+.payment-code{display:block;width:100%;max-width:320px;height:auto;margin:0 auto;border-radius:7px;background:white}
+.scan-hint{font-size:12px;color:var(--soft);line-height:1.8;margin:18px 0 16px}
+.payment-actions{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.payment-actions .btn{font-size:12px}
+.payment-actions .text-link{font-size:12px}
+.recipient-hint{color:var(--dim);font-size:11px;line-height:1.8;margin:18px 0 0}
+.thanks-section{border-top:1px solid var(--line);padding:30px 0 34px;scroll-margin-top:24px}
+.thanks-mode{font-size:11px;color:var(--dim)}
+.thanks-description{font-size:13px;color:var(--soft);line-height:1.85;margin-bottom:22px}
+.thanks-status{border:1px dashed var(--line);border-radius:8px;padding:22px 24px;font-size:14px;color:var(--soft)}
+#thanks-retry{margin-top:14px}
+.sponsor-list{list-style:none;padding:0;margin:0;border-top:1px solid var(--line)}
+.sponsor-row{display:flex;align-items:center;gap:18px;padding:17px 0;border-bottom:1px solid var(--line);min-width:0}
+.sponsor-mark{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;border:1px solid var(--line);border-radius:7px;color:var(--dim);font-size:14px}
+.sponsor-person{min-width:0;flex:1}
+.sponsor-name{display:block;font-size:14px;color:var(--ink);font-weight:550;overflow-wrap:anywhere}
+.sponsor-month{display:block;margin-top:2px;font-size:11px;color:var(--dim)}
+.sponsor-amount{color:var(--soft);font-size:13px;white-space:nowrap}
+.thanks-updated{font-size:11px;color:var(--dim);margin:16px 0 0}
+.support-faq{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:64px;border-top:1px solid var(--line);padding:30px 0 8px}
+.support-faq h2{font-size:18px;letter-spacing:0;margin:0 0 12px}
+.support-faq p{font-size:13px;line-height:1.9;color:var(--soft)}
+.support-faq .support-small{font-size:12px;color:var(--dim)}
+@media(max-width:900px){.sponsor-intro{gap:36px;grid-template-columns:minmax(0,1fr) 350px}.support-faq{gap:32px}.sponsor-copy .sponsor-lead{font-size:16px!important}}
+@media(max-width:700px){.sponsor-intro{grid-template-columns:1fr;gap:26px;padding:30px 0}.sponsor-copy{padding:0;max-width:none}.sponsor-copy h1{font-size:30px;margin-bottom:16px}.support-note{margin:22px 0}.payment-card{max-width:410px;width:100%;justify-self:center;padding:20px}.support-faq{grid-template-columns:1fr;gap:22px}.thanks-mode{font-size:10px}.thanks-status{padding:20px}.sponsor-copy>p:not(.section-label){font-size:13px}.thanks-section{padding:26px 0}.sponsor-intro .text-link{font-size:12px}}
+@media print{.payment-actions,.support-faq,.thanks-mode{display:none}.sponsor-intro{grid-template-columns:1fr 320px;gap:30px}.payment-card{break-inside:avoid}.sponsor-copy{padding-top:0}}
+@media(max-width:700px){.support-note{display:none}}

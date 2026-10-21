@@ -32,16 +32,18 @@ window.DSH_AUTH_CONFIG = {
   site: {
     /* 站点基址。留空 = 按域名自动判定：
          · *.bobbycn.cc（含 staging）→ 用当前源（同源，Cookie 天然可用）；
-         · 其它源（GitHub Pages 镜像 / 本机静态站）→ 也用当前源，靠门户自身中继 /api。
+         · GitHub Pages 镜像 → 按 sites 表走主站 API（镜像不能执行中继）；
+         · 本机静态站 → 当前源，分端口开发时用运行时 override 指定后端。
        本机开发时静态站与后端是两个端口，必须显式填后端地址，例如：
          relay: 'http://127.0.0.1:8099',   后端用 node scripts/_local-oauth-server.ps1 起 */
     relay: '',
+    // GitHub Pages cannot relay /api itself; its cloud requests use the main API.
+    sites: { 'bobbychina.github.io': 'https://bobbycn.cc' },
     /* 游戏目录 → client_id。key 是 /games/ 下的目录名；值是后端注册的 client_id。
        目录名与 client_id 一致时可以省略（SDK 会用目录名当 client_id）。 */
     games: {
       'games': 'bobbycn-games',
       'zombie-survival': 'zombie-survival',
-      'dreamcore': 'dreamcore-walk',
       'vampire-survivors': 'vampire-survivors',
       'racing3d': 'racing3d',
     },

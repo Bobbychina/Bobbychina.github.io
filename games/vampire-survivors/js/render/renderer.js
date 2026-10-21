@@ -289,21 +289,43 @@
     /* ---------------- 地面 ---------------- */
 
     ensureGroundPattern: function (r, name) {
-      var img = VS.Assets.img(name || 'ground');
-      if (!VS.Assets.isReady(img)) return null;
-
-      /* 每关一张底图：缓存按图分开存，别让第二关把第一关的 pattern 冲掉 */
+      name = name || 'ground';
       r.groundPatterns = r.groundPatterns || {};
       var cached = r.groundPatterns[name];
-      if (cached && cached.for === img) return cached.pattern;
-
-      var pat = null;
-      try {
-        pat = r.ctx.createPattern(img, 'repeat');
-      } catch (e) {
-        pat = null;
+      if (cached) return cached.pattern;
+      // Bake world-anchored stonework once; keep combat silhouettes brighter than terrain.
+      var tile = document.createElement('canvas');
+      tile.width = tile.height = 192;
+      var g = tile.getContext('2d');
+      var acid = name !== 'ground';
+      var seed = acid ? 181 : 97;
+      var rnd = function () { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+      g.fillStyle = acid ? '#182320' : '#182030';
+      g.fillRect(0, 0, 192, 192);
+      var tones = acid ? ['#24322a', '#26382c', '#29392d'] : ['#293246', '#2c3548', '#30394b'];
+      for (var row = 0; row < 8; row++) {
+        for (var col = -1; col < 5; col++) {
+          var x = col * 48 + (row % 2) * 24;
+          var y = row * 24;
+          g.fillStyle = tones[Math.floor(rnd() * tones.length)];
+          g.fillRect(x + 1, y + 1, 46, 22);
+          g.fillStyle = acid ? '#53634b33' : '#94a5bd24';
+          g.fillRect(x + 2, y + 1, 44, 1);
+          g.fillStyle = '#0c142055';
+          g.fillRect(x + 2, y + 22, 44, 1);
+          if (rnd() < .25) {
+            g.strokeStyle = '#111a25';
+            g.lineWidth = 1;
+            g.beginPath();g.moveTo(x + 16, y + 2);g.lineTo(x + 21, y + 10);g.lineTo(x + 18, y + 22);g.stroke();
+          }
+        }
       }
-      r.groundPatterns[name] = { for: img, pattern: pat };
+      for (var i = 0; i < 90; i++) {
+        g.fillStyle = acid ? '#66834644' : '#52675b38';
+        g.fillRect(Math.floor(rnd() * 192), Math.floor(rnd() * 192), 1 + Math.floor(rnd() * 4), 2);
+      }
+      var pat = r.ctx.createPattern(tile, 'repeat');
+      r.groundPatterns[name] = { pattern: pat };
       return pat;
     },
 
@@ -347,8 +369,7 @@
         return;
       }
 
-      var img = VS.Assets.img(groundName);
-      var TS = img.naturalWidth || 64;
+      var TS = 192;
 
       var ox = -(((camX % TS) + TS) % TS);
       var oy = -(((camY % TS) + TS) % TS);

@@ -9,6 +9,8 @@
    =========================================================== */
 (function (VS) {
   'use strict';
+  function siteText(key, fallback, vars) { return window.I18N ? I18N.t(key,vars) : fallback.replace(/\{(\w+)\}/g,function(m,k){return vars && vars[k] != null ? vars[k] : m;}); }
+
 
   var GAME = 'vampire-survivors';              // gist 里就是 vampire-survivors__main.json
   var SLOT = 'main';
@@ -58,7 +60,7 @@
     return data;
   }
 
-  function needLogin() { return { ok: false, err: '还没登录（先绑定 GitHub）', needLogin: true }; }
+  function needLogin() { return { ok: false, err: siteText("cloud.copy.f5b65b95b8c0","还没登录（先绑定 GitHub）"), needLogin: true }; }
 
   var Cloud = {
 
@@ -77,13 +79,13 @@
 
     /** 一句话状态，给界面直接用 */
     status: function () {
-      if (!Cloud.available()) return { state: 'nolib', text: '这台设备没有账号库（纯本地存档）' };
-      if (!logged()) return { state: 'guest', text: '未登录 · 存档只在这台设备上' };
+      if (!Cloud.available()) return { state: 'nolib', text: siteText("cloud.copy.e17ab381a7b7","这台设备没有账号库（纯本地存档）") };
+      if (!logged()) return { state: 'guest', text: siteText("cloud.copy.c46b87df3a2e","未登录 · 存档只在这台设备上") };
       var b = backend();
-      if (!b) return { state: 'nocloud', text: '已登录 ' + (who() || '') + ' · 云存档没接上（云后端连不上时就这样）' };
+      if (!b) return { state: 'nocloud', text: siteText("cloud.copy.ecbb2d5ada48","已登录 ") + (who() || '') + siteText("cloud.copy.620f60a51dbb"," · 云存档没接上（云后端连不上时就这样）") };
       var info = cloudInfo();
-      var t = '已连接 ' + (who() || b) + (b === 'github' ? '（私有 Gist）' : b === 'server' ? '（云账号）' : ('（' + b + '）'));
-      if (info && info.updatedAt) t += ' · 上次存档 ' + String(info.updatedAt).replace('T', ' ').slice(0, 16);
+      var t = siteText("cloud.copy.1f672b9b18d1","已连接 ") + (who() || b) + (b === 'github' ? siteText("cloud.copy.7fb99e14bfd2","（私有 Gist）") : b === 'server' ? siteText("cloud.copy.cd82b6cc4ed2","（云账号）") : ('（' + b + '）'));
+      if (info && info.updatedAt) t += siteText("cloud.copy.a86da96eb44d"," · 上次存档 ") + String(info.updatedAt).replace('T', ' ').slice(0, 16);
       return { state: 'ok', text: t, backend: b, name: who(), updatedAt: (info && info.updatedAt) || '' };
     },
 
@@ -92,13 +94,13 @@
       if (!logged()) return needLogin();
       var a = lib();
       var w = a.savePut(GAME, SLOT, VS.Save.load());
-      if (!w || !w.ok) return { ok: false, err: (w && w.err) || '写本地槽位失败' };
+      if (!w || !w.ok) return { ok: false, err: (w && w.err) || siteText("cloud.copy.adcfaab7b501","写本地槽位失败") };
       try {
         var r = await a.cloudPush(GAME);
         if (r && r.ok) { markSync(); emit('push', r); return { ok: true, updatedAt: markSync() }; }
         if (!quiet) emit('error', r);
-        return r || { ok: false, err: '上传失败' };
-      } catch (e) { return { ok: false, err: '上传失败：' + e.message }; }
+        return r || { ok: false, err: siteText("cloud.copy.219481a6dde7","上传失败") };
+      } catch (e) { return { ok: false, err: siteText("cloud.copy.72e1fdcf8b37","上传失败：") + e.message }; }
     },
 
     /** 云端 → 本机（合并取长） */
@@ -109,36 +111,40 @@
         var r = await a.cloudPull(GAME);
         if (r && r.ok === false) { if (!quiet) emit('error', r); return r; }
         var remote = a.saveGet(GAME, SLOT);
-        if (!remote) return { ok: false, err: '云端还没有这份存档' };
+        if (!remote) return { ok: false, err: siteText("cloud.copy.e3fe2bfb77ba","云端还没有这份存档") };
         var merged = merge(VS.Save.load(), remote);
         applyToLocal(merged);
         markSync();
         emit('pull', { merged: merged, pulled: (r && r.pulled) || [] });
         return { ok: true, merged: merged };
-      } catch (e) { return { ok: false, err: '下载失败：' + e.message }; }
+      } catch (e) { return { ok: false, err: siteText("cloud.copy.90f9253844e7","下载失败：") + e.message }; }
     },
 
-    /** 双向对账：先把手上的存档放进槽位，让账号库比时间戳（谁新用谁），再并回本机 */
+    /** 纪录合并必须先下载；先写本地会盖上新时间戳，把云端更好的成绩覆盖掉。 */
     sync: async function (quiet) {
       if (!logged()) return needLogin();
       var a = lib();
-      if (!backend()) return { ok: false, err: '还没绑定 GitHub，云存档用不了' };
-      var w = a.savePut(GAME, SLOT, VS.Save.load());
-      if (!w || !w.ok) return { ok: false, err: (w && w.err) || '写本地槽位失败' };
+      if (!backend()) return { ok: false, err: siteText("cloud.copy.908c6bee51f4","还没绑定 GitHub，云存档用不了") };
+      var owner = a.currentUid();
       try {
-        var r = await a.syncNow(GAME);
+        var r = await a.cloudPull(GAME);
         if (r && r.ok === false) { if (!quiet) emit('error', r); return r; }
+        if (a.currentUid() !== owner) return { ok: false, err: siteText("cloud.copy.50602b4cfd43","账号已变更，请重新同步") };
         var after = a.saveGet(GAME, SLOT);
         if (after) { applyToLocal(merge(VS.Save.load(), after)); }
+        var w = a.savePut(GAME, SLOT, VS.Save.load());
+        if (!w || !w.ok) return { ok: false, err: (w && w.err) || siteText("cloud.copy.adcfaab7b501","写本地槽位失败") };
+        r = await a.cloudPush(GAME);
+        if (!r || !r.ok) { if (!quiet) emit('error', r); return r || { ok: false, err: siteText("cloud.copy.219481a6dde7","上传失败") }; }
         markSync();
         emit('sync', r || {});
         return { ok: true, result: r || {} };
-      } catch (e) { return { ok: false, err: '同步失败：' + e.message }; }
+      } catch (e) { return { ok: false, err: siteText("cloud.copy.ff4b164dfaaa","同步失败：") + e.message }; }
     },
 
     /** 云账号登录（要服务端会话才能在「全站榜」上榜；GitHub 登录是另一条路，走不到服务端） */
     loginCloud: async function (name, password) {
-      if (!lib()) return { ok: false, err: '账号库没装' };
+      if (!lib()) return { ok: false, err: siteText("cloud.copy.84254d526e32","账号库没装") };
       var r = await lib().login({ name: String(name || '').trim(), password: String(password || '') });
       if (r && r.ok) {
         /* 解锁时把本游戏的 id 传进去：账号库会拿**这个游戏**的云端存档试解一次，
@@ -147,12 +153,12 @@
         emit('login', r);
         return r;
       }
-      return { ok: false, err: (r && r.err) || '登录失败' };
+      return { ok: false, err: (r && r.err) || siteText("cloud.copy.e4343921c928","登录失败") };
     },
 
     /** 粘贴 GitHub 令牌绑定（与游戏厅同一个入口，令牌只存在本机） */
     bindToken: async function (token) {
-      if (!lib()) return { ok: false, err: '账号库没装' };
+      if (!lib()) return { ok: false, err: siteText("cloud.copy.84254d526e32","账号库没装") };
       var r = await lib().bindGitHubToken(String(token || '').trim());
       if (r && r.ok) emit('login', r);
       return r;
@@ -160,7 +166,7 @@
 
     /** GitHub 设备码登录（不用手抄令牌；校园网里若 relay 不可达会报错，那就回退粘贴令牌） */
     bindDevice: async function (onCode) {
-      if (!lib()) return { ok: false, err: '账号库没装' };
+      if (!lib()) return { ok: false, err: siteText("cloud.copy.84254d526e32","账号库没装") };
       var r = await lib().bindGitHubDevice(function (info) { if (onCode) onCode(info); });
       if (r && r.ok) emit('login', r);
       return r;

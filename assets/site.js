@@ -13,9 +13,10 @@
     function apply(t) {
         document.documentElement.setAttribute('data-theme', t);
         var b = document.getElementById('btnTheme');
-        if (b) b.textContent = t === 'dark' ? '☾ 深色' : '☀ 浅色';
+        if (b) I18N.bind(b, "textContent", function(){return t === 'dark' ? I18N.t("site.copy.e2ff2b4b22e4") : I18N.t("site.copy.71bca47baab4");});
     }
     apply(theme);
+    if (window.I18N) I18N.onChange(function () { apply(theme); });
     var btn = document.getElementById('btnTheme');
     if (btn) btn.addEventListener('click', function () {
         theme = theme === 'dark' ? 'light' : 'dark';
@@ -28,7 +29,7 @@
     var btnIn = document.getElementById('btnIn');
     var btnReg = document.getElementById('btnReg');
     if (box || btnIn) {
-        fetch('/api/auth/identity/me', { credentials: 'same-origin' })
+        var sessionReady = fetch('/api/auth/identity/me', { credentials: 'same-origin', cache: 'no-store' })
             .then(function (r) { if (!r.ok) throw 0; return r.json(); })
             .then(function (d) {
                 if (!d || !d.email) throw 0;
@@ -36,10 +37,13 @@
                 if (box) box.hidden = false;
                 if (btnIn) btnIn.hidden = true;
                 if (btnReg) btnReg.hidden = true;   // 已登录就别再摆"注册"了
+                return d;
             })
-            .catch(function () { /* 未登录：保留"注册/登录"入口 */ });
+            .catch(function () { return null; });
+        window.SiteSession = { ready: sessionReady };
         var out = document.getElementById('btnOut');
         if (out) out.addEventListener('click', function () {
+            if (typeof window.siteLogout === 'function') { window.siteLogout(); return; }
             fetch('/api/auth/identity/logout', { method: 'POST', credentials: 'same-origin' })
                 .then(function () { location.reload(); });
         });

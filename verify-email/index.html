@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="dark">
 <head>
+<script src="/i18n/i18n.js?v=20261021res1"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>验证邮箱 · bobbycn.cc</title>
+<title data-i18n="site.copy.6b8747a40838">验证邮箱 · bobbycn.cc</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/assets/site.css?v=20260929a">
-<script src="/assets/site.js?v=20260929a" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=20261021res1">
+<script src="/assets/site.js?v=20261021res1" defer></script>
 <style>
   .card{max-width:520px;margin:12vh auto;padding:0 22px;text-align:left}
   h1{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 10px}
@@ -19,13 +20,21 @@
   .foot a{color:inherit;border-bottom:1px solid transparent}
   .foot a:hover{color:var(--seal);border-bottom-color:var(--seal)}
 </style>
+<link rel="stylesheet" href="/assets/atelier.css?v=20261021res1">
 </head>
-<body>
+<body class="identity-edition">
+<header class="top site-header"><span data-i18n-switch></span>
+  <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
+  <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" data-i18n="nav.projects">作品</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/posts/" data-i18n="nav.posts">文章</a><a href="/resources/" data-i18n="nav.resources">资源</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
+  <div class="header-actions"><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
+ </header>
+<main class="identity-layout">
 <div class="card">
-  <h1 id="h">正在验证…</h1>
-  <p class="msg" id="msg">请稍候。</p>
-  <div class="foot"><a href="/">回首页</a><a href="/login/">去登录</a><a href="/posts/">看看博客</a></div>
+  <h1 id="h"><span data-i18n="site.copy.c725500abce1">正在验证…</span></h1>
+  <p class="msg" id="msg"><span data-i18n="site.copy.043bd055d879">请稍候。</span></p>
+  <div class="foot"><a href="/"><span data-i18n="account.back">回首页</span></a><a href="/login/"><span data-i18n="account.goLogin">去登录</span></a><a href="/posts/"><span data-i18n="site.copy.33c0d1c504d7">看看博客</span></a></div>
 </div>
+</main>
 
 <script>
 /* 邮件里的链接形如 https://bobbycn.cc/verify-email?token=xxx（见 identity.service.ts）。
@@ -34,18 +43,18 @@
 (function(){
   var h=document.getElementById('h'), msg=document.getElementById('msg');
   var token=new URLSearchParams(location.search).get('token');
-  function fail(t){ h.textContent='链接不可用'; msg.className='msg err'; msg.textContent=t; }
-  if(!token){ fail('链接里没有 token。请从邮件里重新点一次，或重新注册/申请重置。'); return; }
+  function fail(t){ I18N.bind(h, "textContent", function(){return I18N.t("site.copy.86b82d251878");}); msg.className='msg err'; msg.textContent=t; }
+  if(!token){ fail(I18N.t("site.copy.8081b49c626d")); return; }
   fetch('/api/auth/identity/verify',{method:'POST',credentials:'same-origin',
-    headers:{'content-type':'application/json'},body:JSON.stringify({token:token})})
+    headers:{'content-type':'application/json','Accept-Language':I18N.current()},body:JSON.stringify({token:token})})
     .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
     .then(function(res){
-      if(!res.ok){ fail((res.d&&(res.d.message||res.d.error))||('验证失败（'+res.status+'）')); return; }
-      h.textContent='邮箱已验证';
-      msg.textContent='好了，已经登录。2 秒后回首页…';
+      if(!res.ok){ fail(I18N.error(res.d,res.status)||(I18N.t("site.copy.267b29f79c49")+res.status+'）')); return; }
+      I18N.bind(h, "textContent", function(){return I18N.t("site.copy.763166908683");});
+      I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.47788835c5d9");});
       setTimeout(function(){ location.href='/'; },2000);
     })
-    .catch(function(){ fail('网络错误，请稍后重试。'); });
+    .catch(function(){ fail(I18N.t("site.copy.3fcf5895c36f")); });
 })();
 </script>
 </body>

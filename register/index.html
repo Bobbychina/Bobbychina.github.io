@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="dark">
 <head>
+<script src="/i18n/i18n.js?v=20261021res1"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>注册 · bobbycn.cc</title>
+<title data-i18n="site.copy.c8989b4ae264">注册 · bobbycn.cc</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/assets/site.css?v=20260929a">
-<script src="/assets/site.js?v=20260929a" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=20261021res1">
+<script src="/assets/site.js?v=20261021res1" defer></script>
 <style>
   .card{max-width:420px;margin:9vh auto;padding:0 22px}
   h1{font-family:var(--serif);font-weight:400;font-size:26px;margin:0 0 6px}
@@ -30,57 +31,48 @@
   .foot a:hover{color:var(--seal);border-bottom-color:var(--seal)}
   .hintbox{margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-left:2px solid var(--seal);border-radius:8px;color:var(--dim);font-size:12.5px;line-height:1.85}
 </style>
+<link rel="stylesheet" href="/assets/atelier.css?v=20261021res1">
 </head>
-<body>
-<div class="wrap" style="max-width:820px">
-  <header class="top" style="margin:0 -24px 8px;padding:8px 24px 0">
-    <div class="toprow">
-      <a class="name" href="/">Bobby<i>.</i></a>
-      <span class="spacer"></span>
-      <span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut">退出</button></span>
-      <a class="iconbtn" id="btnIn" href="/login/" style="border-bottom:0">登录</a>
-      <button class="iconbtn" id="btnTheme">☾ 深色</button>
-    </div>
-    <nav class="tabs">
-      <a href="/">在做的东西</a>
-      <a href="/posts/">写下来的</a>
-      <a href="/games/">游戏厅</a>
-      <a href="/#about">关于</a>
-    </nav>
-  </header>
-</div>
+<body class="identity-edition">
+<header class="top site-header"><span data-i18n-switch></span>
+  <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
+  <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" data-i18n="nav.projects">作品</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/posts/" data-i18n="nav.posts">文章</a><a href="/resources/" data-i18n="nav.resources">资源</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
+  <div class="header-actions"><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
+ </header>
 
+<main class="identity-layout">
 <div class="card">
-  <h1>注册</h1>
-  <p class="sub">一个账号走全站：博客、游戏厅、模拟炒股、以后的任何东西。</p>
+  <h1><span data-i18n="site.copy.c4fb62202bad">注册</span></h1>
+  <p class="sub"><span data-i18n="site.copy.ea1ea448cc0d">一个账号走全站：博客、游戏厅、模拟炒股、以后的任何东西。</span></p>
 
-  <label for="em">邮箱</label>
+  <label for="em"><span data-i18n="site.copy.73075237fd0f">邮箱</span></label>
   <input id="em" type="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@example.com">
-  <label for="pw">口令（至少 8 位）</label>
+  <label for="pw"><span data-i18n="site.copy.7ae64fda1e4d">口令（至少 8 位）</span></label>
   <input id="pw" type="password" autocomplete="new-password">
-  <label for="pw2">再输一次</label>
+  <label for="pw2"><span data-i18n="site.copy.22ac4b36256b">再输一次</span></label>
   <input id="pw2" type="password" autocomplete="new-password">
 
-  <button id="btn">注册</button>
+  <button id="btn"><span data-i18n="site.copy.c4fb62202bad">注册</span></button>
   <div class="msg" id="msg"></div>
 
   <!-- Cloudflare Turnstile 人机验证（2026-09-28）
        site key 是公开值，写在页面里没问题；secret 只放服务端环境变量。
        没填 sitekey 时整块隐藏 —— CF 侧还没建 widget 之前不影响注册。 -->
   <div id="tsWrap" style="margin-top:18px">
-    <div class="cf-turnstile" data-sitekey="0x4AAAAAAFG_gA9qpBv-0gsz" data-action="register" data-theme="dark" data-size="flexible" data-language="zh-cn"></div>
+    <div class="cf-turnstile" data-sitekey="0x4AAAAAAFG_gA9qpBv-0gsz" data-action="register" data-theme="dark" data-size="flexible" data-language="auto"></div>
   </div>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 
   <div class="hintbox" id="mailhint" hidden>
-    邮件已从 <b>no-reply@em.bobbycn.cc</b> 发出。没收到先翻<b>垃圾箱 / 广告邮件</b>；还是没有就跟我说一声，我从发信记录里查。
+    <span data-i18n="site.copy.964c049311f1">邮件已从</span> <b>no-reply@em.bobbycn.cc</b> <span data-i18n="site.copy.a823e1a27cd7">发出。没收到先翻</span><b><span data-i18n="site.copy.df3a71741c08">垃圾箱 / 广告邮件</span></b><span data-i18n="site.copy.5f3a422a0c13">；还是没有就跟我说一声，我从发信记录里查。</span>
   </div>
 
   <div class="foot">
-    <a href="/login/">已有账号？登录</a>
-    <a href="/">← 回首页</a>
+    <a href="/login/"><span data-i18n="site.copy.3886120346cc">已有账号？登录</span></a>
+    <a href="/"><span data-i18n="site.copy.91ed48734ad0">← 回首页</span></a>
   </div>
 </div>
+</main>
 
 <script>
 (function(){
@@ -90,9 +82,13 @@
   var tsWidget = null;
   if (TS_SITEKEY) {
     document.getElementById('tsWrap').hidden = false;
-    window.addEventListener('load', function () {
-      if (window.turnstile) tsWidget = window.turnstile.render('.cf-turnstile', { sitekey: TS_SITEKEY, action: 'register', theme: 'dark', language: 'zh-cn' });
-    });
+    function renderChallenge() {
+      if(!window.turnstile) return;
+      if(tsWidget!==null) window.turnstile.remove(tsWidget);
+      tsWidget=window.turnstile.render('.cf-turnstile', { sitekey:TS_SITEKEY, action:'register', theme:'dark', language:I18N.turnstileLanguage() });
+    }
+    window.addEventListener('load',renderChallenge);
+    I18N.onChange(renderChallenge);
   }
 
   var msg=document.getElementById('msg'), btn=document.getElementById('btn');
@@ -102,29 +98,29 @@
   function go(){
     var em=document.getElementById('em').value.trim();
     var pw=document.getElementById('pw').value, pw2=document.getElementById('pw2').value;
-    if(!em || em.indexOf('@')<0){ msg.textContent='请填一个像样的邮箱'; return; }
-    if(pw.length<8){ msg.textContent='口令至少 8 位'; return; }
-    if(pw!==pw2){ msg.textContent='两次口令不一致'; return; }
-    if(TS_SITEKEY && !tsToken()){ msg.textContent='请先完成人机验证'; return; }
-    btn.disabled=true; msg.className='msg'; msg.textContent='提交中…';
+    if(!em || em.indexOf('@')<0){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.b374dd2809e9");}); return; }
+    if(pw.length<8){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.1398c82e9ba3");}); return; }
+    if(pw!==pw2){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.24f23df7ea2f");}); return; }
+    if(TS_SITEKEY && !tsToken()){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.21a059099d9f");}); return; }
+    btn.disabled=true; msg.className='msg'; I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.18931020ad52");});
     var payload={email:em,password:pw}; var t=tsToken(); if(t) payload.cfToken=t;
     fetch('/api/auth/identity/register',{method:'POST',credentials:'same-origin',
-      headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
+      headers:{'content-type':'application/json','Accept-Language':I18N.current()},body:JSON.stringify(payload)})
       .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
       .then(function(res){
         if(res.ok){
           msg.className='msg ok';
-          msg.textContent='已受理。去邮箱点验证链接即可完成注册（30 分钟内有效）。';
+          I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.258aafc8c3c6");});
           document.getElementById('mailhint').hidden=false;
-          btn.textContent='已发送';
+          I18N.bind(btn, "textContent", function(){return I18N.t("site.copy.60823aaec73b");});
           return;
         }
         msg.className='msg';
-        msg.textContent=(res.d && (res.d.message||res.d.error)) || ('注册失败（'+res.status+'）');
+        I18N.bind(msg, "textContent", function(){return I18N.error(res.d,res.status) || (I18N.t("site.copy.82cf2c342aa2")+res.status+'）');});
         btn.disabled=false;
         try { if (tsWidget !== null && window.turnstile) window.turnstile.reset(tsWidget); } catch(e){}
       })
-      .catch(function(){ msg.textContent='网络错误，稍后再试'; btn.disabled=false; });
+      .catch(function(){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.a47e6b8881b7");}); btn.disabled=false; });
   }
   btn.addEventListener('click',go);
   document.getElementById('pw2').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });

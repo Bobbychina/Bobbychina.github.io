@@ -5,7 +5,7 @@
 > **2026-09-28 起主站迁到自建服务器：<https://bobbycn.cc>**（东京 · 宿主 nginx + NestJS 容器，前置 Cloudflare 橙云，源站只允许 CF 回源）。
 > 本仓库继续存在，角色是 **静态镜像 / 降级阅读端**：静态内容同源，云能力（云账号、云存档、全站榜、OAuth）走主站的 `/api` 中继 ——
 > 见 `games/auth-config.js` 里的 `relay`。仓库中的 `functions/` 只对 Cloudflare Pages 的那份部署生效，**对 GitHub Pages 不起作用**，
-> 其逻辑（`/api` 全路径中继、OAuth 两条端点、Origin 白名单、macOS 服务端 403）已在主站 nginx 复刻。
+> 其逻辑（`/api` 全路径中继、OAuth 两条端点、Origin 白名单）已在主站 nginx 复刻。
 
 - 主页：<https://bobbychina.github.io/>
 - 游戏厅：<https://bobbychina.github.io/games/>
@@ -18,7 +18,7 @@
 | `index.html` | 主页（项目 / 游戏厅 / 关于），单文件、零依赖 |
 | `games/index.html` | 游戏厅入口，含账号面板说明 |
 | `i18n/i18n.js` | 多语言引擎：按语言同步载入词典、替换 `data-i18n`、生成语言切换器 |
-| `i18n/zh-CN.js`、`i18n/en.js` | 词典（纯数据文件，加语言只加文件不改页面） |
+| `i18n/zh-CN.js`、`i18n/zh-TW.js`、`i18n/en.js` | 简中、繁中、英文词典 |
 | `tools/i18n-check.mjs` | i18n 自检：词典键 ↔ 页面实际用键是否对齐 |
 | `games/zombie-survival/index.html` | 游戏本体，**由游戏仓库构建后同步过来**（`zombie-survival/tools/sync-site.mjs`），别手改 |
 | `games/account.js` | 账号/云存档客户端，同样是从游戏仓库同步来的 |
@@ -30,8 +30,9 @@
 
 ## 多语言（i18n）
 
-主页与游戏厅支持中/英切换：顶栏右侧的 `中文 / EN`，也可用 URL 参数 `?lang=en` 直达；选择记在 localStorage，
-首次访问按浏览器语言自动判断。词典在解析期同步载入（首屏不会闪一下中文再变英文）。
+网站页面、管理后台、账号与存档面板支持 `简体 / 繁體 / EN`。可用 `?lang=en` 或 `?lang=zh-TW` 直达，
+选择记在 localStorage；首次访问按浏览器语言判断，`zh-HK`、`zh-Hant` 等归入繁中。文章正文、标题、摘要、标签和用户输入保留原文。
+系统邮件与 OAuth 同意页也支持三种语言。游戏内部玩法、剧情、道具和交易界面不属于此次翻译范围。
 
 页面里怎么标注：
 
@@ -50,7 +51,11 @@
 1. 复制 `i18n/en.js` 为 `i18n/<code>.js`，改 `I18N.define('<code>', {…})` 的值；
 2. 在 `i18n/i18n.js` 顶部的 `LANGS` 数组里加一行 `{ code:'<code>', label:'显示名', tag:'<html lang 值>' }`。
 
-然后 `node tools/i18n-check.mjs` 自检（缺词条 / 两语言键不一致会报错退出，退出码 1）。
+然后 `node tools/i18n-check.mjs` 自检（缺词条、三种语言的键或插值参数不一致、繁中 emoji 损坏时退出码为 1）。
+
+动态标签可用 `I18N.bind(element, 'textContent', () => I18N.t(key))`；日期和数字分别用 `I18N.date` 与 `I18N.number`。
+`I18N.onChange(render)` 返回取消订阅函数。账号弹窗切换语言会保留输入，不要求重新登录。
+验收范围、源文件与命令见 [国际化说明](docs/i18n.md)。
 
 ## 反馈
 
@@ -73,9 +78,15 @@
 
 ## 本地预览
 
+账号、云存档和在线游戏注入的维护边界、本次 bug 修复与验证命令见 [架构说明](docs/architecture.md)。
+
 任何静态服务器都行（请不要直接双击 `file://`，云存档与 OAuth 需要 http 源）：
 
 ```powershell
 npx serve .          # 或
 python -m http.server 5180
 ```
+
+## macOS 访问（2026-10-10）
+
+已取消客户端与 Cloudflare Pages 的平台拦截。主站已在用户确认后关闭 nginx 拦截并发布空脚本，nginx -t 与 reload 已通过；Cloudflare Pages 与 GitHub Pages 镜像尚未发布。保留 mac-block.js 空脚本以兼容旧页面与游戏同步脚本。此变更恢复访问，尚未在真实 Mac 上验证全部游戏兼容性。

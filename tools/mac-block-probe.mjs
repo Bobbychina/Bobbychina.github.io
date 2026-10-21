@@ -1,9 +1,4 @@
-// macOS 拦截取证（2026-09-23）：全站拒绝 Mac 浏览器访问
-//   ① Windows UA 照常访问（覆盖层不存在、body 没被藏、标题正常）
-//   ② Mac UA 被拦：window.__MAC_BLOCKED__ / [data-mac-block-overlay] / body 隐藏 / 文案齐（含"安全隐患"与换平台建议）
-//   ③ 覆盖面：首页 / 游戏厅 / 《丧尸末日生存》（750KB 单文件）/ 《吸血鬼幸存者》四个入口都能拦住
-//   ④ iPad 桌面模式（UA 伪装成 Macintosh，但 maxTouchPoints>1）**不拦** —— 设计上的例外，别误伤
-//   ⑤ 拦截路径里 0 未捕获异常（我们自己的脚本不许抛错）
+// macOS 访问恢复回归：各入口不显示拦截遮罩。
 // 用法：node tools/mac-block-probe.mjs <cdpPort> <baseUrl> [outDir]
 const [, , cdpPort, baseUrl, outDir] = process.argv
 const fs = await import('node:fs/promises')
@@ -83,34 +78,11 @@ ok('① Windows UA 照常访问（没有覆盖层 / body 没被藏 / 标题没�
   win.blocked === false && win.overlay === false && win.bodyHidden === false && win.attr === null && win.title.indexOf('不支持 macOS') < 0,
   JSON.stringify({ blocked: win.blocked, overlay: win.overlay, title: win.title }))
 
-/* ── ② Mac：首页被拦，文案齐 ── */
-const mac = await open('/', MAC_UA, MAC_META, false)
-if (outDir) await shot('mac-block-home')
-const tx = String(mac.overlayText || '')
-ok('② Mac UA 首页被拦（__MAC_BLOCKED__ + 覆盖层 + body 隐藏 + 标题改写）',
-  mac.blocked === true && mac.overlay === true && mac.bodyHidden === true && mac.attr === '1' && mac.title.indexOf('不支持 macOS') >= 0,
-  JSON.stringify({ blocked: mac.blocked, overlay: mac.overlay, bodyHidden: mac.bodyHidden, title: mac.title }))
-ok('② 拦截页把话说清楚：安全隐患 / 兼容性 / 换平台建议 / 反馈入口 / 自己的 UA',
-  tx.indexOf('不支持 macOS') >= 0 && tx.indexOf('安全隐患') >= 0 && tx.indexOf('兼容') >= 0 &&
-  tx.indexOf('请换一个平台访问') >= 0 && tx.indexOf('issues') >= 0 && tx.indexOf('UA:') >= 0,
-  tx.slice(0, 120))
-
-/* ── ③ 覆盖面：游戏厅 + 两个游戏页 ── */
-const hall = await open('/games/', MAC_UA, MAC_META, false)
-ok('③ 游戏厅 /games/ 也拦得住', hall.blocked === true && hall.overlay === true && hall.bodyHidden === true, JSON.stringify({ blocked: hall.blocked }))
-const zs = await open('/games/zombie-survival/', MAC_UA, MAC_META, false)
-if (outDir) await shot('mac-block-zombie')
-ok('③ 《丧尸末日生存》单文件（750KB 自包含产物）在 Mac 上被拦，游戏本体不显示',
-  zs.blocked === true && zs.overlay === true && zs.bodyHidden === true, JSON.stringify({ blocked: zs.blocked, overlay: zs.overlay }))
-const vs = await open('/games/vampire-survivors/', MAC_UA, MAC_META, false)
-if (outDir) await shot('mac-block-vs')
-ok('③ 《吸血鬼幸存者》在 Mac 上被拦（那条注入写在 sync-site 里，同步后不会丢）',
-  vs.blocked === true && vs.overlay === true && vs.bodyHidden === true, JSON.stringify({ blocked: vs.blocked, overlay: vs.overlay }))
-const rc = await open('/games/racing3d/', MAC_UA, MAC_META, false)
-if (outDir) await shot('mac-block-racing3d')
-ok('③ 《极速椭圆 · 3D 赛车》在 Mac 上被拦（注入同样写在 racing3d/tools/sync-site.mjs 里）',
-  rc.blocked === true && rc.overlay === true && rc.bodyHidden === true, JSON.stringify({ blocked: rc.blocked, overlay: rc.overlay }))
-
+const accessible = (state) => state.blocked === false && state.overlay === false && state.bodyHidden === false && state.attr === null && typeof state.title === 'string' && !state.title.includes('不支持 macOS')
+for (const path of ['/', '/games/', '/games/zombie-survival/', '/games/vampire-survivors/', '/games/racing3d/', '/login/', '/account/']) {
+  const state = await open(path, MAC_UA, MAC_META, false)
+  ok('macOS 正常访问 ' + path, accessible(state), JSON.stringify(state))
+}
 /* ── ④ iPad 桌面模式不误伤 ── */
 const ipad = await open('/', MAC_UA, MAC_META, true)
 ok('④ iPad 桌面模式（Macintosh UA + maxTouchPoints=5）**不拦** —— 设计上的例外',

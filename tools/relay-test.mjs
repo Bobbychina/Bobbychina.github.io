@@ -70,8 +70,8 @@ r = await withUpstream(() => new Response('{"device_code":"d"}', { status: 200 }
 ok('⑥a OAuth 设备码路径照旧转发到 GitHub', calls[0] && calls[0].url === 'https://github.com/login/device/code' && r.status === 200, calls[0] && calls[0].url)
 
 req('/api/save', { method: 'POST', body: '{}' })
-r = await onRequest({ request: REQ, env: {} })
-ok('⑥b 其它路径仍然 404 path_not_allowed（不当中继滥用）', r.status === 404 && /path_not_allowed/.test(await r.text()))
+r = await withUpstream(() => new Response('{"error":"not_found"}', { status: 404 }))
+ok('⑥b API 未知路径保留上游 404', r.status === 404 && /not_found/.test(await r.text()))
 
 REQ = new Request('https://bobbychina-games.pages.dev/api/score?game=x', { headers: { origin: 'https://evil.example' } })
 r = await onRequest({ request: REQ, env: {} })

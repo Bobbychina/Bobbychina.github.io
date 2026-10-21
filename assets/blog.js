@@ -29,8 +29,7 @@
   function fmt(iso) {
     var d = new Date(iso);
     if (isNaN(d.getTime())) return '';
-    function p(n) { return (n < 10 ? '0' : '') + n; }
-    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    return I18N.date(d,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
   }
   function getJSON(url) {
     return fetch(url, { credentials: 'same-origin' }).then(function (r) {
@@ -62,7 +61,9 @@
           for (var j = 0; j < spans.length; j++) {
             var k = spans[j].getAttribute('data-pv');
             var n = v[k];
-            spans[j].textContent = n ? n + ' 次浏览' : '';
+            (function (span, count) {
+              I18N.bind(span, 'textContent', function () { return count ? I18N.t('blog.views',{count:I18N.number(count)}) : ''; });
+            })(spans[j], n);
           }
         })
         .catch(function () { /* 计数挂了不影响读文章，静默 */ });
@@ -108,8 +109,9 @@
   }
 
   function renderComments(list, box) {
+    renderComments.cached = { list:list, box:box };
     box.textContent = '';
-    if (!list.length) { box.appendChild(el('p', 'empty', '还没有评论。')); return; }
+    if (!list.length) { box.appendChild(el('p', 'empty', I18N.t("site.copy.3b9819c66a6d"))); return; }
     list.forEach(function (c) {
       var item = el('div', 'cmt');
       var head = el('div', 'cmt-head');
@@ -127,48 +129,59 @@
   function buildForm(container, reload) {
     var form = el('form', 'cmt-form');
     var name = el('input', 'cmt-name');
-    name.type = 'text'; name.maxLength = 40; name.placeholder = '昵称（可留空）';
+    name.type = 'text'; name.maxLength = 40; I18N.bind(name, "placeholder", function(){return I18N.t("site.copy.e8a8a9ff191b");});
     try { name.value = localStorage.getItem('bobbycn.cmt.name') || ''; } catch (e) {}
     var ta = el('textarea', 'cmt-text');
-    ta.rows = 4; ta.maxLength = 2000; ta.placeholder = '说点什么…（支持换行；不支持 HTML）';
+    ta.rows = 4; ta.maxLength = 2000; I18N.bind(ta, "placeholder", function(){return I18N.t("site.copy.1171ffa79cae");});
     var cf = el('div', 'cmt-cf');
     var row = el('div', 'cmt-row');
-    var btn = el('button', 'cmt-send', '发表');
+    var btn = el('button', 'cmt-send', I18N.t("site.copy.7e56509428cb"));
     btn.type = 'submit';
     var msg = el('span', 'cmt-msg', '');
     row.appendChild(btn); row.appendChild(msg);
     form.appendChild(name); form.appendChild(ta); form.appendChild(cf); form.appendChild(row);
     container.appendChild(form);
+    function localizeForm() {
+      name.placeholder = I18N.t('site.copy.e8a8a9ff191b');
+      name.setAttribute('aria-label', name.placeholder);
+      ta.placeholder = I18N.t('site.copy.1171ffa79cae');
+      ta.setAttribute('aria-label', ta.placeholder);
+      btn.textContent = I18N.t('site.copy.7e56509428cb');
+    }
+    localizeForm(); I18N.onChange(localizeForm);
 
     function ensureWidget() {
-      if (tsWidget || !window.turnstile) return;
-      tsWidget = window.turnstile.render(cf, { sitekey: SK, action: 'comment', theme: 'dark', language: 'zh-CN' });
+      if (tsWidget !== null || !window.turnstile) return;
+      tsWidget = window.turnstile.render(cf, { sitekey: SK, action: 'comment', theme: 'dark', language: I18N.turnstileLanguage() });
     }
     loadTurnstile(ensureWidget);
+    I18N.onChange(function () {
+      if(window.turnstile && tsWidget !== null) { window.turnstile.remove(tsWidget); tsWidget=null; ensureWidget(); }
+    });
 
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var text = ta.value.trim();
-      if (text.length < 1) { msg.textContent = '先写点内容'; msg.className = 'cmt-msg err'; return; }
+      if (text.length < 1) { I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.9ddcc549d251");}); msg.className = 'cmt-msg err'; return; }
       var token = '';
       try { token = (tsWidget !== null && window.turnstile) ? (window.turnstile.getResponse(tsWidget) || '') : ''; } catch (e) {}
-      if (!token) { msg.textContent = '请先完成人机验证'; msg.className = 'cmt-msg err'; return; }
-      btn.disabled = true; msg.textContent = '发送中…'; msg.className = 'cmt-msg';
+      if (!token) { I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.21a059099d9f");}); msg.className = 'cmt-msg err'; return; }
+      btn.disabled = true; I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.364970d8168c");}); msg.className = 'cmt-msg';
       try { localStorage.setItem('bobbycn.cmt.name', name.value.trim()); } catch (e) {}
       postJSON(API + '/comments', { slug: slug, body: text, author: name.value.trim(), cfToken: token })
         .then(function (r) {
           btn.disabled = false;
           if (r.ok) {
-            ta.value = ''; msg.textContent = '已发表'; msg.className = 'cmt-msg ok';
+            ta.value = ''; I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.49e9dbee1fa2");}); msg.className = 'cmt-msg ok';
             try { if (tsWidget !== null && window.turnstile) window.turnstile.reset(tsWidget); } catch (e) {}
             reload();
             return;
           }
-          msg.textContent = (r.data && r.data.message) || ('发送失败（' + r.status + '）');
+          I18N.bind(msg,'textContent',function(){return I18N.error(r.data,r.status);});
           msg.className = 'cmt-msg err';
           try { if (tsWidget !== null && window.turnstile) window.turnstile.reset(tsWidget); } catch (e) {}
         })
-        .catch(function () { btn.disabled = false; msg.textContent = '网络错误，稍后再试'; msg.className = 'cmt-msg err'; });
+        .catch(function () { btn.disabled = false; I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.a47e6b8881b7");}); msg.className = 'cmt-msg err'; });
     });
   }
 
@@ -186,7 +199,7 @@
           var n = $('#cmt-count');
           if (n) n.textContent = (d && d.total) || 0;
         })
-        .catch(function () { box.textContent = ''; box.appendChild(el('p', 'empty', '评论加载失败。')); });
+        .catch(function () { box.textContent = ''; box.appendChild(el('p', 'empty', I18N.t("site.copy.500e9051d863"))); });
     }
     reload();
 
@@ -196,12 +209,12 @@
       .catch(function () {
         holder.textContent = '';
         var p = el('p', 'cmt-login');
-        p.appendChild(document.createTextNode('想说的话挺多？'));
-        var a = el('a', null, '登录');
+        p.appendChild(document.createTextNode(I18N.t("site.copy.aa4bca30a79a")));
+        var a = el('a', null, I18N.t("games.login.do"));
         var next = encodeURIComponent(location.pathname);
         a.href = '/login/?next=' + next;
         p.appendChild(a);
-        p.appendChild(document.createTextNode('后就能评论（全站一个账号）。'));
+        p.appendChild(document.createTextNode(I18N.t("site.copy.bb1174185722")));
         holder.appendChild(p);
       });
   }
@@ -210,6 +223,15 @@
     initViews();
     if (slug) { initToc(); initComments(); }
   }
+  I18N.onChange(function () {
+    if (renderComments.cached) renderComments(renderComments.cached.list, renderComments.cached.box);
+    var p = document.querySelector('.cmt-login');
+    if (p) {
+      p.firstChild.textContent = I18N.t('site.copy.aa4bca30a79a');
+      p.querySelector('a').textContent = I18N.t('games.login.do');
+      p.lastChild.textContent = I18N.t('site.copy.bb1174185722');
+    }
+  });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();

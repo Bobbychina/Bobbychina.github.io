@@ -14,18 +14,18 @@
 <!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行
      ⚠️ ?v= 与 i18n.js 里的 VER 必须同时跳：改词典不跳号 = 线上还被缓存成旧词典，
      新词条会显示成 key（2026-10-09 踩过一次，表现为"i18n 没生效"）。 -->
-<script src="/i18n/i18n.js?v=20261009c"></script>
+<script src="/i18n/i18n.js?v=20261021res1"></script>
 <title>GAMES · Bobbychina</title>
 <meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。" data-i18n-attr="content:games.meta.desc">
 <!-- 分享卡：与主页同一张 1200×630（渲染脚本 archive/sessions/2026-09/scripts/render-og.js）；本页此前没有任何 og:* -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="游戏厅 · Bobbychina">
+<meta property="og:title" content="游戏厅 · Bobbychina" data-i18n-attr="content:site.copy.f2bc6d514055">
 <meta property="og:description" content="三款在线就能玩的游戏：3D 竞速 / 末日生存 / 割草肉鸽。看榜不用登录，云存档可绑 GitHub。" data-i18n-attr="content:games.meta.desc">
 <meta property="og:url" content="https://bobbychina.github.io/games/">
 <meta property="og:image" content="https://bobbychina.github.io/og/home.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Bobbychina 游戏厅：三款在线可玩的游戏">
+<meta property="og:image:alt" content="Bobbychina 游戏厅：三款在线可玩的游戏" data-i18n-attr="content:site.copy.3d951e45b709">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://bobbychina.github.io/og/home.png">
 <!-- 标签页图标：和主页 favicon 同一套（深底 #0a0e14 + 绿 #3fd07a 主色），
@@ -126,35 +126,19 @@
   nav .sp{flex:1}
 </style>
 <!-- 公共皮肤（纸感底 / 深色默认 / 分区胶囊导航）+ 主题切换与登录态 -->
-<link rel="stylesheet" href="/assets/site.css?v=20260929a">
-<script src="/assets/site.js?v=20260929a" defer></script>
+<link rel="stylesheet" href="/assets/site.css?v=20261021res1">
+<script src="/assets/site.js?v=20261021res1" defer></script>
+<link rel="stylesheet" href="/assets/atelier.css?v=20261021res1">
 </head>
-<body>
+<body class="game-catalog">
 <div class="wrap">
-  <header class="top" style="margin:0 -20px 8px;padding:8px 20px 0">
-    <div class="toprow">
-      <a class="name" href="/">Bobby<i>.</i></a>
-      <span class="spacer"></span>
-      <span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut">退出</button></span>
-      <a class="iconbtn" id="btnReg" href="/register/" style="border-bottom:0" hidden>注册</a>
-      <a class="iconbtn" id="btnIn" href="/login/" style="border-bottom:0" hidden>登录</a>
-      <button class="iconbtn" id="btnTheme">☾ 深色</button>
-    </div>
-    <nav class="tabs">
-      <a href="/">在做的东西</a>
-      <a href="/posts/">写下来的</a>
-      <a href="/games/" class="on">游戏厅</a>
-      <a href="/#about">关于</a>
-    </nav>
-  </header>
+  <header class="top site-header">
+  <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
+  <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" data-i18n="nav.projects">作品</a><a href="/games/" class="on" aria-current="page" data-i18n="nav.games">游戏厅</a><a href="/posts/" data-i18n="nav.posts">文章</a><a href="/resources/" data-i18n="nav.resources">资源</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
+  <div class="header-actions"><span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut"><span data-i18n="games.acct.signOut">退出</span></button></span><a class="iconbtn" id="btnReg" href="/register/"><span data-i18n="site.copy.c4fb62202bad">注册</span></a><a class="iconbtn" id="btnIn" href="/login/"><span data-i18n="games.login.do">登录</span></a><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
+ </header>
 
-  <nav>
-    <a href="/" data-i18n="games.nav.back">← 回主页</a>
-    <span class="sp"></span>
-    <a href="#thanks" data-i18n="games.nav.thanks">鸣谢</a>
-    <a href="https://github.com/Bobbychina" target="_blank">GitHub</a>
-    <span data-i18n-switch></span>
-  </nav>
+  <nav class="catalog-tools" aria-label="游戏目录选项" data-i18n-attr="aria-label:site.copy.7cf1cecfe244"><a href="#thanks" data-i18n="games.nav.thanks">鸣谢</a><a href="https://github.com/bobbychina32747" target="_blank" rel="noopener">GitHub</a><span data-i18n-switch></span></nav>
 
   <h1 data-i18n="games.h1">游戏厅</h1>
   <p class="sub" data-i18n="games.sub">我自己做、自己玩的网页游戏。都在浏览器里跑，不用装东西；登录账号后存档会跟着你走（可绑定 GitHub 或微软账号）。</p>
@@ -197,14 +181,6 @@
       </div>
     </div>
     <div class="game">
-      <h3 data-i18n="games.dream.title">纯走路 · 梦核</h3>
-      <p class="desc" data-i18n-html="games.dream.desc">纯 canvas 手写射线渲染的第一人称步行模拟：<b>没有敌人、没有追逐、没有目标</b>——只有走廊、灯、水声，和你自己的脚步。26 个房间、<b>8 种梦核分区</b>（黄墙走廊 / 池核 / 办公室 / 老房子 / 地下车库 / 白瓷间 / 空教室 / 旧病房）；灯会闪、会突然熄，远处有电话铃，走廊尽头站着一个人——<b>你走近他就消失，他不追你</b>。</p>
-      <div class="meta"><span class="badge g" data-i18n="games.dream.badge1">可玩</span><span class="badge b">Canvas 2D</span><span class="badge" data-i18n="games.dream.badge3">单文件 · 离线</span><span class="badge y" data-i18n="games.dream.badge4">零外联</span></div>
-      <div class="acts">
-        <button class="btn ok" onclick="location.href='/games/dreamcore/'" data-i18n="games.dream.start">▶ 开始走路</button>
-      </div>
-    </div>
-    <div class="game">
       <h3>StockGameOnlinePro</h3>
       <p class="desc" data-i18n="games.stock.desc">A 股模拟炒股：撮合引擎、涨跌停、分红除权、基金与风控，前后端全栈。行情按真实交易日节奏推进，虚拟盘，亏了不心疼。</p>
       <div class="meta"><span class="badge g" data-i18n="games.stock.badge1">可玩</span><span class="badge b" data-i18n="games.stock.badge2">全栈</span><span class="badge" data-i18n="games.stock.badge3">独立站点</span><span class="badge y" data-i18n="games.stock.badge4">需注册</span></div>
@@ -221,6 +197,7 @@
     </div>
   </div>
 
+  <details class="account-details"><summary><span data-i18n="site.copy.11e7fa498dbb">账号与存档说明</span></summary>
   <div class="note" data-i18n-html="games.note">
     <b>关于账号与隐私：</b>账号有两种模式——<b>云账号</b>（存在本站自己的 Cloudflare Worker + KV 里：用户名、盐、
     <code>SHA256(pepper+派生值)</code>、会话哈希、你上传的存档；口令本身永远不上传，浏览器用 PBKDF2 21 万轮先派生），
@@ -230,6 +207,7 @@
     <a href="https://github.com/Bobbychina/zombie-survival/blob/main/PRIVACY.md" target="_blank">PRIVACY.md</a>；
     不想连任何账号也能玩：进度<b>加密</b>存在这台设备的浏览器里（M29 起不再提供"导出明文存档"）。
   </div>
+  </details>
 
   <section id="thanks">
     <h2 data-i18n="games.h2.thanks">// special thanks</h2>
@@ -249,9 +227,9 @@
 </div>
 
 <script src="/games/auth-config.js"></script>
-<script src="/games/site-auth.js?v=20261008a"></script>
-<script src="/games/site-saves.js?v=20261008a"></script>
-<script src="/games/account.js?v=20261008a"></script>
+<script src="/games/site-auth.js?v=20261021res1"></script>
+<script src="/games/site-saves.js?v=20261021res1"></script>
+<script src="/games/account.js?v=20261021res1"></script>
 <script>
 (function () {
   var A = window.DSHAccount;
@@ -309,7 +287,17 @@
      游戏厅那套口令账号与 GitHub/微软绑定退居为「老账号迁移的钥匙来源」，界面不再暴露入口。
      站点授权态由 /games/site-auth.js（window.SiteAuth）提供；后端没上线时明确显示"暂不可用"，
      而不是偷偷退回本机账号。 */
-  var siteUser = null, siteChecked = false, siteErr = '';
+  var siteUser = null, sessionUser = null, siteChecked = false, siteErr = '';
+  var linking = false, linkFailed = false;
+  function linkHall() {
+    if (!SA || !SA.status().signedIn || A.current() || linking) return;
+    linking = true; linkFailed = false; refresh();
+    A.signInSite().then(function (r) {
+      linkFailed = !r || !r.ok;
+    }, function () { linkFailed = true; }).then(function () {
+      linking = false; refresh();
+    });
+  }
   function siteLabel() {
     if (!siteUser) return '';
     if (siteUser.username) return siteUser.username;
@@ -320,16 +308,14 @@
   function probeSite(cb) {
     if (siteChecked) return cb();
     function finish() { siteChecked = true; cb(); }
-    if (!SA) { siteErr = 'no-sdk'; finish(); return; }
-    SA.ready().then(function () {
-      var st = SA.status();
-      siteUser = st.signedIn ? st.user : null;
+    var session = window.SiteSession ? window.SiteSession.ready : (SA ? SA.siteSession() : Promise.resolve(null));
+    Promise.all([SA ? SA.ready() : Promise.resolve(), session]).then(function (results) {
+      sessionUser = results[1];
+      var st = SA ? SA.status() : { signedIn: false };
+      siteUser = st.signedIn ? st.user : sessionUser;
       siteErr = st.error || '';
-      /* 站点授权已登录但游戏厅还没接通 → 用后端派发的凭据把游戏厅账号接上（老存档靠它解密） */
-      if (siteUser && !A.current()) {
-        A.signInSite().then(function () { refresh(); }, function () { refresh(); });
-      }
       finish();
+      linkHall();
     }, function () { siteErr = 'sdk-error'; finish(); });
   }
   function refresh() {
@@ -340,6 +326,15 @@
        不能让 i18n 的整页重扫（I18N.apply）再冲一遍。切语言由下面的 I18N.onChange 重画。 */
     [who, prov, btn].forEach(function (el) { if (el) { el.removeAttribute('data-i18n'); el.removeAttribute('data-i18n-html'); } });
     var site = SA ? SA.status() : { available: false, signedIn: false };
+    siteUser = site.signedIn ? site.user : sessionUser;
+    btn.disabled = false;
+    if (!siteChecked) {
+      who.textContent = T('games.acct.loading');
+      prov.textContent = '';
+      btn.textContent = T('games.acct.loading');
+      btn.disabled = true;
+      return;
+    }
     if (site.signedIn && u) {
       box.classList.add('on');
       who.innerHTML = T('games.acct.logged', { name: esc(siteLabel() || u.name) });
@@ -353,12 +348,20 @@
     if (site.signedIn && !u) {
       /* 站点授权成功、游戏厅账号还在接通：这是过渡瞬间，提示而不是报错 */
       box.classList.remove('on');
-      who.innerHTML = T('games.acct.linking', { name: esc(siteLabel()) });
+      who.innerHTML = T(linkFailed ? 'games.acct.linkFailed' : 'games.acct.linking', { name: esc(siteLabel()) });
       prov.innerHTML = '<span class="badge b">' + T('games.acct.hallBadge') + '</span>';
-      btn.textContent = T('games.acct.btnHall');
+      btn.textContent = T('games.acct.retry');
+      btn.disabled = linking;
       return;
     }
     box.classList.remove('on');
+    if (sessionUser) {
+      who.innerHTML = T('games.acct.siteOnly', { name: esc(siteLabel()) });
+      prov.innerHTML = '<span class="badge">' + T(site.available ? 'games.acct.needsGrant' : 'games.acct.siteOff') + '</span>';
+      btn.textContent = T('games.acct.authorize');
+      btn.disabled = !site.available;
+      return;
+    }
     who.textContent = T('games.acct.anon');
     if (SA && site.available) {
       prov.innerHTML = '<span class="badge">' + T('games.acct.siteHint') + '</span>';
@@ -379,8 +382,8 @@
     SA.signIn({ game: 'bobbycn-games' }).catch(function () { btnBusy(false); });
   };
   window.siteLogout = function () {
-    if (!SA) return;
-    SA.signOut({ game: 'bobbycn-games' }).then(function () { return A.logout(); })
+    var logout = SA ? SA.signOut({ global: true }) : fetch('/api/auth/identity/logout', { method: 'POST', credentials: 'same-origin' });
+    logout.then(function () { return A.logout(); })
       .then(function () { location.reload(); });
   };
   function btnBusy(on) {
@@ -399,7 +402,7 @@
   (function syncTopLogout() {
     var btn = document.getElementById('btnOut');
     if (!btn) return;
-    var FALLBACK = { 'zh-CN': '退出', en: 'Sign out' };
+    var FALLBACK = { 'zh-CN': I18N.t("games.acct.signOut"), en: 'Sign out' };
     var t = function () {
       var lang = (window.I18N && I18N.current) ? I18N.current() : 'zh-CN';
       var v = T('games.acct.signOut');
@@ -410,10 +413,17 @@
     if (window.I18N && I18N.onChange) I18N.onChange(t);
   })();
 
-  probeSite(function () { refresh(); });
+  // site.js is deferred: wait for its shared Cookie-session check before rendering.
+  function initAccount() { probeSite(function () { refresh(); }); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAccount);
+  else initAccount();
+  if (SA) SA.onChange(function () {
+    refresh();
+    if (siteChecked && !linkFailed) linkHall();
+  });
   document.getElementById('btn-acct').onclick = function () {
     var site = SA ? SA.status() : { signedIn: false };
-    if (site.signedIn) { panel(); return; }
+    if (site.signedIn) { if (A.current()) panel(); else linkHall(); return; }
     if (SA && site.available) { window.siteLogin(); return; }
     panel();                                       /* 后端未上线：退到面板里看说明 */
   };
@@ -567,7 +577,7 @@
   window.doMigrate = async function () {
     msg(T('games.panel.migrating'));
     var r = await A.migrateLegacySaves(GAME);
-    msg(r.note + (r.failed && r.failed.length ? ('（失败 ' + r.failed.length + ' 个）') : ''), !!(r.failed && r.failed.length));
+    msg(r.note + (r.failed && r.failed.length ? (I18N.t("site.copy.5b12fcdbe970") + r.failed.length + I18N.t("site.copy.0e5129abb2bf")) : ''), !!(r.failed && r.failed.length));
     loadSaves();
   };
 

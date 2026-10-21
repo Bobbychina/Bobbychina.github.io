@@ -1,0 +1,21 @@
+@import url("./atelier.css?v=20261021res1");
+/* Compatibility for the two older static entry documents. */
+body:has(>.bar){max-width:900px;padding:28px;margin:0 auto}
+.bar{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--dim);padding:14px 0;border-bottom:1px solid var(--line)}
+.home-hero{padding:36px 0}
+.studio-shelf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.studio-feature{display:flex;flex-direction:column;padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--paper2)}
+.studio-feature img{display:none}
+.studio-feature small,.studio-feature span{font-size:12px;color:var(--soft)}
+.studio-feature strong{font-size:18px;margin:10px 0}
+.studio-feature b{font-size:12px;margin-top:16px;color:var(--seal)}
+@media(max-width:680px){.studio-shelf{grid-template-columns:1fr}body:has(>.bar){padding:20px}}
+
+.legacy-page{max-width:1120px;margin:0 auto;padding:0 28px 32px;font-family:var(--sans)}
+.legacy-page>.site-header{width:100%;margin-bottom:24px}
+.legacy-page h1{font:650 30px/1.4 var(--sans);margin:28px 0 12px}
+.legacy-page .bar{font:12px/1.7 var(--sans)}
+.legacy-page .st{animation:none}
+.legacy-page .list a:hover{background:var(--paper2)}
+.legacy-page .sec>.h{font-size:12px;letter-spacing:0}
+@media(max-width:540px){.legacy-page{padding:0 20px 28px}.legacy-page h1{font-size:27px}.legacy-page .list a{flex-wrap:wrap;gap:8px}.legacy-page .path{overflow-wrap:anywhere}}

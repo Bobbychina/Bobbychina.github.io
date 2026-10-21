@@ -49,6 +49,8 @@
   }
 
   function onKeyDown(e) {
+    var target = e.target || document.activeElement;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
     var k = e.key || e.code;
     if (!k) return;
 
@@ -64,6 +66,8 @@
       recomputeAxis();
       return;
     }
+    // Holding an action key must not repeatedly toggle pause, mute, or choices.
+    if (e.repeat) return;
 
     if (k === 'Escape' || k === 'p' || k === 'P') {
       if (handlers.onPause) handlers.onPause();

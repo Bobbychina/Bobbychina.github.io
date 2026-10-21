@@ -16,6 +16,7 @@
 (function (global) {
   'use strict';
 
+  function siteText(key, fallback) { return global.I18N ? global.I18N.t(key) : fallback; }
   var VERSION = '1.0.0';
   var PBKDF2_ITER = 210000;
   var SESSION_DAYS = 30;
@@ -85,11 +86,11 @@
         if (r.ok && b && b.ok && b.kv !== false) {
           goodBase = list[i];
           apiOk = true;
-          if (b.pepper === 'default') console.warn('[account] 云后端还没设 DSH_PEPPER（口令二次哈希/令牌加密都在用默认值），建议尽快补上');
+          if (b.pepper === 'default') console.warn(siteText("arcade.copy.601ed6817498","[account] 云后端还没设 DSH_PEPPER（口令二次哈希/令牌加密都在用默认值），建议尽快补上"));
           return goodBase;
         }
         if (r.ok && b && b.ok && b.kv === false) {
-          console.warn('[account] 云后端已部署但没绑 KV（Settings → Bindings → DSH_KV），暂时按本机模式运行');
+          console.warn(siteText("arcade.copy.5a254f371d03","[account] 云后端已部署但没绑 KV（Settings → Bindings → DSH_KV），暂时按本机模式运行"));
         }
       } catch (e) { /* 这个候选不通，试下一个 */ }
     }
@@ -106,7 +107,7 @@
     opt = opt || {};
     var tok = serverToken();
     var base = await resolveBase();
-    if (!base) return { ok: false, err: '连不上云后端（离线？）', offline: true };
+    if (!base) return { ok: false, err: siteText("arcade.copy.0ba273802c36","连不上云后端（离线？）"), offline: true };
     try {
       var r = await fetchTimeout(base + path, {
         method: opt.method || 'GET',
@@ -117,10 +118,10 @@
       }, 10000);
       var text = await r.text();
       var data = null; try { data = text ? JSON.parse(text) : null; } catch (e) { data = { raw: text }; }
-      if (!r.ok) return { ok: false, status: r.status, err: (data && (data.message || data.error)) || ('HTTP ' + r.status), data: data, offline: false };
+      if (!r.ok) return { ok: false, status: r.status, err: global.I18N ? global.I18N.error(data,r.status) : (data && (data.message || data.error)) || ('HTTP ' + r.status), data: data, offline: false };
       return { ok: true, status: r.status, data: data };
     } catch (e) {
-      return { ok: false, err: '连不上云后端（离线？）', offline: true };
+      return { ok: false, err: siteText("arcade.copy.0ba273802c36","连不上云后端（离线？）"), offline: true };
     }
   }
   function serverToken() {
@@ -175,7 +176,7 @@
     try {
       var pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64url(env2.iv) }, key, fromB64url(env2.ct));
       return JSON.parse(new TextDecoder().decode(pt));
-    } catch (e) { console.warn('[account] 解密失败（换过密码？）', e); return null; }
+    } catch (e) { console.warn(siteText("arcade.copy.2c74cec3e4b9","[account] 解密失败（换过密码？）"), e); return null; }
   }
   function nowISO() { return new Date().toISOString(); }
   function uid() {
@@ -290,19 +291,19 @@
   /* ---------- 本地存储 ---------- */
   function readJSON(key, def) {
     try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : def; }
-    catch (e) { console.warn('[account] 读失败', key, e); return def; }
+    catch (e) { console.warn(siteText("arcade.copy.1906096b60bd","[account] 读失败"), key, e); return def; }
   }
   function writeJSON(key, val) {
     try { localStorage.setItem(key, JSON.stringify(val)); return { ok: true }; }
     catch (e) {
       var quota = /quota|exceed/i.test(String(e && e.name) + String(e && e.message));
-      return { ok: false, err: quota ? '浏览器本地存储已满（清理一些旧存档再试）' : '本地存储不可用（无痕模式？）' };
+      return { ok: false, err: quota ? siteText("arcade.copy.492fd0a33cf4","浏览器本地存储已满（清理一些旧存档再试）") : siteText("arcade.copy.2bd8b4cde08a","本地存储不可用（无痕模式？）") };
     }
   }
   function removeKey(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } }
   /* 会话级存储：GitHub 令牌（仅本机模式才会用到）放这里，关掉标签页即消失，不落 localStorage */
   function readSess(key, def) { try { var r = sessionStorage.getItem(key); return r ? JSON.parse(r) : def; } catch (e) { return def; } }
-  function writeSess(key, v) { try { sessionStorage.setItem(key, JSON.stringify(v)); return { ok: true }; } catch (e) { return { ok: false, err: 'sessionStorage 不可用（无痕模式？）' }; } }
+  function writeSess(key, v) { try { sessionStorage.setItem(key, JSON.stringify(v)); return { ok: true }; } catch (e) { return { ok: false, err: siteText("arcade.copy.74723b8e2edb","sessionStorage 不可用（无痕模式？）") }; } }
 
   /* ---------- 账号 ---------- */
   function loadDB() { return readJSON(K.accounts, { v: 1, users: {} }); }
@@ -340,14 +341,14 @@
      *  不传 game 就只做口令校验（以前这里硬编码 'zombie-survival'，别的游戏解锁时探的是别人的存档）。 */
     unlock: async function (password, game) {
       var u = Account.current();
-      if (!u) return { ok: false, err: '先登录' };
+      if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       if (!configuredBase()) { await cacheKey(password, u.name, 'local'); return { ok: true }; }
       var sr = await api('/api/salt?name=' + encodeURIComponent(u.name));
       var saltHex = sr.ok && sr.data && sr.data.salt ? sr.data.salt : null;
-      if (!saltHex) return { ok: false, err: '拿不到盐，无法解锁' };
+      if (!saltHex) return { ok: false, err: siteText("arcade.copy.e744c44f0fdd","拿不到盐，无法解锁") };
       /* 口令对不对由服务端判定（顺带续一个会话），再解开 wrap 拿到 DEK */
       var li = await api('/api/login', { method: 'POST', body: { name: u.name, verifier: await pbkdf2Hex(String(password || ''), saltHex, PBKDF2_ITER) } });
-      if (!li.ok) return { ok: false, err: li.offline ? li.err : '口令不对（服务端没通过）' };
+      if (!li.ok) return { ok: false, err: li.offline ? li.err : siteText("arcade.copy.8cc0aece77a9","口令不对（服务端没通过）") };
       await keyFromWrap(String(password || ''), u.name, saltHex, li.data.wrap);
       if (li.data.token) Account._setSession(u.uid, { token: li.data.token, exp: li.data.exp });
       /* 拿一份云存档试着解一下：解不开说明这把钥匙不对，别让它污染之后写入的存档 */
@@ -358,7 +359,7 @@
           var one = await api('/api/save?game=' + encodeURIComponent(probeGame) + '&slot=' + encodeURIComponent(probe.data.slots[0].slot));
           if (one.ok && one.data && isEnvelope(one.data.data)) {
             var dec = await decryptSave(one.data.data);
-            if (!dec) { removeKey(ENC_KEY); return { ok: false, err: '口令不对（解不开云端存档）' }; }
+            if (!dec) { removeKey(ENC_KEY); return { ok: false, err: siteText("arcade.copy.bc2df22ba49f","口令不对（解不开云端存档）") }; }
           }
         }
       }
@@ -404,7 +405,7 @@
     },
     /** 发起站点授权（整页跳转；弹窗版见 SiteAuth.signInPopup） */
     siteSignIn: function (opts) {
-      if (!global.SiteAuth) return { ok: false, err: '没有加载站点授权 SDK（/games/site-auth.js）' };
+      if (!global.SiteAuth) return { ok: false, err: siteText("arcade.copy.61ee23fb0f33","没有加载站点授权 SDK（/games/site-auth.js）") };
       global.SiteAuth.signIn(opts || {});
       return { ok: true, redirecting: true };
     },
@@ -426,9 +427,9 @@
       var cur = Account.current();
       if (cur) return { ok: true, already: true, name: cur.name };
       var me = await Account.siteMe();
-      if (!me || !me.id) return { ok: false, err: 'no-site-identity', hint: '先登录站点账号（未登录时点「用站点账号登录」会自动带你过去）' };
+      if (!me || !me.id) return { ok: false, err: 'no-site-identity', hint: siteText("arcade.copy.94316fe60729","先登录站点账号（未登录时点「用站点账号登录」会自动带你过去）") };
       var cr = await Account.siteCredential();
-      if (!cr || !cr.name || !cr.password) return { ok: false, err: 'no-credential', hint: '站点后端没返回游戏厅凭据（/api/games/arcade）' };
+      if (!cr || !cr.name || !cr.password) return { ok: false, err: 'no-credential', hint: siteText("arcade.copy.7fcec7834c01","站点后端没返回游戏厅凭据（/api/games/arcade）") };
       var r = await Account.login({ name: cr.name, password: cr.password });
       if (r && r.ok) {
         Account._tagSite(me.id);
@@ -461,22 +462,22 @@
      *  老存档、榜单、GitHub 绑定全部原样保留（账号还是那个账号，只是换了把钥匙）。 */
     linkExisting: async function (name, password) {
       var nm = String(name || '').trim(), pw = String(password || '');
-      if (!nm || !pw) return { ok: false, err: '填一下旧账号名和口令' };
+      if (!nm || !pw) return { ok: false, err: siteText("arcade.copy.1c48e4a5a2d3","填一下旧账号名和口令") };
       var me = await Account.siteMe();
-      if (!me || !me.id) return { ok: false, err: '先登录站点账号' };
+      if (!me || !me.id) return { ok: false, err: siteText("arcade.copy.e0f776b5d95d","先登录站点账号") };
       var cr = await Account.siteCredential();
-      if (!cr || !cr.password) return { ok: false, err: '拿不到派生口令' };
+      if (!cr || !cr.password) return { ok: false, err: siteText("arcade.copy.abcb5efa2580","拿不到派生口令") };
       var li = await Account.login({ name: nm, password: pw });
-      if (!li || !li.ok) return { ok: false, err: (li && li.err) || '旧账号登录失败' };
+      if (!li || !li.ok) return { ok: false, err: (li && li.err) || siteText("arcade.copy.fc2cd949d652","旧账号登录失败") };
       var ch = await Account.changePassword(pw, cr.password);
-      if (!ch || !ch.ok) return { ok: false, err: (ch && ch.err) || '换口令失败' };
+      if (!ch || !ch.ok) return { ok: false, err: (ch && ch.err) || siteText("arcade.copy.bda4cc501575","换口令失败") };
       try {
         var r = await fetch('/api/games/arcade/link', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: nm }),
         });
-        if (!r.ok) return { ok: false, err: '绑定记录失败(' + r.status + ')' };
-      } catch (e) { return { ok: false, err: '绑定记录失败' }; }
+        if (!r.ok) return { ok: false, err: siteText("arcade.copy.78a7e0254961","绑定记录失败(") + r.status + ')' };
+      } catch (e) { return { ok: false, err: siteText("arcade.copy.62bed4c59e30","绑定记录失败") }; }
       return { ok: true, name: nm };
     },
     /* ----- 注册 / 登录 / 会话 -----
@@ -485,13 +486,13 @@
     register: async function (opts) {
       var name = String((opts && opts.name) || '').trim();
       var pass = String((opts && opts.password) || '');
-      if (name.length < 2) return { ok: false, err: '用户名至少 2 个字符' };
-      if (name.length > 24) return { ok: false, err: '用户名最长 24 个字符' };
-      if (pass.length < 6) return { ok: false, err: '密码至少 6 位' };
+      if (name.length < 2) return { ok: false, err: siteText("arcade.copy.e9fbe7b3365f","用户名至少 2 个字符") };
+      if (name.length > 24) return { ok: false, err: siteText("arcade.copy.f418b612de7f","用户名最长 24 个字符") };
+      if (pass.length < 6) return { ok: false, err: siteText("arcade.copy.ac31ae58b658","密码至少 6 位") };
       var db = loadDB();
       var lower = name.toLowerCase();
       var clash = Object.keys(db.users).some(function (k) { return db.users[k].name.toLowerCase() === lower; });
-      if (clash) return { ok: false, err: '这个名字已经被注册了（换一个，或直接登录）' };
+      if (clash) return { ok: false, err: siteText("arcade.copy.68440e750e4d","这个名字已经被注册了（换一个，或直接登录）") };
       var salt = toHex(bytes(16));
 
       /* ① 云后端优先：口令派生在本机做，只有 verifier 上传（服务端再叠一层 pepper 哈希） */
@@ -577,10 +578,10 @@
       /* ② 本机账号（或断网时用本地口令兜底）。
          注意：云账号走到这里说明**服务端这次没通**（离线/被墙/后端挂了），只能本机放行 —— 
          界面必须把"这次是离线登录、不会同步"说出来，不能让用户以为一切照常。 */
-      if (!u) return { ok: false, err: '没有这个账号（先注册）' };
-      if (!u.hash) return { ok: false, err: '这个账号是用第三方登录建的，请用「' + Object.keys(u.providers || {}).join('/') + '」登录' };
+      if (!u) return { ok: false, err: siteText("arcade.copy.10ce8510c524","没有这个账号（先注册）") };
+      if (!u.hash) return { ok: false, err: siteText("arcade.copy.ade7f64b5ee7","这个账号是用第三方登录建的，请用「") + Object.keys(u.providers || {}).join('/') + siteText("arcade.copy.0a60a0ccbd38","」登录") };
       var h = await hashPassword(pass, u.salt, u.iter || PBKDF2_ITER);
-      if (!safeEqual(h, u.hash)) return { ok: false, err: '密码不对' };
+      if (!safeEqual(h, u.hash)) return { ok: false, err: siteText("arcade.copy.16a4b2f15a29","密码不对") };
       Account._setSession(u.uid);
       emit();
       var offlineFallback = !!(u.server && configuredBase());
@@ -619,27 +620,27 @@
     },
     changePassword: async function (oldPass, newPass) {
       var db = loadDB(), u = db.users[Account.currentUid()];
-      if (!u) return { ok: false, err: '先登录' };
-      if (String(newPass || '').length < 6) return { ok: false, err: '新密码至少 6 位' };
+      if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
+      if (String(newPass || '').length < 6) return { ok: false, err: siteText("arcade.copy.4e1f11e21737","新密码至少 6 位") };
       if (u.hash) {
         var h = await hashPassword(String(oldPass || ''), u.salt, u.iter || PBKDF2_ITER);
-        if (!safeEqual(h, u.hash)) return { ok: false, err: '原密码不对' };
+        if (!safeEqual(h, u.hash)) return { ok: false, err: siteText("arcade.copy.182107f2a7cd","原密码不对") };
       }
       /* 根因修复：云账号在**没有服务端会话**时原来只改本地壳 —— 云端还是旧口令，
          下次登录必然"口令不对"，号就废了（只能靠恢复码）。现在直接拦住并说清楚怎么做。 */
       if (u.server && !(serverMode() && configuredBase())) {
-        return { ok: false, err: '云账号改密码要连着云后端（现在连不上）：先退出再重新登录一次，或等网络恢复后再改' };
+        return { ok: false, err: siteText("arcade.copy.6e444048294d","云账号改密码要连着云后端（现在连不上）：先退出再重新登录一次，或等网络恢复后再改") };
       }
       /* 云账号：只把 DEK 用新口令重包一次就完事，云端那些密文一个字节都不用动 */
       var shellSaltHex = null;
       if (u.server && serverMode() && configuredBase()) {
         var raw = currentRawKey();
-        if (!raw) return { ok: false, err: '先解锁（重新输入一次当前口令）再改密码' };
+        if (!raw) return { ok: false, err: siteText("arcade.copy.9acb49440196","先解锁（重新输入一次当前口令）再改密码") };
         var salt = toHex(bytes(16));
         var verifier = await pbkdf2Hex(String(newPass), salt, PBKDF2_ITER);
         var wrapPw = await wrapWith(await kekRaw(String(newPass), KEK_PW, u.name, salt), raw);
         var r = await api('/api/password', { method: 'POST', body: { verifier: verifier, salt: salt, wrap: { pw: wrapPw } } });
-        if (!r.ok) return { ok: false, err: '服务端改密失败：' + r.err };
+        if (!r.ok) return { ok: false, err: siteText("arcade.copy.2af90732fe14","服务端改密失败：") + r.err };
         cacheRawKey(raw, u.name, salt);                     // 缓存里的盐要跟着换，否则下次 unlock 对不上
         shellSaltHex = salt;
       }
@@ -652,23 +653,23 @@
     },
     /** 今日云上传额度（账号面板显示"今天还能传几次"） */
     quota: async function () {
-      if (!serverMode() || !configuredBase()) return { ok: false, err: '没登录云账号', local: true };
+      if (!serverMode() || !configuredBase()) return { ok: false, err: siteText("arcade.copy.771daad147b7","没登录云账号"), local: true };
       var r = await api('/api/quota');
       return r.ok ? { ok: true, used: r.data.used, limit: r.data.limit, left: r.data.left, resetAt: r.data.resetAt } : { ok: false, err: r.err };
     },
     /** 补设/更新恢复码：把当前 DEK 再用恢复码包一份传给服务端（老账号也能补） */
     setRecovery: async function () {
       var u = Account.current();
-      if (!u) return { ok: false, err: '先登录' };
-      if (!serverMode() || !configuredBase()) return { ok: false, err: '只有云账号能设恢复码' };
+      if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
+      if (!serverMode() || !configuredBase()) return { ok: false, err: siteText("arcade.copy.aa9218ad9e07","只有云账号能设恢复码") };
       var raw = currentRawKey();
-      if (!raw) return { ok: false, err: '先解锁（重新输入一次口令）再设恢复码' };
+      if (!raw) return { ok: false, err: siteText("arcade.copy.095fc18cafc5","先解锁（重新输入一次口令）再设恢复码") };
       var code = newRecoveryCode();
       var rcSalt = toHex(bytes(16));
       var wrapRc = await wrapWith(await kekRaw(normCode(code), KEK_RC, u.name, rcSalt), raw);
       var body = { rcSalt: rcSalt, rcVerifier: await rcVerifierHex(code, u.name), wrap: { rc: wrapRc } };
       var r = await api('/api/wrap', { method: 'POST', body: body });
-      if (!r.ok) return { ok: false, err: '服务端保存恢复码失败：' + r.err };
+      if (!r.ok) return { ok: false, err: siteText("arcade.copy.eb48d342926e","服务端保存恢复码失败：") + r.err };
       var s = readJSON(K.session, null) || {};
       if (s.uid) writeJSON(K.session, Object.assign({}, s, { hasRecovery: true }));
       emit();
@@ -680,15 +681,15 @@
       var name = String(opts.name || '').trim();
       var code = String(opts.code || '');
       var pass = String(opts.password || '');
-      if (name.length < 2) return { ok: false, err: '用户名至少 2 个字符' };
-      if (normCode(code).length < 32) return { ok: false, err: '恢复码看起来不完整（应该是 8 组 4 位）' };
-      if (pass.length < 6) return { ok: false, err: '新密码至少 6 位' };
-      if (!configuredBase() || !(await apiAvailable())) return { ok: false, err: '连不上云后端，恢复码只在云账号上有效' };
+      if (name.length < 2) return { ok: false, err: siteText("arcade.copy.e9fbe7b3365f","用户名至少 2 个字符") };
+      if (normCode(code).length < 32) return { ok: false, err: siteText("arcade.copy.2615c3746a44","恢复码看起来不完整（应该是 8 组 4 位）") };
+      if (pass.length < 6) return { ok: false, err: siteText("arcade.copy.4e1f11e21737","新密码至少 6 位") };
+      if (!configuredBase() || !(await apiAvailable())) return { ok: false, err: siteText("arcade.copy.974bb08045ac","连不上云后端，恢复码只在云账号上有效") };
       var rcVerifier = await rcVerifierHex(code, name);
       var begin = await api('/api/recover/begin', { method: 'POST', body: { name: name, rcVerifier: rcVerifier } });
       if (!begin.ok) return { ok: false, err: begin.err };
       var dek = await unwrapWith(await kekRaw(normCode(code), KEK_RC, name, begin.data.rcSalt), begin.data.wrap && begin.data.wrap.rc);
-      if (!dek) return { ok: false, err: '恢复码不对（解不开存档密钥）' };
+      if (!dek) return { ok: false, err: siteText("arcade.copy.15161c2d01cb","恢复码不对（解不开存档密钥）") };
       var salt = toHex(bytes(16));
       var verifier = await pbkdf2Hex(pass, salt, PBKDF2_ITER);
       var wrapPw = await wrapWith(await kekRaw(pass, KEK_PW, name, salt), dek);
@@ -713,12 +714,12 @@
     /** 删账号 = 删本地记录 + 本地存档（云后端账号顺带删服务端；gist/OneDrive 里的文件要用户自己删） */
     deleteAccount: async function (confirmName) {
       var db = loadDB(), id = Account.currentUid(), u = db.users[id];
-      if (!u) return { ok: false, err: '先登录' };
-      if (String(confirmName || '').trim() !== u.name) return { ok: false, err: '名字不匹配' };
+      if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
+      if (String(confirmName || '').trim() !== u.name) return { ok: false, err: siteText("arcade.copy.29560a98838e","名字不匹配") };
       var serverNote = '';
       if (u.server && serverMode()) {
         var r = await api('/api/deleteAccount', { method: 'POST', body: { confirm: u.name } });
-        serverNote = r.ok ? '服务端账号已删除' : ('服务端删除失败：' + r.err);
+        serverNote = r.ok ? siteText("arcade.copy.cf69b4157b41","服务端账号已删除") : (siteText("arcade.copy.c21ff35d5d51","服务端删除失败：") + r.err);
       }
       Object.keys(u.games || {}).forEach(function (g) {
         Account.slots(g).forEach(function (s) { Account.saveDelete(g, s.slot, true); });
@@ -756,9 +757,9 @@
     },
     savePut: function (game, slot, data, opts) {
       var id = Account.currentUid();
-      if (!id) return { ok: false, err: '先登录再存' };
+      if (!id) return { ok: false, err: siteText("arcade.copy.33d341791ccc","先登录再存") };
       var body = JSON.stringify(data);
-      if (body.length > MAX_SAVE_BYTES) return { ok: false, err: '这份存档太大了（>' + Math.round(MAX_SAVE_BYTES / 1024) + 'KB）' };
+      if (body.length > MAX_SAVE_BYTES) return { ok: false, err: siteText("arcade.copy.e7815ec9c389","这份存档太大了（>") + Math.round(MAX_SAVE_BYTES / 1024) + 'KB）' };
       var rec = { updatedAt: nowISO(), bytes: body.length, data: data, cloud: (opts && opts.cloud) || null };
       var w = writeJSON(K.save(id, game, slot), rec);
       if (!w.ok) return { ok: false, err: w.err };
@@ -773,9 +774,9 @@
       if (serverMode() && !(opts && opts.noServer)) {
         void (async function () {
           var envl = await encryptSave(data);
-          if (!envl) { console.warn('[account] 未解锁（缺少加密密钥），这次只存了本地'); return; }
+          if (!envl) { console.warn(siteText("arcade.copy.bd0fee8b9e2d","[account] 未解锁（缺少加密密钥），这次只存了本地")); return; }
           var r = await api('/api/save', { method: 'PUT', body: { game: game, slot: slot, data: envl, enc: true, expectUpdatedAt: (opts && opts.expectUpdatedAt) || '' } });
-          if (!r.ok && !r.offline && r.status !== 409) console.warn('[account] 服务端存档失败：' + r.err);
+          if (!r.ok && !r.offline && r.status !== 409) console.warn(siteText("arcade.copy.b6e79da69ec9","[account] 服务端存档失败：") + r.err);
         })();
       }
       /* 新的站点云存档（服务端托管钥匙）：登录过站点授权就一并写一份，失败不影响本地 */
@@ -785,7 +786,7 @@
     },
     saveDelete: function (game, slot, quiet) {
       var id = Account.currentUid();
-      if (!id) return { ok: false, err: '先登录' };
+      if (!id) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       removeKey(K.save(id, game, slot));
       var m = readJSON(K.manifest(id, game), {});
       delete m[slot];
@@ -857,13 +858,13 @@
      */
     migrateLegacySaves: async function (game) {
       var out = { ok: false, migrated: [], failed: [], skipped: [], note: '' };
-      if (!game) { out.note = '要指定游戏'; return out; }
-      if (!(await Account.serverSavesAvailable())) { out.note = '服务端云存档不可用（未授权或后端未部署）'; return out; }
+      if (!game) { out.note = siteText("arcade.copy.d5add4ff7d95","要指定游戏"); return out; }
+      if (!(await Account.serverSavesAvailable())) { out.note = siteText("arcade.copy.1273152f6e58","服务端云存档不可用（未授权或后端未部署）"); return out; }
       var uid = Account.currentUid();
-      if (!uid) { out.note = '先登录'; return out; }
+      if (!uid) { out.note = siteText("arcade.copy.71066094e9b9","先登录"); return out; }
 
       var slots = Account.slots(game);
-      if (!slots.length) { out.note = '本机没有这个游戏的存档，无需迁移'; return out; }
+      if (!slots.length) { out.note = siteText("arcade.copy.d8ed505357db","本机没有这个游戏的存档，无需迁移"); return out; }
 
       for (var i = 0; i < slots.length; i++) {
         var slot = slots[i].slot;
@@ -883,8 +884,8 @@
       }
       out.ok = out.migrated.length > 0 || (out.failed.length === 0);
       out.note = out.migrated.length
-        ? ('已迁移 ' + out.migrated.length + ' 个槽位到站点账号（老存档原件保留，没删）')
-        : (out.failed.length ? '有槽位迁移失败' : '没有需要迁移的槽位');
+        ? (siteText("arcade.copy.94e8f6fe9cc7","已迁移 ") + out.migrated.length + siteText("arcade.copy.61d1db432731"," 个槽位到站点账号（老存档原件保留，没删）"))
+        : (out.failed.length ? siteText("arcade.copy.293888f46ca1","有槽位迁移失败") : siteText("arcade.copy.fa99aaf3f5fb","没有需要迁移的槽位"));
       return out;
     },
 
@@ -894,15 +895,15 @@
     /** extra 里可以带 refresh/exp（本地模式才需要；云模式下 token 不进前端，见 _bindServerGithub） */
     bindGitHubToken: async function (token, extra) {
       token = String(token || '').trim();
-      if (!/^(gh[pousr]_|github_pat_)/.test(token)) return { ok: false, err: '这不像 GitHub 令牌（应以 ghp_ / github_pat_ 开头）' };
+      if (!/^(gh[pousr]_|github_pat_)/.test(token)) return { ok: false, err: siteText("arcade.copy.81f8ced5e776","这不像 GitHub 令牌（应以 ghp_ / github_pat_ 开头）") };
       /* 云模式：令牌只发给自己的 Worker，由服务端保存（前端不留 token，gist 授权太宽，不能落地） */
       if (serverMode()) {
         var sr = await api('/api/gh/token', { method: 'POST', body: { token: token } });
-        if (!sr.ok) return { ok: false, err: '服务端校验令牌失败：' + sr.err };
+        if (!sr.ok) return { ok: false, err: siteText("arcade.copy.5e83241d4963","服务端校验令牌失败：") + sr.err };
         return Account._bindServerGithub(sr.data);
       }
       var me = await gh('GET', '/user', token);
-      if (!me.ok) return { ok: false, err: '令牌无效或缺少权限：' + me.err };
+      if (!me.ok) return { ok: false, err: siteText("arcade.copy.02fb7e95da3d","令牌无效或缺少权限：") + me.err };
       return Account._bind('github', Object.assign({
         token: token, login: me.data.login, name: me.data.name || me.data.login,
         avatar: me.data.avatar_url, boundAt: nowISO(),
@@ -918,7 +919,7 @@
     /** GitHub OAuth（PKCE）：需要 auth-config.js 里填 clientId；设备码流程见 bindGitHubDevice */
     bindGitHubOAuth: async function () {
       var c = cfg().github;
-      if (!c.clientId) return { ok: false, err: '还没配 GitHub client_id（见 /games/auth-config.js）' };
+      if (!c.clientId) return { ok: false, err: siteText("arcade.copy.6ef462914b84","还没配 GitHub client_id（见 /games/auth-config.js）") };
       var pk = await Account._pkce();
       // state 带上 provider 前缀：回调页只拿到 state 与 code，靠前缀才知道是谁的授权
       pk.state = 'github:' + pk.state;
@@ -927,14 +928,14 @@
         state: pk.state, code_challenge: pk.challenge, code_challenge_method: 'S256',
       });
       var code = await Account._popup(url, 'github', pk.state);
-      if (!code) return { ok: false, err: '授权被取消' };
+      if (!code) return { ok: false, err: siteText("arcade.copy.ffe05baa8f79","授权被取消") };
       /* 云模式：把 code 交给服务端去换 token（带 PKCE verifier），令牌永远不进这个页面 */
       if (serverMode()) {
         var sr = await api('/api/gh/bind', {
           method: 'POST',
           body: { code: code, client_id: c.clientId, redirect_uri: cfg().redirect, verifier: pk.verifier },
         });
-        if (!sr.ok) return { ok: false, err: '服务端换 token 失败：' + sr.err, tried: ['server-side: ' + sr.err] };
+        if (!sr.ok) return { ok: false, err: siteText("arcade.copy.a150271da989","服务端换 token 失败：") + sr.err, tried: ['server-side: ' + sr.err] };
         return Account._bindServerGithub(sr.data);
       }
       /* 本机模式（没配云后端）：只能在前端换 token —— 存 sessionStorage 而不是 localStorage，
@@ -943,8 +944,8 @@
       if (!ex.data || !ex.data.access_token) {
         return {
           ok: false,
-          err: '换 token 失败：' + (ex.data ? (ex.data.error_description || ex.data.error || '未知') : '浏览器读不到 GitHub 的响应') +
-            '（尝试记录：' + ex.tried.join(' ｜ ') + '）',
+          err: siteText("arcade.copy.b56b0b3ff922","换 token 失败：") + (ex.data ? (ex.data.error_description || ex.data.error || siteText("account.unknown","未知")) : siteText("arcade.copy.be3712121be3","浏览器读不到 GitHub 的响应")) +
+            siteText("arcade.copy.c82c6517dd3f","（尝试记录：") + ex.tried.join(' ｜ ') + '）',
           tried: ex.tried,
         };
       }
@@ -964,7 +965,7 @@
     /** 微软账号：授权码 + PKCE（SPA 平台注册，无需 client secret） */
     bindMicrosoft: async function () {
       var c = cfg().microsoft;
-      if (!c.clientId) return { ok: false, err: '还没配 Microsoft client_id（见 /games/auth-config.js）' };
+      if (!c.clientId) return { ok: false, err: siteText("arcade.copy.4cc3e55b9f75","还没配 Microsoft client_id（见 /games/auth-config.js）") };
       var pk = await Account._pkce();
       pk.state = 'microsoft:' + pk.state;
       var url = 'https://login.microsoftonline.com/' + c.tenant + '/oauth2/v2.0/authorize?' + new URLSearchParams({
@@ -972,31 +973,31 @@
         scope: c.scope, state: pk.state, code_challenge: pk.challenge, code_challenge_method: 'S256', prompt: 'select_account',
       });
       var code = await Account._popup(url, 'microsoft', pk.state);
-      if (!code) return { ok: false, err: '授权被取消' };
+      if (!code) return { ok: false, err: siteText("arcade.copy.ffe05baa8f79","授权被取消") };
       var tok = await Account._msToken({ grant_type: 'authorization_code', code: code, code_verifier: pk.verifier });
-      if (!tok.access_token) return { ok: false, err: '换 token 失败：' + (tok.error_description || tok.error || '未知') };
+      if (!tok.access_token) return { ok: false, err: siteText("arcade.copy.b56b0b3ff922","换 token 失败：") + (tok.error_description || tok.error || siteText("account.unknown","未知")) };
       var me = await fetch('https://graph.microsoft.com/v1.0/me', { headers: { Authorization: 'Bearer ' + tok.access_token } })
         .then(function (r) { return r.json(); }).catch(function () { return {}; });
       return Account._bind('microsoft', {
         access: tok.access_token, refresh: tok.refresh_token || '', exp: Date.now() + (tok.expires_in || 3600) * 1000 - 60000,
-        oid: me.id || '', name: me.displayName || me.userPrincipalName || '微软用户', email: me.mail || me.userPrincipalName || '', boundAt: nowISO(),
+        oid: me.id || '', name: me.displayName || me.userPrincipalName || siteText("arcade.copy.0648c0d9accd","微软用户"), email: me.mail || me.userPrincipalName || '', boundAt: nowISO(),
       });
     },
     unbind: async function (provider) {
       var db = loadDB(), u = db.users[Account.currentUid()];
-      if (!u || !u.providers || !u.providers[provider]) return { ok: false, err: '没绑定这个' };
+      if (!u || !u.providers || !u.providers[provider]) return { ok: false, err: siteText("arcade.copy.3520c3a43c88","没绑定这个") };
       var note = '';
       if (provider === 'github') {
         if (u.providers.github.serverSide && serverMode()) {
           /* 云模式：让 Worker 去 GitHub 撤销这个 token（用户不用再手动去设置页删） */
           var r = await api('/api/gh/unbind', { method: 'POST', body: { client_id: cfg().github.clientId } });
-          note = r.ok ? (r.data && r.data.revoked ? '已同时撤销 GitHub 授权' : '服务端记录已删除') : ('撤销失败：' + r.err);
+          note = r.ok ? (r.data && r.data.revoked ? siteText("arcade.copy.cebdd89d2be4","已同时撤销 GitHub 授权") : siteText("arcade.copy.53d85b3b12c5","服务端记录已删除")) : (siteText("arcade.copy.68e56cb25c26","撤销失败：") + r.err);
         } else {
           var bag = readSess(K.ghtok, {});
           delete bag[u.uid];
           writeSess(K.ghtok, bag);                       // 本机模式：令牌只在内存/本标签页，删掉即失效
           removeKey(K.ghtokKeep);                        // M23：记住的那份也一起清（不然下次还能自动登录）
-          note = '本机令牌已清除（可去 GitHub 设置里再撤销那次授权）';
+          note = siteText("arcade.copy.08f6ffb6a652","本机令牌已清除（可去 GitHub 设置里再撤销那次授权）");
         }
       }
       delete u.providers[provider];
@@ -1009,16 +1010,16 @@
        之后一切照旧（存档槽、云同步、Gist 都挂在这条记录上）。 */
     signInGitHub: async function (token, extra) {
       token = String(token || '').trim();
-      if (!/^(gh[pousr]_|github_pat_)/.test(token)) return { ok: false, err: '这不像 GitHub 令牌（应以 ghp_ / github_pat_ 开头）' };
+      if (!/^(gh[pousr]_|github_pat_)/.test(token)) return { ok: false, err: siteText("arcade.copy.81f8ced5e776","这不像 GitHub 令牌（应以 ghp_ / github_pat_ 开头）") };
       if (serverMode()) {
         /* 云后端模式下账号由服务端持有，这里只做"已登录时的绑定"，避免两套身份打架 */
-        if (!Account.currentUid()) return { ok: false, err: '云后端模式下请先用账号密码登录，再绑定 GitHub' };
+        if (!Account.currentUid()) return { ok: false, err: siteText("arcade.copy.0e6dfdd81052","云后端模式下请先用账号密码登录，再绑定 GitHub") };
         return Account.bindGitHubToken(token, extra);
       }
       var me = await gh('GET', '/user', token);
-      if (!me.ok) return { ok: false, err: '令牌无效或缺少权限：' + me.err };
+      if (!me.ok) return { ok: false, err: siteText("arcade.copy.02fb7e95da3d","令牌无效或缺少权限：") + me.err };
       var login = String(me.data.login || '').trim();
-      if (!login) return { ok: false, err: 'GitHub 没返回用户名' };
+      if (!login) return { ok: false, err: siteText("arcade.copy.c198023fb76f","GitHub 没返回用户名") };
       var db = loadDB(), found = null, lower = login.toLowerCase();
       /* 已经有同 login 的记录（例如老账号绑过 GitHub）→ 复用，进度与存档槽都跟着走 */
       Object.keys(db.users).forEach(function (k) {
@@ -1052,12 +1053,12 @@
     /** 用记住的令牌直接登录（令牌失效会返回 ok:false，UI 再引导去设备码/粘贴） */
     signInGitHubRemembered: async function () {
       var r = readJSON(K.ghtokKeep, null);
-      if (!r || !r.token) return { ok: false, err: '这台设备还没记住令牌' };
+      if (!r || !r.token) return { ok: false, err: siteText("arcade.copy.b49d7229a0e3","这台设备还没记住令牌") };
       return Account.signInGitHub(r.token);
     },
     _bind: function (provider, data) {
       var db = loadDB(), u = db.users[Account.currentUid()];
-      if (!u) return { ok: false, err: '先登录' };
+      if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       u.providers = u.providers || {};
       /* 本机模式的 GitHub 令牌一律不写进账号记录（那是 localStorage）：挪到 sessionStorage */
       if (provider === 'github' && data && data.token) {
@@ -1152,15 +1153,15 @@
     /** 把本地某游戏的槽位与云端对齐：谁新用谁；返回 {pulled, pushed, provider, err?} */
     syncNow: async function (game) {
       var u = Account.current();
-      if (!u) return { ok: false, err: '先登录' };
+      if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       var provider = Account.backend();
-      if (!provider) return { ok: false, err: '还没绑定云账号（也没连上云后端），只能在本地存' };
+      if (!provider) return { ok: false, err: siteText("arcade.copy.b5f92995f30d","还没绑定云账号（也没连上云后端），只能在本地存") };
       if (provider === 'server') return serverSync(game);
       var token = await Account._cloudToken(provider);
-      if (!token) return { ok: false, err: '云令牌失效了，重新绑定一下' };
+      if (!token) return { ok: false, err: siteText("arcade.copy.a3961a3ccc65","云令牌失效了，重新绑定一下") };
       var remote;
       try { remote = provider === 'github' ? await ghManifest(token, game) : await msManifest(token, game); }
-      catch (e) { return { ok: false, err: '云盘读取失败：' + e.message }; }
+      catch (e) { return { ok: false, err: siteText("arcade.copy.148ca1493645","云盘读取失败：") + e.message }; }
       var local = Account.slots(game), pulled = [], pushed = [];
       var map = {};
       local.forEach(function (s) { map[s.slot] = s; });
@@ -1189,11 +1190,11 @@
     },
     /** 只上传 / 只下载（手动按钮用） */
     pushAll: async function (game) {
-      var u = Account.current(); if (!u) return { ok: false, err: '先登录' };
+      var u = Account.current(); if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       var provider = Account.backend();
-      if (!provider) return { ok: false, err: '还没绑定云账号' };
+      if (!provider) return { ok: false, err: siteText("arcade.copy.c96b6010e2d9","还没绑定云账号") };
       if (provider === 'server') return serverPushAll(game);
-      var token = await Account._cloudToken(provider); if (!token) return { ok: false, err: '云令牌失效' };
+      var token = await Account._cloudToken(provider); if (!token) return { ok: false, err: siteText("arcade.copy.2be88d1d7142","云令牌失效") };
       var slots = Account.slots(game), done = [];
       for (var i = 0; i < slots.length; i++) {
         var okp = provider === 'github' ? await ghFilePut(token, game, slots[i].slot, Account.saveGet(game, slots[i].slot))
@@ -1203,11 +1204,11 @@
       return { ok: true, provider: provider, pushed: done };
     },
     pullAll: async function (game) {
-      var u = Account.current(); if (!u) return { ok: false, err: '先登录' };
+      var u = Account.current(); if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       var provider = Account.backend();
-      if (!provider) return { ok: false, err: '还没绑定云账号' };
+      if (!provider) return { ok: false, err: siteText("arcade.copy.c96b6010e2d9","还没绑定云账号") };
       if (provider === 'server') return serverPullAll(game);
-      var token = await Account._cloudToken(provider); if (!token) return { ok: false, err: '云令牌失效' };
+      var token = await Account._cloudToken(provider); if (!token) return { ok: false, err: siteText("arcade.copy.2be88d1d7142","云令牌失效") };
       var remote = provider === 'github' ? await ghManifest(token, game) : await msManifest(token, game);
       var done = [];
       for (var i = 0; i < remote.length; i++) {
@@ -1217,16 +1218,16 @@
       return { ok: true, provider: provider, pulled: done };
     },
     cloudSummary: async function (game) {
-      var u = Account.current(); if (!u) return { ok: false, err: '先登录' };
+      var u = Account.current(); if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       var provider = Account.backend();
-      if (!provider) return { ok: false, err: '未绑定云账号' };
+      if (!provider) return { ok: false, err: siteText("games.acct.noCloud","未绑定云账号") };
       if (provider === 'server') {
         var sr = await api('/api/saves?game=' + encodeURIComponent(game));
         if (!sr.ok) return { ok: false, err: sr.err };
         return { ok: true, provider: 'server', remote: (sr.data && sr.data.slots) || [] };
       }
       var token = await Account._cloudToken(provider);
-      if (!token) return { ok: false, err: '云令牌失效' };
+      if (!token) return { ok: false, err: siteText("arcade.copy.2be88d1d7142","云令牌失效") };
       try {
         var remote = provider === 'github' ? await ghManifest(token, game) : await msManifest(token, game);
         return { ok: true, provider: provider, remote: remote };
@@ -1234,15 +1235,15 @@
     },
     /** 删掉云端某个槽位（云后端 / GitHub / OneDrive 三条路） */
     cloudDelete: async function (game, slot) {
-      var u = Account.current(); if (!u) return { ok: false, err: '先登录' };
+      var u = Account.current(); if (!u) return { ok: false, err: siteText("arcade.copy.71066094e9b9","先登录") };
       var provider = Account.backend();
-      if (!provider) return { ok: false, err: '未绑定云账号' };
+      if (!provider) return { ok: false, err: siteText("games.acct.noCloud","未绑定云账号") };
       if (provider === 'server') {
         var r0 = await api('/api/save?game=' + encodeURIComponent(game) + '&slot=' + encodeURIComponent(slot), { method: 'DELETE' });
         return { ok: r0.ok, err: r0.err };
       }
       var token = await Account._cloudToken(provider);
-      if (!token) return { ok: false, err: '云令牌失效' };
+      if (!token) return { ok: false, err: siteText("arcade.copy.2be88d1d7142","云令牌失效") };
       if (provider === 'microsoft') {
         var d = await fetch(msUrl(game, slot, ''), { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } })
           .catch(function (e) { return { ok: false, status: 0, err: e.message }; });
@@ -1322,19 +1323,19 @@
     return { status: r.status, ok: r.ok, json: json };
   }
   function why(e) {
-    if (!e) return '未知';
-    if (e.name === 'TypeError') return 'CORS/网络被挡(TypeError)';
+    if (!e) return siteText("account.unknown","未知");
+    if (e.name === 'TypeError') return siteText("arcade.copy.bd8cdd5cd5f8","CORS/网络被挡(TypeError)");
     return (e.name || 'Error') + ': ' + (e.message || '');
   }
   /** M23：GitHub 设备码流程（绑定与登录共用；finish(token, extra) 决定把令牌交给谁）。
    *  云模式：整条流程在 Worker 里跑，前端只拿到 9 位码；本机模式：先 form 再 json 直连。 */
   async function githubDeviceFlow(onCode, finish) {
     var c = cfg().github;
-    if (!c.clientId) return { ok: false, err: '还没配 GitHub client_id（见 /games/auth-config.js）' };
+    if (!c.clientId) return { ok: false, err: siteText("arcade.copy.6ef462914b84","还没配 GitHub client_id（见 /games/auth-config.js）") };
 
     if (serverMode()) {
       var start = await api('/api/gh/device/start', { method: 'POST', body: { client_id: c.clientId } });
-      if (!start.ok) return { ok: false, err: '拿设备码失败：' + start.err };
+      if (!start.ok) return { ok: false, err: siteText("arcade.copy.47854837e994","拿设备码失败：") + start.err };
       if (onCode) onCode({ user_code: start.data.user_code, verification_uri: start.data.verification_uri, expires_in: start.data.expires_in });
       var deadline = Date.now() + Math.min(start.data.expires_in || 900, 900) * 1000;
       var wait = Math.max(3, start.data.interval || 5) * 1000;
@@ -1342,10 +1343,10 @@
         await new Promise(function (s) { setTimeout(s, wait); });
         var p = await api('/api/gh/device/poll', { method: 'POST' });
         if (p.ok && p.data && p.data.ok) return Account._bindServerGithub(p.data);
-        if (!p.ok) return { ok: false, err: '设备码失败：' + p.err };
-        if (p.ok && p.data && !p.data.pending) return { ok: false, err: '设备码没被授权' };
+        if (!p.ok) return { ok: false, err: siteText("arcade.copy.9446a3b3202b","设备码失败：") + p.err };
+        if (p.ok && p.data && !p.data.pending) return { ok: false, err: siteText("arcade.copy.11a1cb187fa5","设备码没被授权") };
       }
-      return { ok: false, err: '设备码超时（重新发起即可）' };
+      return { ok: false, err: siteText("arcade.copy.333b8e830274","设备码超时（重新发起即可）") };
     }
 
     /* M23.1：设备码在浏览器里**必须**经过中继（GitHub 的换 token 接口不给跨域头）。
@@ -1354,14 +1355,14 @@
     if (relay && !(await relayAlive(relay))) {
       return {
         ok: false,
-        err: '设备码这条路要经过中继（' + relay + '），但当前网络连不上它（可能是网络/DNS 屏蔽或中继没部署）——改用「🔑 令牌码」只要 3 步；换个网络再点设备码也行',
-        tried: ['relay 可达性检查失败'],
+        err: siteText("arcade.copy.0a875e2ef352","设备码这条路要经过中继（") + relay + siteText("arcade.copy.951191f35f75","），但当前网络连不上它（可能是网络/DNS 屏蔽或中继没部署）——改用「🔑 令牌码」只要 3 步；换个网络再点设备码也行"),
+        tried: [siteText("arcade.copy.d1e88fb074e9","relay 可达性检查失败")],
       };
     }
 
     var dc = await ghTokenWithFallback({ client_id: c.clientId, scope: c.scope }, 'https://github.com/login/device/code');
     var r = dc.data || {};
-    if (!r.device_code) return { ok: false, err: '拿设备码失败：' + (r.error || '网络/CORS 受限') + '（尝试记录：' + dc.tried.join(' ｜ ') + '）', tried: dc.tried };
+    if (!r.device_code) return { ok: false, err: siteText("arcade.copy.47854837e994","拿设备码失败：") + (r.error || siteText("arcade.copy.ffa8c6f0b661","网络/CORS 受限")) + siteText("arcade.copy.c82c6517dd3f","（尝试记录：") + dc.tried.join(' ｜ ') + '）', tried: dc.tried };
     if (onCode) onCode({ user_code: r.user_code, verification_uri: r.verification_uri, expires_in: r.expires_in });
     var dl2 = Date.now() + Math.min(r.expires_in || 900, 900) * 1000;
     while (Date.now() < dl2) {
@@ -1373,11 +1374,11 @@
       var tj = t.data || {};
       if (tj.access_token) return finish(tj.access_token, ghTokenExtra(tj));
       if (tj.error && tj.error !== 'authorization_pending' && tj.error !== 'slow_down') {
-        return { ok: false, err: '设备码失败：' + (tj.error_description || tj.error) + '（' + t.tried.join(' ｜ ') + '）' };
+        return { ok: false, err: siteText("arcade.copy.9446a3b3202b","设备码失败：") + (tj.error_description || tj.error) + '（' + t.tried.join(' ｜ ') + '）' };
       }
-      if (!t.data) return { ok: false, err: '设备码轮询被挡：' + t.tried.join(' ｜ ') };
+      if (!t.data) return { ok: false, err: siteText("arcade.copy.32a4efa9579c","设备码轮询被挡：") + t.tried.join(' ｜ ') };
     }
-    return { ok: false, err: '设备码超时（重新发起即可）' };
+    return { ok: false, err: siteText("arcade.copy.333b8e830274","设备码超时（重新发起即可）") };
   }
 
   /** 依次用 form / json（并在配了中继时先走中继）POST；返回 {data, tried, mode} */
@@ -1394,7 +1395,7 @@
             tried.push(label + '/' + modes[i] + ' → HTTP ' + res.status + (res.json.error ? ' (' + res.json.error + ')' : ' ✓'));
             return { data: res.json, tried: tried, mode: label + '/' + modes[i], status: res.status };
           }
-          tried.push(label + '/' + modes[i] + ' → HTTP ' + res.status + ' 响应无法解析');
+          tried.push(label + '/' + modes[i] + ' → HTTP ' + res.status + siteText("arcade.copy.9c997f1e6ec9"," 响应无法解析"));
         } catch (e) {
           tried.push(label + '/' + modes[i] + ' → ' + why(e));
         }
@@ -1407,10 +1408,10 @@
     var c = cfg().github;
     var rows = [];
     var cases = [
-      { name: 'form 换 token（不触发预检）', run: function () { return ghPost(ghUrl(GH_TOKEN_URL), { client_id: c.clientId, code: 'diagnostic', code_verifier: 'v'.repeat(43), redirect_uri: cfg().redirect }, 'form'); } },
-      { name: 'json 换 token（触发预检）', run: function () { return ghPost(ghUrl(GH_TOKEN_URL), { client_id: c.clientId, code: 'diagnostic', code_verifier: 'v'.repeat(43), redirect_uri: cfg().redirect }, 'json'); } },
-      { name: 'form 申请设备码', run: function () { return ghPost(ghUrl('https://github.com/login/device/code'), { client_id: c.clientId, scope: c.scope }, 'form'); } },
-      { name: '读取 api.github.com/user', run: function () { return fetch('https://api.github.com/user', { headers: { Accept: 'application/vnd.github+json' } }).then(function (r) { return { status: r.status, ok: r.ok, json: { note: '匿名请求（401 也算跨域正常）' } }; }); } },
+      { name: siteText("arcade.copy.9ce7b4213d7c","form 换 token（不触发预检）"), run: function () { return ghPost(ghUrl(GH_TOKEN_URL), { client_id: c.clientId, code: 'diagnostic', code_verifier: 'v'.repeat(43), redirect_uri: cfg().redirect }, 'form'); } },
+      { name: siteText("arcade.copy.68b42679451b","json 换 token（触发预检）"), run: function () { return ghPost(ghUrl(GH_TOKEN_URL), { client_id: c.clientId, code: 'diagnostic', code_verifier: 'v'.repeat(43), redirect_uri: cfg().redirect }, 'json'); } },
+      { name: siteText("arcade.copy.e38e8acf01e2","form 申请设备码"), run: function () { return ghPost(ghUrl('https://github.com/login/device/code'), { client_id: c.clientId, scope: c.scope }, 'form'); } },
+      { name: siteText("arcade.copy.fb987b93f260","读取 api.github.com/user"), run: function () { return fetch('https://api.github.com/user', { headers: { Accept: 'application/vnd.github+json' } }).then(function (r) { return { status: r.status, ok: r.ok, json: { note: siteText("arcade.copy.6c32fe99c243","匿名请求（401 也算跨域正常）") } }; }); } },
     ];
     for (var i = 0; i < cases.length; i++) {
       try {
@@ -1450,9 +1451,9 @@
     return r.ok;
   }
   async function serverSync(game) {
-    if (!serverMode()) return { ok: false, err: '云会话过期了，重新登录' };
+    if (!serverMode()) return { ok: false, err: siteText("arcade.copy.f6eb2889edde","云会话过期了，重新登录") };
     var remote;
-    try { remote = await serverRemote(game); } catch (e) { return { ok: false, err: '云端读取失败：' + e.message }; }
+    try { remote = await serverRemote(game); } catch (e) { return { ok: false, err: siteText("arcade.copy.d2e1199280d7","云端读取失败：") + e.message }; }
     var local = Account.slots(game), pulled = [], pushed = [];
     var map = {};
     local.forEach(function (s) { map[s.slot] = s; });
@@ -1474,7 +1475,7 @@
     return { ok: true, provider: 'server', pulled: pulled, pushed: pushed };
   }
   async function serverPushAll(game) {
-    if (!serverMode()) return { ok: false, err: '云会话过期了，重新登录' };
+    if (!serverMode()) return { ok: false, err: siteText("arcade.copy.f6eb2889edde","云会话过期了，重新登录") };
     var slots = Account.slots(game), done = [];
     for (var i = 0; i < slots.length; i++) {
       if (await serverPut(game, slots[i].slot, Account.saveGet(game, slots[i].slot))) done.push(slots[i].slot);
@@ -1482,9 +1483,9 @@
     return { ok: true, provider: 'server', pushed: done };
   }
   async function serverPullAll(game) {
-    if (!serverMode()) return { ok: false, err: '云会话过期了，重新登录' };
+    if (!serverMode()) return { ok: false, err: siteText("arcade.copy.f6eb2889edde","云会话过期了，重新登录") };
     var remote;
-    try { remote = await serverRemote(game); } catch (e) { return { ok: false, err: '云端读取失败：' + e.message }; }
+    try { remote = await serverRemote(game); } catch (e) { return { ok: false, err: siteText("arcade.copy.d2e1199280d7","云端读取失败：") + e.message }; }
     var done = [];
     for (var i = 0; i < remote.length; i++) {
       var data = await serverGet(game, remote[i].slot);
@@ -1504,9 +1505,9 @@
       var j = null; try { j = t ? JSON.parse(t) : null; } catch (e) { /* 非 JSON */ }
       if (!r.ok) return { ok: false, err: (j && j.message) || ('HTTP ' + r.status), status: r.status };
       return { ok: true, data: j, status: r.status };
-    }).catch(function (e) { return { ok: false, err: '网络或跨域失败：' + e.message }; });
+    }).catch(function (e) { return { ok: false, err: siteText("arcade.copy.5bb618775945","网络或跨域失败：") + e.message }; });
   }
-  var GIST_DESC = 'bobbychina.github.io/games 云存档（自动生成，可随时删除）';
+  var GIST_DESC = siteText("arcade.copy.3d19d5e78411","bobbychina.github.io/games 云存档（自动生成，可随时删除）");
   async function gistEnsure(token) {
     var db = loadDB(), uidRaw = Account.currentUid();
     var u = db.users[uidRaw];

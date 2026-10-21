@@ -1,0 +1,20 @@
+:root{--bg:#151217;--panel-a:#241d25;--panel-b:#19161b;--edge:#5b474c;--edge-hi:#9c7a67;--gold:#dcc19a;--purple:#c3a5b3;--cyan:#b0c7ba;--red:#e08677;--green:#a5bd8f;--text:#eee2d0;--dim:#c0aca8;--dim2:#a28e94}
+body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg)}
+.panel{background:var(--panel-a);border:1px solid var(--edge);border-radius:2px;box-shadow:0 16px 60px #0008;text-align:left}
+.panel::before,.panel::after{border-color:var(--gold);border-radius:0;opacity:.35;width:15px;height:15px}
+.panel h1{font-family:Georgia,"Songti SC",serif;font-size:34px;letter-spacing:3px;color:var(--text);text-shadow:none}
+.panel h2,.panel h2.dead,.panel h2.clear{color:var(--gold);text-shadow:none}
+.panel h1::before{content:'NOCTURNE / SURVIVORS';display:block;font:10px Consolas,monospace;letter-spacing:3px;color:var(--gold);margin-bottom:8px}
+.panel .sub{color:var(--dim)}
+.best,.keys,.stat,.cloud,.lb,.ranks,.skin-btn,.phases,.notes,.cbtn{border-radius:2px!important;box-shadow:none!important;background:var(--panel-b)}
+.best{border-left:2px solid var(--gold)}.best b,.stat .v{text-shadow:none;color:var(--gold)}
+.btn,.btn.primary{background:var(--gold);color:#251e24;border:1px solid var(--gold);border-radius:1px;box-shadow:none;text-shadow:none}
+.btn:hover{box-shadow:none;filter:brightness(1.08)}
+.stat{background:var(--panel-b);border-color:var(--edge)}
+.bar-hp i,.bar-hp.low i{background:#c86d61;box-shadow:none}.bar-xp i{background:var(--cyan);box-shadow:none}
+.bar{border-radius:0}.keys kbd{border-radius:0;background:var(--panel-a);border-color:var(--edge);color:var(--text)}
+#site-bar a,#site-bar span{border-radius:1px!important;background:#211a22!important;color:var(--text)!important;border-color:var(--edge)!important}
+.cloud input,.cloud select{border-radius:1px;background:var(--panel-b);color:var(--text);border-color:var(--edge)}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@media(max-width:600px){#overlays{padding-top:46px}.panel h1{font-size:27px;letter-spacing:1px}.panel h1::before{font-size:9px}.panel{padding:20px 16px}.stat{padding:3px 6px}.stat .v{font-size:13px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

@@ -21,7 +21,8 @@
 
   /* ── 语言注册表（唯一的语言清单，切换器由它生成） ── */
   var LANGS = [
-    { code: 'zh-CN', label: '中文', tag: 'zh-CN' },
+    { code: 'zh-CN', label: '简体', tag: 'zh-CN' },
+    { code: 'zh-TW', label: '繁體', tag: 'zh-TW' },
     { code: 'en',    label: 'EN',   tag: 'en' }
   ];
   var DEFAULT = 'zh-CN';
@@ -33,6 +34,8 @@
   var cur = DEFAULT;
   var subs = [];
   var cssDone = false;
+  var requestId = 0;
+  var bindings = new Map();
 
   var CSS = ''
     + '.i18n-sw{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono,Consolas,monospace);vertical-align:middle}'
@@ -43,17 +46,21 @@
     + 'border-color:color-mix(in srgb,var(--green,#3fd07a) 45%,transparent)}';
 
   function known(code) { for (var i = 0; i < LANGS.length; i++) if (LANGS[i].code === code) return LANGS[i]; return null; }
+  function normalize(code) {
+    var value = String(code || '').toLowerCase().replace(/_/g, '-');
+    if (/^zh-(?:tw|hk|mo|hant)(?:-|$)/.test(value)) return 'zh-TW';
+    if (/^zh(?:-|$)/.test(value)) return 'zh-CN';
+    if (/^en(?:-|$)/.test(value)) return 'en';
+    return null;
+  }
 
   function detect() {
     var q = '';
     try { q = new URLSearchParams(location.search).get('lang') || ''; } catch (e) { /* 老浏览器忽略 */ }
-    if (q && known(q)) return q;
-    try { var s = localStorage.getItem(STORE); if (s && known(s)) return s; } catch (e) { /* 无痕模式 */ }
-    var n = String((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
-    for (var i = 0; i < LANGS.length; i++) {
-      var c = LANGS[i].code.toLowerCase();
-      if (n === c || n.indexOf(c.split('-')[0]) === 0) return LANGS[i].code;
-    }
+    if (normalize(q)) return normalize(q);
+    try { var s = localStorage.getItem(STORE); if (normalize(s)) return normalize(s); } catch (e) { /* 无痕模式 */ }
+    var preferred = navigator.languages || [navigator.language];
+    for (var i = 0; i < preferred.length; i++) if (normalize(preferred[i])) return normalize(preferred[i]);
     return DEFAULT;
   }
 
@@ -81,7 +88,12 @@
     root = root || document;
     var i, el, list;
     list = nodes(root, '[data-i18n]');
-    for (i = 0; i < list.length; i++) { el = list[i]; el.textContent = t(el.getAttribute('data-i18n')); }
+    for (i = 0; i < list.length; i++) {
+      el = list[i];
+      var vars = null;
+      try { vars = JSON.parse(el.getAttribute('data-i18n-vars') || 'null'); } catch (e) {}
+      el.textContent = t(el.getAttribute('data-i18n'), vars);
+    }
     list = nodes(root, '[data-i18n-html]');
     for (i = 0; i < list.length; i++) { el = list[i]; el.innerHTML = t(el.getAttribute('data-i18n-html')); }
     list = nodes(root, '[data-i18n-attr]');
@@ -123,7 +135,15 @@
   function commit() {
     apply(document);
     switchers();
-    for (var i = 0; i < subs.length; i++) { try { subs[i](cur); } catch (e) { if (global.console) console.error('[i18n]', e); } }
+    subs.slice().forEach(function (fn) { try { fn(cur); } catch (e) { if (global.console) console.error('[i18n]', e); } });
+    bindings.forEach(function (props, el) {
+      if (!el.isConnected) { bindings.delete(el); return; }
+      Object.keys(props).forEach(function (prop) {
+        var entry = props[prop];
+        if (el[prop] !== entry.value) { delete props[prop]; return; }
+        entry.value = entry.render(); el[prop] = entry.value;
+      });
+    });
     try { document.dispatchEvent(new CustomEvent('i18n:change', { detail: { lang: cur } })); } catch (e) { /* ignore */ }
   }
 
@@ -134,25 +154,32 @@
      那时 currentScript 已经是 null，取不到 —— 静态站不搞聪明，写死常量最稳。
      2026-10-09：站点授权上线时漏跳了这个号，线上词典被缓存成 9/29 那份，
      新词条全部显示成 key（表现为"i18n 没生效"）。改词典**必须**同时跳这里。 */
-  var VER = '20261009c';
+  var VER = '20261021res1';
 
   function loadAsync(code, cb) {
     var s = document.createElement('script');
     s.src = BASE + code + '.js' + (VER ? ('?v=' + VER) : '');
-    s.onload = s.onerror = function () { cb(); };
+    s.onload = function () { cb(!!DICT[code]); };
+    s.onerror = function () { cb(false); };
     document.head.appendChild(s);
   }
 
   function set(code) {
-    if (!known(code)) code = DEFAULT;
-    try { localStorage.setItem(STORE, code); } catch (e) { /* 无痕忽略 */ }
+    code = normalize(code) || DEFAULT;
+    var id = ++requestId;
+    function finish(ok) {
+      if (!ok || id !== requestId) return;
+      cur = code;
+      try { localStorage.setItem(STORE, code); } catch (e) {}
+      try { var url = new URL(location.href); url.searchParams.set('lang', code); history.replaceState(history.state, '', url); } catch (e) {}
+      commit();
+    }
     if (!DICT[code]) {                                        // 词典没加载过（用户手动切到别的语言）
       var loaded = false;
-      loadAsync(code, function () { if (loaded) return; loaded = true; cur = code; commit(); });
+      loadAsync(code, function (ok) { if (loaded) return; loaded = true; finish(ok); });
       return;
     }
-    cur = code;
-    commit();
+    finish(true);
   }
 
   function injectCss() {
@@ -164,7 +191,16 @@
     document.head.appendChild(s);
   }
 
-  function ready() { injectCss(); apply(document); switchers(); }
+  function ready() {
+    if (!DICT[cur]) {
+      loadAsync(DEFAULT, function (ok) {
+        if (ok) { cur = DEFAULT; ready(); commit(); }
+      });
+      return;
+    }
+    try { localStorage.setItem(STORE, cur); } catch (e) {}
+    injectCss(); apply(document); switchers();
+  }
 
   /* 词典在解析期同步加载 → 首次绘制前词条就绪，切语言不闪 */
   function boot() {
@@ -173,6 +209,7 @@
       // ⚠️ 这条是"首屏同步加载"，改词典不生效的元凶就在这里：早先只给 loadAsync 带了版本号，
       //    结果首次加载仍打到 CF 缓存的旧词典（实测线上一直显示旧词条 / 新键不生效）。
       document.write('<script src="' + BASE + cur + '.js' + (VER ? ('?v=' + VER) : '') + '"><\/script>');
+      document.write('<script src="' + BASE + 'errors.js?v=' + VER + '"><\/script>');
       document.addEventListener('DOMContentLoaded', ready);
     } else {
       loadAsync(cur, ready);
@@ -182,11 +219,54 @@
   global.I18N = {
     define: function (code, dict) { DICT[code] = dict; },
     t: t,
+    resolve: function (value) {
+      for (var code in DICT) {
+        var dict = DICT[code];
+        for (var key in dict) if (dict[key] === value) return t(key);
+      }
+      return value;
+    },
     apply: apply,
     set: set,
     current: function () { return cur; },
+    bind: function (el, prop, render) {
+      var value = render(); el[prop] = value;
+      var props = bindings.get(el) || {};
+      props[prop] = { render: render, value: value };
+      bindings.set(el, props);
+      return value;
+    },
+    error: function (data, status) {
+      var key = status === 401 ? 'common.error.unauthorized' : status === 403 ? 'common.error.forbidden' : status === 429 ? 'common.error.rateLimit' : status >= 500 ? 'common.error.server' : 'common.error.request';
+      var message = data && (data.message || data.error_description || data.error);
+      if (Array.isArray(message)) message = message.join('; ');
+      var errors = global.SITE_ERROR_KEYS || {};
+      if (typeof message === 'string' && errors[message]) return t(errors[message]);
+      return t(key, { status: status || '—' });
+    },
+    errorText: function (message) {
+      var value = String(message || '');
+      if (/failed to fetch|networkerror|fetch failed|load failed/i.test(value)) return t('common.error.network');
+      if (global.SITE_ERROR_KEYS && global.SITE_ERROR_KEYS[value]) return t(global.SITE_ERROR_KEYS[value]);
+      var match = null;
+      for (var code in DICT) for (var key in DICT[code]) {
+        var text = DICT[code][key];
+        if (text === value) return t(key);
+        if (text.length > 2 && !text.includes('<') && /[:：]\s*$/.test(text) && value.indexOf(text) === 0 && (!match || text.length > match.text.length)) match = {key:key,text:text};
+      }
+      if (match) return t(match.key) + global.I18N.errorText(value.slice(match.text.length));
+      var status = value.match(/HTTP\s+(\d{3})/);
+      return t('common.error.request',{status:status ? status[1] : '—'});
+    },
+    normalize: normalize,
+    number: function (value, options) { return new Intl.NumberFormat(cur, options).format(value); },
+    date: function (value, options) { return new Intl.DateTimeFormat(cur, options).format(new Date(value)); },
+    turnstileLanguage: function () { return cur === 'zh-TW' ? 'zh-tw' : cur === 'zh-CN' ? 'zh-cn' : 'en'; },
     langs: LANGS,
-    onChange: function (fn) { if (typeof fn === 'function') subs.push(fn); }
+    onChange: function (fn) {
+      if (typeof fn === 'function') subs.push(fn);
+      return function () { subs = subs.filter(function (entry) { return entry !== fn; }); };
+    }
   };
 
   boot();

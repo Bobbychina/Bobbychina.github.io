@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="dark">
 <head>
+<script src="/i18n/i18n.js?v=20261021res1"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bobby · 在做的和写过的东西</title>
-<meta name="description" content="Bobby（bobbychina）：做游戏、写工具、折腾静态站点与 AI 工具链。这里放着在做的东西和写下来的东西。">
-<meta property="og:title" content="Bobby · 在做的和写过的东西">
-<meta property="og:description" content="做游戏、写工具、折腾静态站点与 AI 工具链。">
+<title data-i18n="site.copy.41883ff1d91c">Bobby · 在做的和写过的东西</title>
+<meta name="description" content="Bobby（bobbychina）：做游戏、写工具、折腾静态站点与 AI 工具链。这里放着在做的东西和写下来的东西。" data-i18n-attr="content:site.copy.7bb513cfa944">
+<meta property="og:title" content="Bobby · 在做的和写过的东西" data-i18n-attr="content:site.copy.41883ff1d91c">
+<meta property="og:description" content="做游戏、写工具、折腾静态站点与 AI 工具链。" data-i18n-attr="content:site.copy.148254f325a2">
 <meta property="og:image" content="/og/home.png">
-<link rel="alternate" type="application/rss+xml" title="Bobby 的博客" href="/feed.xml">
+<link rel="alternate" type="application/rss+xml" title="Bobby 的博客" href="/feed.xml" data-i18n-attr="title:site.copy.286f579f7b36">
 <script src="/mac-block.js" defer></script>
 <!--
   2026-09-28 改版 v2（预览版 /new/，线上首页未动）
@@ -111,103 +112,96 @@
     li.row::before{left:-10px}
   }
 </style>
+<link rel="stylesheet" href="/assets/edition.css?v=20261011reset2">
 </head>
 <body>
 <div class="wrap">
 
-  <header class="top">
-    <div class="toprow">
-      <a class="name" href="/">Bobby<i>.</i></a>
-      <span class="spacer"></span>
-      <span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut">退出</button></span>
-      <a class="iconbtn" id="btnIn" href="/login/" style="border-bottom:0">登录</a>
-      <button class="iconbtn" id="btnTheme" title="切换深浅色">☾ 深色</button>
-    </div>
-    <nav class="tabs">
-      <a href="#projects" class="on">在做的东西</a>
-      <a href="/posts/">写下来的</a>
-      <a href="/games/">游戏厅</a>
-      <a href="#about">关于</a>
-    </nav>
-  </header>
+  <header class="top site-header"><span data-i18n-switch></span>
+  <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
+  <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" class="on" aria-current="page" data-i18n="nav.projects">作品</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/posts/" data-i18n="nav.posts">文章</a><a href="/resources/" data-i18n="nav.resources">资源</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
+  <div class="header-actions"><span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut"><span data-i18n="games.acct.signOut">退出</span></button></span><a class="iconbtn" id="btnIn" href="/login/"><span data-i18n="games.login.do">登录</span></a><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
+ </header>
 
-  <h1>我做<em style="font-style:normal">游戏</em>，也做让人少干活的<em style="font-style:normal">工具</em><span class="seal">。</span></h1>
-  <p class="lead">我是 <b>Bobbychina</b>，独立开发者、AI 爱好者。喜欢把想法做成能点开就玩、能双击就跑的东西——
-    浏览器里跑的游戏、开发者工具，以及一些把重复劳动吃掉的小插件。</p>
+  <h1><span data-i18n="site.copy.e498a2ea64df">我做</span><em style="font-style:normal"><span data-i18n="account.thGame">游戏</span></em><span data-i18n="site.copy.b39493889a68">，也做让人少干活的</span><em style="font-style:normal"><span data-i18n="site.copy.5ca6730d4415">工具</span></em><span class="seal">。</span></h1>
+  <p class="lead"><span data-i18n="site.copy.06ba27715e26">我是</span> <b>Bobbychina</b><span data-i18n="site.copy.99f45b6c7bd3">，独立开发者、AI 爱好者。喜欢把想法做成能点开就玩、能双击就跑的东西——
+    浏览器里跑的游戏、开发者工具，以及一些把重复劳动吃掉的小插件。</span></p>
 
-  <h2 id="projects">在做的东西</h2>
+  <span class="studio-kicker">BOBBYCHINA / INDEPENDENT PLAY</span>
+<section class="studio-shelf" aria-label="在线游戏精选" data-i18n-attr="aria-label:site.copy.85387afec3b6">
+ <a class="studio-feature" href="/games/zombie-survival/"><img src="/assets/art/embers-20261010.webp" alt="" width="640" height="360"><small>01 / SURVIVAL</small><strong><span data-i18n="home.reset.survival">丧尸末日生存</span></strong><span><span data-i18n="site.copy.9a9d94431385">探索大世界，守住你的安全屋。</span></span><b><span data-i18n="site.copy.54ae913b55e0">进入世界 ↗</span></b></a>
+ <a class="studio-feature" href="/games/racing3d/"><img src="/assets/art/circuit-20261010.webp" alt="" width="640" height="360"><small>02 / CIRCUIT</small><strong><span data-i18n="site.copy.9229e82de12b">极速椭圆</span></strong><span><span data-i18n="site.copy.fd314b4f73e4">刹车、入弯、抓住出弯线。</span></span><b><span data-i18n="site.copy.393cb0c6ff5d">驶入赛道 ↗</span></b></a>
+ <a class="studio-feature" href="/games/vampire-survivors/"><img src="/assets/art/nightfall-20261010.webp" alt="" width="640" height="360"><small>03 / NIGHTFALL</small><strong><span data-i18n="home.reset.nightfall">吸血鬼幸存者</span></strong><span><span data-i18n="site.copy.e24016e5751e">与朋友共创。撑过下一波怪物。</span></span><b><span data-i18n="site.copy.e77abd2f35cb">迎接夜幕 ↗</span></b></a>
+</section>
+<h2 id="projects"><span data-i18n="site.copy.224b68f6a306">在做的东西</span></h2>
   <ul class="list">
 
     <li class="row">
-      <a class="t" href="/games/zombie-survival/">zombie-survival</a><span class="who">可在线玩</span>
-      <p class="d">单机丧尸末日生存：<b>24×24 区块的大世界</b>、宝可梦式回合制战斗、季节/天气/体温、种菜、钓鱼、接水净化、伐木。构建产物是<b>一个自包含 HTML</b>，双击就能玩，不联网也行。</p>
-      <div class="go"><a href="/games/zombie-survival/">直接玩</a><a href="https://github.com/Bobbychina/zombie-survival">源码</a><span>TypeScript · Vite</span></div>
+      <a class="t" href="/games/zombie-survival/">zombie-survival</a><span class="who"><span data-i18n="site.copy.f68089944761">可在线玩</span></span>
+      <p class="d"><span data-i18n="site.copy.1ef1a575bd0b">单机丧尸末日生存：</span><b><span data-i18n="site.copy.8a73724aa622">24×24 区块的大世界</span></b><span data-i18n="site.copy.ca01994fb68a">、宝可梦式回合制战斗、季节/天气/体温、种菜、钓鱼、接水净化、伐木。构建产物是</span><b><span data-i18n="site.copy.07406ef7fa91">一个自包含 HTML</span></b><span data-i18n="site.copy.94cdee68dad1">，双击就能玩，不联网也行。</span></p>
+      <div class="go"><a href="/games/zombie-survival/"><span data-i18n="site.copy.b492c61e2627">直接玩</span></a><a href="https://github.com/Bobbychina/zombie-survival"><span data-i18n="games.src">源码</span></a><span>TypeScript · Vite</span></div>
     </li>
 
-    <li class="row">
-      <a class="t" href="/games/dreamcore/">纯走路 · 梦核</a><span class="who">可在线玩</span>
-      <p class="d">第一人称梦核步行模拟，纯 canvas 手写射线渲染、<b>零依赖零外联</b>：<b>没有敌人、没有追逐、没有目标</b>——只有走廊、灯、水声。8 种梦核分区、26 个房间，走错门会从另一个房间"醒"过来。</p>
-      <div class="go"><a href="/games/dreamcore/">直接玩</a><span>Canvas 2D · 单文件</span></div>
-    </li>
+
 
     <li class="row">
       <a class="t" href="https://github.com/bobbychina32747/StockGameOnlinePro">StockGameOnlinePro</a>
-      <p class="d">A 股模拟炒股：撮合引擎、涨跌停、分红、基金与风控，前后端全栈。虚拟盘，亏了不心疼。</p>
-      <div class="go"><a href="https://github.com/bobbychina32747/StockGameOnlinePro">源码</a><span>TypeScript · NestJS · React</span></div>
+      <p class="d"><span data-i18n="home.card.stock.why">A 股模拟炒股：撮合引擎、涨跌停、分红、基金与风控，前后端全栈。虚拟盘，亏了不心疼。</span></p>
+      <div class="go"><a href="https://github.com/bobbychina32747/StockGameOnlinePro"><span data-i18n="games.src">源码</span></a><span>TypeScript · NestJS · React</span></div>
     </li>
 
     <li class="row">
-      <a class="t" href="https://github.com/Bobbychina/dsh-newline-enter">dsh-newline-enter</a><span class="who">插件</span>
-      <p class="d">输入增强插件：<b>Ctrl/Cmd+Enter 换行不误发</b>，外加一个全屏 Markdown 提示词编辑器（工具栏、实时预览、快捷键）。</p>
-      <div class="go"><a href="https://github.com/Bobbychina/dsh-newline-enter">源码</a><span>JavaScript</span></div>
+      <a class="t" href="https://github.com/Bobbychina/dsh-newline-enter">dsh-newline-enter</a><span class="who"><span data-i18n="home.card.dsh.tag2">插件</span></span>
+      <p class="d"><span data-i18n="site.copy.3e2173d40501">输入增强插件：</span><b><span data-i18n="site.copy.d18f8d440cdd">Ctrl/Cmd+Enter 换行不误发</span></b><span data-i18n="site.copy.1db8e26dc1fa">，外加一个全屏 Markdown 提示词编辑器（工具栏、实时预览、快捷键）。</span></p>
+      <div class="go"><a href="https://github.com/Bobbychina/dsh-newline-enter"><span data-i18n="games.src">源码</span></a><span>JavaScript</span></div>
     </li>
 
     <li class="row">
-      <a class="t" href="https://github.com/bobbychina32747/dsh-peak-price-guard">dsh-peak-price-guard</a><span class="who">插件</span>
-      <p class="d">按价格峰谷调度：把不紧急的请求挪到低谷时段执行，避开高峰溢价。省下来的都是真金白银。</p>
-      <div class="go"><a href="https://github.com/bobbychina32747/dsh-peak-price-guard">源码</a><span>JavaScript</span></div>
+      <a class="t" href="https://github.com/bobbychina32747/dsh-peak-price-guard">dsh-peak-price-guard</a><span class="who"><span data-i18n="home.card.dsh.tag2">插件</span></span>
+      <p class="d"><span data-i18n="home.card.ppg.why">按价格峰谷调度：把不紧急的请求挪到低谷时段执行，避开高峰溢价。省下来的都是真金白银。</span></p>
+      <div class="go"><a href="https://github.com/bobbychina32747/dsh-peak-price-guard"><span data-i18n="games.src">源码</span></a><span>JavaScript</span></div>
     </li>
 
     <li class="row">
-      <a class="t" href="https://github.com/bobbychina32747/token-miser">token-miser</a><span class="who">规则集</span>
-      <p class="d">一组"让 AI 少废话"的规则集：先说结果、不复述需求、能一行说清就不写一段。写给所有按量计费的场合。</p>
-      <div class="go"><a href="https://github.com/bobbychina32747/token-miser">源码</a><span>Prompt</span></div>
+      <a class="t" href="https://github.com/bobbychina32747/token-miser">token-miser</a><span class="who"><span data-i18n="home.card.tok.tag1">规则集</span></span>
+      <p class="d"><span data-i18n="home.card.tok.why">一组"让 AI 少废话"的规则集：先说结果、不复述需求、能一行说清就不写一段。写给所有按量计费的场合。</span></p>
+      <div class="go"><a href="https://github.com/bobbychina32747/token-miser"><span data-i18n="games.src">源码</span></a><span>Prompt</span></div>
     </li>
 
     <li class="row">
       <a class="t" href="https://github.com/Bobbychina/Bobbychina.github.io">bobbychina.github.io</a>
-      <p class="d">你正在看的这个站点：<b>零依赖静态单页</b>，外加 <a href="/games/">/games/</a> 游戏厅——那里有一套纯前端账号系统，可把存档同步进你自己的私有 Gist。</p>
-      <div class="go"><a href="https://github.com/Bobbychina/Bobbychina.github.io">源码</a><span>HTML · 零依赖</span></div>
+      <p class="d"><span data-i18n="site.copy.ca1a81c58e01">你正在看的这个站点：</span><b><span data-i18n="site.copy.3a5f13edcd89">零依赖静态单页</span></b><span data-i18n="site.copy.34dac8fa4582">，外加</span> <a href="/games/">/games/</a> <span data-i18n="site.copy.eab91f992001">游戏厅——那里有一套纯前端账号系统，可把存档同步进你自己的私有 Gist。</span></p>
+      <div class="go"><a href="https://github.com/Bobbychina/Bobbychina.github.io"><span data-i18n="games.src">源码</span></a><span><span data-i18n="site.copy.7ffe171ce3ca">HTML · 零依赖</span></span></div>
     </li>
 
   </ul>
 
-  <h2 id="writing">写下来的</h2>
+  <h2 id="writing"><span data-i18n="site.copy.998e9e2a0169">写下来的</span></h2>
   <ul class="list">
     <li class="row">
-      <a class="t" href="/posts/self-hosted-in-tokyo/">把站搬到自己机器上：东京 · nginx · 一个容器</a>
-      <p class="d">从 GitHub Pages 搬到自建服务器，顺手把 CF Pages Functions 的两块服务端逻辑用 nginx 复刻了。附两个必踩的坑。</p>
-      <div class="go"><a href="/posts/">全部文章</a><a href="/feed.xml">RSS</a></div>
+      <a class="t" href="/posts/self-hosted-in-tokyo/"><span data-i18n="site.copy.9bf24f14b06f">把站搬到自己机器上：东京 · nginx · 一个容器</span></a>
+      <p class="d"><span data-i18n="site.copy.776669bca830">从 GitHub Pages 搬到自建服务器，顺手把 CF Pages Functions 的两块服务端逻辑用 nginx 复刻了。附两个必踩的坑。</span></p>
+      <div class="go"><a href="/posts/"><span data-i18n="site.copy.1ab08ebf5324">全部文章</span></a><a href="/feed.xml">RSS</a></div>
     </li>
   </ul>
 
-  <h2 id="about">关于</h2>
+  <h2 id="about"><span data-i18n="nav.about">关于</span></h2>
   <div class="about">
-    <p>我在做的东西基本都围绕一个念头：<b>把想法变成能立刻跑起来的东西</b>。所以偏好多做"单文件、零依赖、双击就能用"的形态，也愿意花时间在那些看不见但决定手感的地方——寻路花费、资源产出、一个数值改动会不会让整局失衡。</p>
-    <p>写代码时我喜欢把逻辑与参数分开：数值单独成表，配单测和长时间模拟跑一遍，确认不会把游戏玩坏再交付。这套习惯来自做交易系统时的教训——数字错了，界面再好看也没用。</p>
-    <p>我对 AI 工具链本身也很感兴趣——从插件、提示词工程，到"怎么让 agent 稳定地把活干完"的工作流。这个站点和上面的项目大多就是这么长出来的；代码、测试与验收记录都在仓库里，欢迎直接看、直接提 issue。</p>
+    <p><span data-i18n="site.copy.7f6d96d963f3">我在做的东西基本都围绕一个念头：</span><b><span data-i18n="site.copy.b764bb22196e">把想法变成能立刻跑起来的东西</span></b><span data-i18n="site.copy.b4ded8a286b0">。所以偏好多做"单文件、零依赖、双击就能用"的形态，也愿意花时间在那些看不见但决定手感的地方——寻路花费、资源产出、一个数值改动会不会让整局失衡。</span></p>
+    <p><span data-i18n="home.about.p2">写代码时我喜欢把逻辑与参数分开：数值单独成表，配单测和长时间模拟跑一遍，确认不会把游戏玩坏再交付。这套习惯来自做交易系统时的教训——数字错了，界面再好看也没用。</span></p>
+    <p><span data-i18n="site.copy.d6d696d38074">我对 AI 工具链本身也很感兴趣——从插件、提示词工程，到"怎么让 agent 稳定地把活干完"的工作流。这个站点和上面的项目大多就是这么长出来的；代码、测试与验收记录都在仓库里，欢迎直接看、直接提 issue。</span></p>
     <dl class="facts">
-      <dt>主账号</dt><dd><a href="https://github.com/Bobbychina">github.com/Bobbychina</a></dd>
-      <dt>旧账号</dt><dd><a href="https://github.com/bobbychina32747">github.com/bobbychina32747</a></dd>
-      <dt>常用</dt><dd>TypeScript · React · Vite · Node.js · Python</dd>
-      <dt>在玩</dt><dd>游戏逻辑与数值设计、静态站点工程化、AI 工具链</dd>
-      <dt>本站</dt><dd>纯静态单页：无 Cookie 追踪、无第三方脚本；跑在东京的一台小机器上</dd>
+      <dt><span data-i18n="home.about.dt1">主账号</span></dt><dd><a href="https://github.com/Bobbychina">github.com/Bobbychina</a></dd>
+      <dt><span data-i18n="home.about.dt2">旧账号</span></dt><dd><a href="https://github.com/bobbychina32747">github.com/bobbychina32747</a></dd>
+      <dt><span data-i18n="home.about.dt3">常用</span></dt><dd>TypeScript · React · Vite · Node.js · Python</dd>
+      <dt><span data-i18n="home.about.dt4">在玩</span></dt><dd><span data-i18n="home.about.dd4">游戏逻辑与数值设计、静态站点工程化、AI 工具链</span></dd>
+      <dt><span data-i18n="home.about.dt5">本站</span></dt><dd><span data-i18n="site.copy.119cbd60f0f4">纯静态单页：无 Cookie 追踪、无第三方脚本；跑在东京的一台小机器上</span></dd>
     </dl>
   </div>
 
   <footer>
-    <span>© 2026 Bobby · <a href="https://github.com/Bobbychina/Bobbychina.github.io/issues">提 issue</a></span>
-    <span class="hand">机房在东京，人在北京</span>
+    <span>© 2026 Bobby · <a href="https://github.com/Bobbychina/Bobbychina.github.io/issues"><span data-i18n="site.copy.e6a0155771de">提 issue</span></a></span>
+    <span class="hand"><span data-i18n="site.copy.a4a34c096f4f">机房在东京，人在北京</span></span>
   </footer>
 
 </div>
@@ -221,7 +215,7 @@
   function apply(t){
     document.documentElement.setAttribute('data-theme',t);
     var b=document.getElementById('btnTheme');
-    if(b) b.textContent = t==='dark' ? '☾ 深色' : '☀ 浅色';
+    if(b) I18N.bind(b, "textContent", function(){return t==='dark' ? I18N.t("site.copy.e2ff2b4b22e4") : I18N.t("site.copy.71bca47baab4");});
   }
   apply(theme);
   document.getElementById('btnTheme').addEventListener('click',function(){

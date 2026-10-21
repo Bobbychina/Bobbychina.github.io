@@ -29,6 +29,8 @@ const ALLOW = {
 
 /* 账号 / 云存档 / 排行榜那台 Worker（API 转发用）。测试时可用 env.API_UPSTREAM 覆盖。 */
 const API_UPSTREAM = 'https://dsh-oauth-relay.bobby-minecraft.workers.dev';
+// Blog content moved to the main server; the legacy Worker has no blog endpoints.
+const BLOG_UPSTREAM = 'https://bobbycn.cc';
 
 /* 可选加固：只接受自己站点的跨域调用；Origin 缺失（curl 自测）照样放行。
    本地起静态服务器调试时也会命中（127.0.0.1 / localhost 的几个常用端口）。 */
@@ -74,7 +76,8 @@ export async function onRequest(context) {
   if (origin && ALLOW_ORIGINS.indexOf(origin) < 0) return json({ error: 'origin_not_allowed', origin }, 403, isApi ? API_CORS : CORS);
 
   if (isApi) {
-    const upstream = ((env && env.API_UPSTREAM) || API_UPSTREAM).replace(/\/+$/, '');
+    const isBlog = url.pathname === '/api/blog' || url.pathname.startsWith('/api/blog/');
+    const upstream = (isBlog ? BLOG_UPSTREAM : ((env && env.API_UPSTREAM) || API_UPSTREAM)).replace(/\/+$/, '');
     try {
       const headers = { accept: 'application/json' };
       const ct = request.headers.get('content-type'); if (ct) headers['content-type'] = ct;
@@ -82,7 +85,7 @@ export async function onRequest(context) {
       const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
       const body = hasBody ? await request.text() : undefined;
       const r = await fetch(upstream + url.pathname + (url.search || ''), { method: request.method, headers, body });
-      return new Response(await r.text(), { status: r.status, headers: { ...API_CORS, 'content-type': 'application/json' } });
+      return new Response(request.method === 'HEAD' || [204, 205, 304].includes(r.status) ? null : await r.text(), { status: r.status, headers: { ...API_CORS, 'content-type': 'application/json' } });
     } catch (e) {
       return json({ error: 'upstream_failed', message: String((e && e.message) || e) }, 502, API_CORS);
     }

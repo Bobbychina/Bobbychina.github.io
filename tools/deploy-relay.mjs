@@ -1,37 +1,41 @@
-/* 把 OAuth 中继部署到 Cloudflare Pages（*.pages.dev）
-   ----------------------------------------------------------------------------
-   为什么单独部署：本站是 **GitHub Pages**（纯静态），functions/ 目录只能被 Cloudflare Pages 执行；
-   而 `*.workers.dev` 在部分网络（校园网/运营商）被整段 DNS 黑洞，`*.pages.dev` 实测可用。
-
-   用法：node tools/deploy-relay.mjs [项目名]
-        需要先 `npx wrangler login`（或用 CLOUDFLARE_API_TOKEN 环境变量）。
-   部署内容：只用 functions/[[path]].js + 一个说明页（不把整个站点传上去）。
-   部署完把输出的 https://<项目名>.pages.dev 填进 games/auth-config.js 的 github.relay。
-*/
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+// Publish a verified complete mirror, never an explanation-only homepage.
+// Usage: WRANGLER_CLI=<installed cli.js> node tools/deploy-relay.mjs <project> <release>
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { tmpdir } from 'node:os';
+import { resolve, join, extname } from 'node:path';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const project = process.argv[2] || 'bobbychina-games';
-const stage = join(tmpdir(), 'dsh-relay-pages');
-
-await rm(stage, { recursive: true, force: true });
-await mkdir(stage, { recursive: true });
-await cp(join(root, 'functions'), join(stage, 'functions'), { recursive: true });
-await writeFile(join(stage, 'index.html'),
-  '<!doctype html><meta charset="utf-8"><title>dsh oauth relay</title>' +
-  '<body style="font:14px/1.7 system-ui;background:#0b0d10;color:#cfd2d6;padding:32px">' +
-  '<h1 style="font-size:18px">dsh oauth relay（Cloudflare Pages Function）</h1>' +
-  '<p>这个域名只干一件事：把 GitHub 的 <code>/login/device/code</code> 与 <code>/oauth/access_token</code> ' +
-  '原样转发并补上 CORS 头，供 <a style="color:#7fd6a5" href="https://bobbychina.github.io/games/">bobbychina.github.io/games</a> 的登录使用。</p>' +
-  '<p>只放行上面两个路径、只转发、不记录不落盘；不需要 client secret。源码见主页仓库 <code>functions/[[path]].js</code>。</p>' +
-  '</body>', 'utf8');
-
-console.log('[deploy-relay] staged at ' + stage + '（functions/ + index.html）');
-const r = spawnSync('npx', ['--yes', 'wrangler@3', 'pages', 'deploy', stage, '--project-name', project, '--branch', 'main', '--commit-dirty=true'],
-  { stdio: 'inherit', cwd: root, shell: true });
-console.log('[deploy-relay] wrangler exit=' + r.status);
-process.exit(r.status ?? 1);
+const [project, directory] = process.argv.slice(2);
+if (!project || !directory || !/^[a-z0-9-]+$/.test(project))
+  throw new Error('Usage: node tools/deploy-relay.mjs <project> <verified-release-directory>');
+const release = resolve(directory);
+const report = JSON.parse(await readFile(join(release, 'mirror-release.json'), 'utf8'));
+if (!Array.isArray(report.articles) || !report.articles.length)
+  throw new Error('Refusing to publish a mirror without production articles');
+for (const path of ['index.html', 'posts/index.html', '404.html', '_routes.json', ...report.articles])
+  await stat(join(release, path));
+const extensions = new Set(['.html', '.js', '.mjs', '.css', '.json', '.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.ico', '.woff', '.woff2', '.ttf', '.mp3', '.ogg', '.wav', '.wasm', '.glb', '.gltf', '.bin', '.xml', '.webmanifest']);
+async function audit(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (entry.isSymbolicLink() || (entry.name.startsWith('.') && entry.name !== '.nojekyll') ||
+        /^(?:tools|docs|node_modules|partner-kit|prod\.env)$/i.test(entry.name))
+      throw new Error('Unexpected deployment file: ' + entry.name);
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) await audit(path);
+    else {
+      if (!extensions.has(extname(path)) && !['.nojekyll', '_redirects'].includes(entry.name) && !/^(LICENSE|COPYING)/.test(entry.name))
+        throw new Error('Unexpected deployment extension: ' + entry.name);
+      if ((await stat(path)).size >= 25 * 1024 * 1024) throw new Error('Pages file exceeds 25 MiB: ' + entry.name);
+    }
+  }
+}
+await audit(release);
+if (process.env.MIRROR_VALIDATE_ONLY === '1') {
+  console.log('Mirror release passed deployment checks: ' + release);
+} else {
+  const args = ['pages', 'deploy', release, '--project-name', project, '--branch', 'main', '--commit-dirty=true'];
+  const cli = process.env.WRANGLER_CLI;
+  if (!cli) throw new Error('Set WRANGLER_CLI to an installed wrangler CLI; this tool never installs software');
+  const result = spawnSync(process.execPath, [resolve(cli), ...args], { stdio: 'inherit', cwd: release, env: { ...process.env, CI: 'true' } });
+  if (result.error) throw result.error;
+  process.exitCode = result.status ?? 1;
+}

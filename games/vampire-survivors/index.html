@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script src="/i18n/i18n.js?v=20261021res1"></script>
 <meta charset="UTF-8">
 <script src="/mac-block.js"></script>   <!-- macOS 拦截：同步执行、紧跟 charset（见文件头注释） -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <!-- CSP：本站托管的共创作品同样不许外联 —— 游戏本体完全自包含（精灵是 data:image/png;base64、音效走 WebAudio）。
      connect-src 放行的那几个是**云存档**要用的：api.github.com（你自己的私有 Gist）、
      中继/云账号后端（auth-config.js 里那台 Cloudflare）。不登录就一个请求都不会发。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev; base-uri 'self'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://bobbycn.cc https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev; base-uri 'self'; form-action 'none'">
 <title>吸血鬼幸存者 · Vampire Survivors</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/nightfall-edition.css?v=20261009art">
+<link rel="stylesheet" href="css/art-reset.css?v=20261010">
 </head>
 <body>
 
@@ -70,14 +73,14 @@
       <h1>吸血鬼幸存者</h1>
       <p class="sub">在无尽的怪物潮中活下去 · 共 <b id="startLevels">2</b> 关，第一关 <b>15 分钟</b>过关</p>
       <div class="best">最高存活时间：<b id="startBest">--:--</b></div>
-      <ul class="keys">
+      <details class="field-guide"><summary>猎人手册 · 操作与关卡规则</summary><ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 武器<b>自动攻击</b> · <kbd>Shift</kbd> <b>闪避</b> · <kbd>E</kbd> <b>切骨刃范围</b> · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
         <li>拾取经验球升级，三张卡里选一项增益（含"缺什么补什么"的<b>流派增益</b>）</li>
         <li>满 <b>3 分钟</b>起击杀有 <b>5%</b> 掉<b>金色经验球</b>（顶 100 颗）；打完 5 分钟的 Boss 升到 <b>20%</b></li>
         <li><b>5 分钟</b>的 Boss 送<b>等级 +1 + 宠物</b>；<b>10 分钟</b>柠檬猪登场（扇形 / 环形 / 酸液池三种轮换）</li>
         <li><b>15 分钟</b>过关进<b>第二关</b>：<b>从 1 级重来</b>、怪血 ×1.3、<b>没有喘息</b>、地上冒<b>柠檬酸池</b>、技能<b>小幅加强</b>，另有新武器/增益/宠物</li>
         <li>第二关 <b>12:00</b> 刷最终 Boss，<b>15:00 前必须打死</b>它，否则这一局无法通关</li>
-      </ul>
+      </ul></details>
       <div class="phases">
         <div><b>0–2 分</b><span>正常</span></div>
         <div class="ph-horde"><b>2–4 分</b><span>尸潮 · 僵尸暴增</span></div>
@@ -160,8 +163,10 @@
 <!-- ======== 模块加载顺序（经典 script + VS 命名空间，file:// 双击即可运行）=======
      defer：线上 20 个文件串行下载约 15s（每请求 0.6~1.0s），defer 后并行拉取且仍保证执行顺序 -->
 <!-- 云存档：站点既有的账号库（登录 + 私有 Gist 读写都在它里面），没登录时零请求 -->
-<script defer src="/games/auth-config.js"></script>
-<script defer src="/games/account.js?v=20260929c"></script>
+<script defer src="/games/auth-config.js?v=20261021res1"></script>
+<script defer src="/games/site-auth.js?v=20261021res1"></script>
+<script defer src="/games/site-saves.js?v=20261021res1"></script>
+<script defer src="/games/account.js?v=20261021res1"></script>
 <script defer src="js/core/namespace.js"></script>
 <script defer src="js/core/utils.js"></script>
 <script defer src="js/game/config.js"></script>
@@ -169,7 +174,7 @@
 <script defer src="js/game/levels.js"></script>
 <script defer src="js/core/save.js"></script>
 <script defer src="js/core/scores.js"></script>
-<script defer src="js/core/cloud.js"></script>
+<script defer src="js/core/cloud.js?v=20261021res1"></script>
 <script defer src="js/core/leaderboard.js"></script>
 <!-- 留言板：两边各写各的分文件，notes.js 只做聚合（谁都不用改对方那一段，git 合并不再打架） -->
 <script defer src="js/data/notes/bobbychina.js"></script>
@@ -190,7 +195,7 @@
 <script defer src="js/render/renderer.js"></script>
 <script defer src="js/ui/hud.js"></script>
 <script defer src="js/ui/panels.js"></script>
-<script defer src="js/ui/cloud-ui.js"></script>
+<script defer src="js/ui/cloud-ui.js?v=20261021res1"></script>
 <script defer src="js/ui/scores-ui.js"></script>
 <script defer src="js/ui/leaderboard-ui.js"></script>
 <script defer src="js/ui/notes-ui.js"></script>
@@ -199,5 +204,6 @@
 
 <!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
 
+<aside id="site-language" data-i18n-switch aria-label="Language" style="position:fixed;right:12px;bottom:12px;z-index:10000;padding:6px;background:var(--bg,#121110);border-radius:8px"></aside>
 </body>
 </html>

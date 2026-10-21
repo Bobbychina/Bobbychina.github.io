@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
+<script src="/i18n/i18n.js?v=20261021res1"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bobby · bobbycn.cc</title>
-<meta name="description" content="Bobby 的个人站：自己写的东西、自己跑的机器。">
+<meta name="description" content="Bobby 的个人站：自己写的东西、自己跑的机器。" data-i18n-attr="content:site.copy.c79df83d57ae">
 <!--
   破格策略（避免模板味）：
   情绪关键词 = 终端 / 深夜机房 / 手写便签
@@ -58,46 +59,53 @@
     .note{display:none}
   }
 </style>
+<link rel="stylesheet" href="/assets/edition.css?v=20261011reset2">
+<script src="/assets/site.js?v=20261021res1" defer></script>
 </head>
-<body>
+<body class="legacy-page">
+<header class="top site-header"><span data-i18n-switch></span>
+  <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
+  <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" class="on" aria-current="page" data-i18n="nav.projects">作品</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/posts/" data-i18n="nav.posts">文章</a><a href="/resources/" data-i18n="nav.resources">资源</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
+  <div class="header-actions"><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
+ </header>
 
   <div class="bar">
     <span><span class="dot">●</span> bobbycn.cc</span>
-    <span>东京 · 自建</span>
-    <span>Cloudflare 前置</span>
+    <span><span data-i18n="site.copy.9539ec5d5e93">东京 · 自建</span></span>
+    <span><span data-i18n="site.copy.811a180a7dc8">Cloudflare 前置</span></span>
     <span id="clock">--:--:-- CST</span>
   </div>
 
   <h1>Bobby <span class="tld">/ bobbychina</span></h1>
-  <p class="sub">自己写的东西，放在自己跑的机器上。这台机在东京，2 核 8G，我自己配的 nginx 和容器。</p>
+  <p class="sub"><span data-i18n="site.copy.712c225a029c">自己写的东西，放在自己跑的机器上。这台机在东京，2 核 8G，我自己配的 nginx 和容器。</span></p>
 
   <div class="sec">
-    <div class="h">运行中的服务</div>
+    <div class="h"><span data-i18n="site.copy.716af3f1a045">运行中的服务</span></div>
     <ul class="list">
       <li><a href="https://game.bobbycn.cc/">
-        <span class="st on"></span><span class="nm">模拟交易游戏</span>
-        <span class="path">game.bobbycn.cc</span><span class="note">A股/港股/美股 · NestJS + SQLite</span>
+        <span class="st on"></span><span class="nm"><span data-i18n="site.copy.01beb825b9c6">模拟交易游戏</span></span>
+        <span class="path">game.bobbycn.cc</span><span class="note"><span data-i18n="site.copy.84c35fde0c49">A股/港股/美股 · NestJS + SQLite</span></span>
       </a></li>
       <!-- TODO: 博客上线后把下面这条换成站内 /posts/ -->
       <li><a href="https://bobbychina.github.io/">
-        <span class="st soon"></span><span class="nm">博客</span>
-        <span class="path">bobbychina.github.io</span><span class="note">还在 GitHub Pages，正在搬过来</span>
+        <span class="st soon"></span><span class="nm"><span data-i18n="site.copy.7855e5e9727e">博客</span></span>
+        <span class="path">bobbychina.github.io</span><span class="note"><span data-i18n="site.copy.b8c755479367">还在 GitHub Pages，正在搬过来</span></span>
       </a></li>
       <li><a href="https://github.com/bobbychina">
-        <span class="st on"></span><span class="nm">代码</span>
-        <span class="path">github.com/bobbychina</span><span class="note">12 个自研 dsh 插件 + 一堆游戏</span>
+        <span class="st on"></span><span class="nm"><span data-i18n="site.copy.e6f04ffbaa42">代码</span></span>
+        <span class="path">github.com/bobbychina</span><span class="note"><span data-i18n="site.copy.501fc3c6d63c">12 个自研 dsh 插件 + 一堆游戏</span></span>
       </a></li>
     </ul>
   </div>
 
   <div class="why">
-    <em>为什么不用个托管面板了事。</em>因为想自己管这台机器的每一个进程、每一行配置——
-    也顺便把「数据在哪、谁能看」这件事攥在自己手里。
+    <em><span data-i18n="site.copy.6a15b2c94b4e">为什么不用个托管面板了事。</span></em><span data-i18n="site.copy.3a01cdbef27b">因为想自己管这台机器的每一个进程、每一行配置——
+    也顺便把「数据在哪、谁能看」这件事攥在自己手里。</span>
   </div>
 
   <footer>
-    <span>© 2026 Bobby · 本页静态，不埋统计</span>
-    <span class="hand">机房在东京，人在北京</span>
+    <span><span data-i18n="site.copy.599ca33caa76">© 2026 Bobby · 本页静态，不埋统计</span></span>
+    <span class="hand"><span data-i18n="site.copy.a4a34c096f4f">机房在东京，人在北京</span></span>
   </footer>
 
 <script>

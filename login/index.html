@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="dark">
 <head>
+<script src="/i18n/i18n.js?v=20261021res1"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>登录 · bobbycn.cc</title>
+<title data-i18n="site.copy.da4b6462c7b6">登录 · bobbycn.cc</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -46,47 +47,54 @@
   .top{position:absolute;top:18px;right:22px;z-index:2}
   .iconbtn{font:inherit;font-size:12.5px;color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 11px;cursor:pointer;width:auto;margin:0}
 </style>
+<link rel="stylesheet" href="/assets/atelier.css?v=20261021res1">
 </head>
-<body>
-<button class="iconbtn top" id="btnTheme">☾ 深色</button>
+<body class="identity-edition">
+<header class="top site-header"><span data-i18n-switch></span>
+  <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
+  <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" data-i18n="nav.projects">作品</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/posts/" data-i18n="nav.posts">文章</a><a href="/resources/" data-i18n="nav.resources">资源</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
+  <div class="header-actions"><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
+ </header>
+<main class="identity-layout">
 <div class="card">
-  <h1>登录</h1>
-  <p class="sub">这一份登录态覆盖整个 bobbycn.cc（含 game. 子域）。</p>
+  <h1><span data-i18n="games.login.do">登录</span></h1>
+  <p class="sub"><span data-i18n="site.copy.ef380407db53">这一份登录态覆盖整个 bobbycn.cc（含 game. 子域）。</span></p>
 
-  <label for="id">邮箱或用户名</label>
+  <label for="id"><span data-i18n="site.copy.1ef7b40a9c43">邮箱或用户名</span></label>
   <input id="id" autocomplete="username" autocapitalize="off" spellcheck="false">
-  <label for="pw">口令</label>
+  <label for="pw"><span data-i18n="site.copy.f265a7b34089">口令</span></label>
   <input id="pw" type="password" autocomplete="current-password">
 
-  <button id="btn">登录</button>
+  <button id="btn"><span data-i18n="games.login.do">登录</span></button>
   <div class="msg" id="msg"></div>
 
   <!-- 忘记口令：就地展开，走 /api/auth/identity/password/reset-request（不泄露邮箱是否存在） -->
   <div style="margin-top:14px">
-    <a href="#" id="forgot" style="font-size:12.5px;color:var(--dim);border-bottom:1px solid transparent">忘记口令？</a>
+    <a href="#" id="forgot" style="font-size:12.5px;color:var(--dim);border-bottom:1px solid transparent"><span data-i18n="site.copy.b8441756fa23">忘记口令？</span></a>
   </div>
   <div id="fbox" hidden style="margin-top:10px">
-    <input id="femail" type="email" placeholder="注册时用的邮箱" autocomplete="email">
+    <input id="femail" type="email" placeholder="注册时用的邮箱" autocomplete="email" data-i18n-attr="placeholder:site.copy.e4e644c97ca5">
     <!-- 同一张 widget：找回口令这条路同样要挡机器人（action 与注册区分开，服务端会核对） -->
-    <div class="cf-turnstile" data-sitekey="0x4AAAAAAFG_gA9qpBv-0gsz" data-action="password-reset" data-theme="dark" data-size="flexible" data-language="zh-cn" style="margin-top:12px"></div>
-    <button id="fbtn" style="margin-top:10px">发重置链接</button>
+    <div class="cf-turnstile" data-sitekey="0x4AAAAAAFG_gA9qpBv-0gsz" data-action="password-reset" data-theme="dark" data-size="flexible" data-language="auto" style="margin-top:12px"></div>
+    <button id="fbtn" style="margin-top:10px"><span data-i18n="site.copy.d4e97cffe3ba">发重置链接</span></button>
     <div class="msg" id="fmsg"></div>
   </div>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 
   <div class="foot">
-    <a href="/">← 回首页</a>
-    <a href="/register/">注册新账号</a>
-    <a href="/admin/">写作台</a>
-    <a href="/posts/">博客</a>
+    <a href="/"><span data-i18n="site.copy.91ed48734ad0">← 回首页</span></a>
+    <a href="/register/"><span data-i18n="site.copy.e6c3b53f19a5">注册新账号</span></a>
+    <a href="/admin/"><span data-i18n="account.admin">写作台</span></a>
+    <a href="/posts/"><span data-i18n="site.copy.7855e5e9727e">博客</span></a>
   </div>
 </div>
+</main>
 
 <script>
 (function(){
   var KEY='site-theme', saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
   var theme=(saved==='light'||saved==='dark')?saved:'dark';
-  function apply(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('btnTheme').textContent=t==='dark'?'☾ 深色':'☀ 浅色';}
+  function apply(t){document.documentElement.setAttribute('data-theme',t);I18N.bind(document.getElementById('btnTheme'), "textContent", function(){return t==='dark'?I18N.t("site.copy.e2ff2b4b22e4"):I18N.t("site.copy.71bca47baab4");});}
   apply(theme);
   document.getElementById('btnTheme').addEventListener('click',function(){
     theme=theme==='dark'?'light':'dark'; try{localStorage.setItem(KEY,theme);}catch(e){}; apply(theme);
@@ -108,25 +116,25 @@
   var next=safeNext(new URLSearchParams(location.search).get('next'));
   function go(){
     var id=document.getElementById('id').value.trim(), pw=document.getElementById('pw').value;
-    if(!id||!pw){ msg.textContent='邮箱/用户名和口令都要填'; return; }
-    btn.disabled=true; msg.textContent='登录中…';
+    if(!id||!pw){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.cafd6e226343");}); return; }
+    btn.disabled=true; I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.3f06ed8f8c38");});
     var body = id.indexOf('@')>=0 ? {email:id,password:pw} : {username:id,password:pw};
     fetch('/api/auth/identity/login',{method:'POST',credentials:'same-origin',
-      headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+      headers:{'content-type':'application/json','Accept-Language':I18N.current()},body:JSON.stringify(body)})
       .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
       .then(function(res){
-        if(res.ok){ msg.textContent='好了，正在跳转…'; location.href=next; return; }
-        msg.textContent = (res.d && (res.d.message||res.d.error)) || ('登录失败（'+res.status+'）');
+        if(res.ok){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.2fe5b668d7ee");}); location.href=next; return; }
+        I18N.bind(msg, "textContent", function(){return I18N.error(res.d,res.status) || (I18N.t("site.copy.46f6229f9c22")+res.status+'）');});
         btn.disabled=false;
       })
-      .catch(function(){ msg.textContent='网络错误，稍后再试'; btn.disabled=false; });
+      .catch(function(){ I18N.bind(msg, "textContent", function(){return I18N.t("site.copy.a47e6b8881b7");}); btn.disabled=false; });
   }
   btn.addEventListener('click',go);
   document.getElementById('pw').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
   /* 从游戏授权页被送过来的：把"你正在授权某某应用"说清楚，别让人以为莫名其妙被踢到登录页 */
   if(new URLSearchParams(location.search).get('next')){
     var app=(new URLSearchParams(location.search).get('next')||'').match(/client_id=([A-Za-z0-9._-]+)/);
-    document.querySelector('.sub').textContent='这一步是登录 bobbycn.cc 账号'+(app?('，授权「'+app[1]+'」使用它'):'')+'。';
+    I18N.bind(document.querySelector('.sub'), 'textContent', function(){return app ? I18N.t('login.authorize',{app:app[1]}) : I18N.t('login.authorizeGeneral');});
   }
 })();
 
@@ -136,9 +144,13 @@
   var link=document.getElementById('forgot'), box=document.getElementById('fbox');
   var fmsg=document.getElementById('fmsg'), fbtn=document.getElementById('fbtn');
   var tsWidget=null;
-  window.addEventListener('load', function(){
-    if(window.turnstile) tsWidget=window.turnstile.render('.cf-turnstile', { sitekey:'0x4AAAAAAFG_gA9qpBv-0gsz', action:'password-reset', theme:'dark', language:'zh-cn' });
-  });
+  function renderChallenge(){
+    if(!window.turnstile) return;
+    if(tsWidget!==null) window.turnstile.remove(tsWidget);
+    tsWidget=window.turnstile.render('.cf-turnstile', { sitekey:'0x4AAAAAAFG_gA9qpBv-0gsz', action:'password-reset', theme:'dark', language: I18N.turnstileLanguage() });
+  }
+  window.addEventListener('load',renderChallenge);
+  I18N.onChange(renderChallenge);
   function tsToken(){ try { return (tsWidget!==null&&window.turnstile)?(window.turnstile.getResponse(tsWidget)||''):''; } catch(e){ return ''; } }
   link.addEventListener('click',function(e){
     e.preventDefault(); box.hidden=!box.hidden;
@@ -146,20 +158,20 @@
   });
   fbtn.addEventListener('click',function(){
     var em=document.getElementById('femail').value.trim();
-    if(!em||em.indexOf('@')<0){ fmsg.textContent='请填一个像样的邮箱'; return; }
-    fbtn.disabled=true; fmsg.textContent='发送中…';
+    if(!em||em.indexOf('@')<0){ I18N.bind(fmsg, "textContent", function(){return I18N.t("site.copy.b374dd2809e9");}); return; }
+    fbtn.disabled=true; I18N.bind(fmsg, "textContent", function(){return I18N.t("site.copy.364970d8168c");});
     var payload={email:em}; var t=tsToken(); if(t) payload.cfToken=t;
     fetch('/api/auth/identity/password/reset-request',{method:'POST',credentials:'same-origin',
-      headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
+      headers:{'content-type':'application/json','Accept-Language':I18N.current()},body:JSON.stringify(payload)})
       .then(function(r){ return r.json().then(function(d){ return {ok:r.ok,status:r.status,d:d}; }); })
       .then(function(res){
-        fmsg.textContent = res.ok
-          ? '如果这个邮箱注册过，重置链接已经发出（30 分钟内有效）。'
-          : ((res.d&&(res.d.message||res.d.error))||('发送失败（'+res.status+'）'));
+        I18N.bind(fmsg, "textContent", function(){return res.ok
+          ? I18N.t("site.copy.0a024a6bae66")
+          : (I18N.error(res.d,res.status)||(I18N.t("site.copy.b93f4969a242")+res.status+'）'));});
         fbtn.disabled=false;
         try { if (tsWidget!==null&&window.turnstile) window.turnstile.reset(tsWidget); } catch(e){}
       })
-      .catch(function(){ fmsg.textContent='网络错误，稍后再试'; fbtn.disabled=false; });
+      .catch(function(){ I18N.bind(fmsg, "textContent", function(){return I18N.t("site.copy.a47e6b8881b7");}); fbtn.disabled=false; });
   });
 })();
 </script>

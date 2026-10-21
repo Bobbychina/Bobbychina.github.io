@@ -67,7 +67,9 @@ window.PsiConsole = (function () {
     '@media (prefers-reduced-motion: reduce){#term .ln{opacity:1;animation:none}}'
   ].join('');
 
-  function boot(cfg) {
+  function boot(config) {
+    var factory = typeof config === 'function' ? config : function () { return config; };
+    var cfg = factory();
     var st = { stage: cfg.stage, failKey: 'dsh_secret_fail' + cfg.stage, fails: 0, hintTier: -1, passed: false };
     st.fails = parseInt(ls(st.failKey) || '0', 10) || 0;
     st.passed = ls(cfg.storeKey) === 'ok';
@@ -82,7 +84,7 @@ window.PsiConsole = (function () {
       '<span class="title">' + esc(cfg.title || 'site-psi') + '</span></div>' +
       '<div class="body" id="tbody" role="log" aria-live="polite"></div>' +
       '<div class="row"><span class="ps1">psi@' + (cfg.stage === 1 ? 'terminal-03' : 'vault') + ':~$</span>' +
-      '<input id="tin" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="终端输入" placeholder="输入 help"></div>';
+      I18N.t("site.copy.79a0e300568a");
     var chips = document.createElement('div');
     chips.id = 'chips';
     chips.innerHTML = ['help', 'scan', 'hint', 'status'].map(function (c) {
@@ -94,35 +96,38 @@ window.PsiConsole = (function () {
     function out(text, cls) {
       var d = document.createElement('div');
       d.className = 'ln ' + (cls || 'sys');
-      d.textContent = text;
+      var state = Object.assign({}, st);
+      I18N.bind(d, 'textContent', function () { return I18N.resolve(typeof text === 'function' ? text(state) : text); });
       body.appendChild(d);
       body.scrollTop = body.scrollHeight;
     }
     function rule() { out('────────────────────────────────────────', 'dim'); }
 
     function assetLines() {
-      if (!cfg.assets || !cfg.assets.length) { out('[系统] 本阶段没有可下载资产。', 'dim'); return; }
-      out('[系统] 扫描到 ' + cfg.assets.length + ' 件资产：', 'sys');
+      if (!cfg.assets || !cfg.assets.length) { out(function(state){return I18N.t("site.copy.260d40720807");}, 'dim'); return; }
+      out(function(state){return I18N.t("site.copy.f7fcb8e28b61") + cfg.assets.length + I18N.t("site.copy.1e3cc3bc1577");}, 'sys');
       cfg.assets.forEach(function (a) {
-        out('  ' + a.id + '  ' + a.name + '  ' + a.bytes + '  — ' + a.note + '   ' + a.href, 'bc');
+        out(function () { return '  ' + a.id + '  ' + a.name + '  ' + a.bytes + '  — ' + I18N.resolve(a.note) + '   ' + a.href; }, 'bc');
       });
     }
     function statusLines() {
-      out('[状态] 阶段 ' + st.stage + ' / 失败次数 ' + st.fails + ' / 已放提示 ' + (st.hintTier < 0 ? '无' : ('第 ' + (st.hintTier + 1) + ' 档')), 'dim');
-      out('[状态] TIER-1 ' + (ls('dsh_secret_l1') === 'ok' ? '已授权' : '未授权') +
-          ' ｜ TIER-2 ' + (ls('dsh_secret_l2') === 'ok' ? '已授权' : '未授权'), 'dim');
+      var tierOne = ls('dsh_secret_l1') === 'ok', tierTwo = ls('dsh_secret_l2') === 'ok';
+      out(function(state){return I18N.t("site.copy.a2fbbfe8733b") + state.stage + I18N.t("site.copy.31e6e5d4b4e2") + state.fails + I18N.t("site.copy.b7e6a2599edb") + (state.hintTier < 0 ? I18N.t("site.copy.484d55613910") : (I18N.t("site.copy.9552fe3bd366") + (state.hintTier + 1) + I18N.t("site.copy.c46844ac5668")));}, 'dim');
+      out(function(){return I18N.t("site.copy.c19824ad4093") + (tierOne ? I18N.t("site.copy.521e65ffc7d0") : I18N.t("site.copy.94bc3d40defe")) +
+          ' ｜ TIER-2 ' + (tierTwo ? I18N.t("site.copy.521e65ffc7d0") : I18N.t("site.copy.94bc3d40defe"));}, 'dim');
     }
     function hintLines() {
       var tier = st.fails >= 6 ? 2 : (st.fails >= 3 ? 1 : 0);
-      var block = (cfg.hints && cfg.hints[tier]) || ['[系统] 暂无可用提示。'];
-      if (tier <= st.hintTier) { out('[系统] 这一档提示已经给过你了：', 'dim'); }
+      var block = (cfg.hints && cfg.hints[tier]) || [I18N.t("site.copy.793d7888f431")];
+      if (tier <= st.hintTier) { out(function(state){return I18N.t("site.copy.813c5611f061");}, 'dim'); }
       else { st.hintTier = tier; }
-      out('[提示 · 第 ' + (tier + 1) + ' 档' + (tier < 2 ? '（再失败几次会放开更多）' : '（最后一档）') + ']', 'warn');
+      out(function(state){return I18N.t("site.copy.7dc1a05a1b03") + (tier + 1) + I18N.t("site.copy.c46844ac5668") + (tier < 2 ? I18N.t("site.copy.424f041cab87") : I18N.t("site.copy.185f9ed5dc18")) + ']';}, 'warn');
       block.forEach(function (l) { out(l, 'sys'); });
     }
     function broadcast() {
       var lines = cfg.broadcast || [];
-      if (lines.length) out('[串扰] ' + lines[Math.floor(Math.random() * lines.length)], 'bc');
+      var line = lines[Math.floor(Math.random() * lines.length)];
+      if (lines.length) out(function(){return I18N.t("site.copy.8f79c2a19104") + I18N.resolve(line);}, 'bc');
     }
 
     function pass(name) {
@@ -131,26 +136,26 @@ window.PsiConsole = (function () {
       ls(cfg.storeKey + '_name', name);
       refreshBadge();
       rule();
-      out('[系统] 校验通过 · 结论：' + name, 'ok');
-      (cfg.onPass ? cfg.onPass(name) : []).forEach(function (l) { out(l, 'ok'); });
+      out(function(state){return I18N.t("site.copy.531c2c387247") + name;}, 'ok');
+      (cfg.onPass ? cfg.onPass(name) : []).forEach(function (l, i) { out(function () { return cfg.onPass ? cfg.onPass(name)[i] : l; }, 'ok'); });
       rule();
       statusLines();
     }
 
     function submit(v) {
-      if (!v) { out('[系统] 用法：submit <你的答案>', 'warn'); return; }
-      if (st.passed) { out('[系统] 这一阶段你已经通过了。', 'dim'); return; }
-      out('[系统] 正在本地校验（SHA-256，不联网）…', 'dim');
+      if (!v) { out(function(state){return I18N.t("site.copy.94c0b316cdd4");}, 'warn'); return; }
+      if (st.passed) { out(function(state){return I18N.t("site.copy.1ca027e69b56");}, 'dim'); return; }
+      out(function(state){return I18N.t("site.copy.8867c400e9cc");}, 'dim');
       sha256hex(cfg.salt + v).then(function (h) {
         if (h === cfg.hash) { pass(v); return; }
         st.fails += 1; ls(st.failKey, String(st.fails));
         rule();
-        out('[' + (cfg.failCode || 'E-403') + '] 校验未通过。本站已记录第 ' + st.fails + ' 次尝试。', 'err');
-        out('[系统] ' + (cfg.failLine || '回去看那一页残页。') , 'dim');
+        out(function(state){return '[' + (cfg.failCode || 'E-403') + I18N.t("site.copy.13dd4ce5ad36") + state.fails + I18N.t("site.copy.1105b88ed6ef");}, 'err');
+        out(function(state){return I18N.t("site.copy.19dcd561ea06") + (cfg.failLine || I18N.t("site.copy.a5dc3792e0b2"));} , 'dim');
         broadcast();
-        if ([3, 6].indexOf(st.fails) >= 0) out('[系统] 检测到你反复失败——广播里有人在替你说话，输入 hint 领取。', 'warn');
+        if ([3, 6].indexOf(st.fails) >= 0) out(function(state){return I18N.t("site.copy.3c1d5970270b");}, 'warn');
       }).catch(function () {
-        out('[系统] 当前环境不支持本地哈希校验，请用 https 或现代浏览器打开。', 'err');
+        out(function(state){return I18N.t("site.copy.7dd9067a6753");}, 'err');
       });
     }
 
@@ -162,8 +167,8 @@ window.PsiConsole = (function () {
       var cmd = (m ? m[1] : line).toLowerCase(), arg = m ? m[2].trim() : '';
       switch (cmd) {
         case 'help': case '?':
-          out('[指令] scan 扫描资产 ｜ submit <答案> 提交 ｜ hint 申请提示 ｜ status 状态 ｜ log 串扰记录 ｜ clear 清屏', 'sys');
-          out('[说明] 直接输入一串字符也会当成一次提交。', 'dim');
+          out(function(state){return I18N.t("site.copy.65fd33532be7");}, 'sys');
+          out(function(state){return I18N.t("site.copy.43364e15bc84");}, 'dim');
           break;
         case 'scan': case 'assets': case 'ls': assetLines(); break;
         case 'hint': hintLines(); break;
@@ -171,12 +176,18 @@ window.PsiConsole = (function () {
         case 'log': (cfg.log || []).forEach(function (l) { out(l, 'dim'); }); break;
         case 'clear': body.innerHTML = ''; break;
         case 'submit': submit(arg.toLowerCase().replace(/[\s-]/g, '')); break;
-        case 'open': if (cfg.nextUrl && st.passed) { out('[系统] ' + cfg.nextUrl, 'ok'); location.href = cfg.nextUrl; } else out('[系统] 还不能去那儿。', 'warn'); break;
+        case 'open': if (cfg.nextUrl && st.passed) { out(function(state){return I18N.t("site.copy.19dcd561ea06") + cfg.nextUrl;}, 'ok'); location.href = cfg.nextUrl; } else out(function(state){return I18N.t("site.copy.cb16e49200b2");}, 'warn'); break;
         default: submit(line.toLowerCase().replace(/[\s-]/g, ''));
       }
     }
 
     var input = document.getElementById('tin');
+    I18N.onChange(function () {
+      cfg = factory();
+      mount.querySelector('.title').textContent = cfg.title || 'site-psi';
+      input.setAttribute('aria-label', I18N.current() === 'en' ? 'Terminal input' : I18N.current() === 'zh-TW' ? '終端輸入' : '终端输入');
+      input.placeholder = I18N.current() === 'en' ? 'Enter help' : I18N.current() === 'zh-TW' ? '輸入 help' : '输入 help';
+    });
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { run(input.value); input.value = ''; } });
     chips.addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('button') : null;
@@ -187,10 +198,10 @@ window.PsiConsole = (function () {
     rule();
     refreshBadge();
     if (st.passed) {
-      out('[系统] 这一阶段已完成（本机存档）。', 'ok');
-      (cfg.onPass ? cfg.onPass(ls(cfg.storeKey + '_name') || '已通过') : []).forEach(function (l) { out(l, 'ok'); });
+      out(function(state){return I18N.t("site.copy.5978eed92372");}, 'ok');
+      (cfg.onPass ? cfg.onPass(ls(cfg.storeKey + '_name') || I18N.t("site.copy.3fa9b684903a")) : []).forEach(function (l) { out(l, 'ok'); });
     } else {
-      out('[系统] 输入 help 查看可用指令。', 'dim');
+      out(function(state){return I18N.t("site.copy.7ad9e7dca7b4");}, 'dim');
     }
     return st;
   }

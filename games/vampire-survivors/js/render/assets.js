@@ -16,6 +16,7 @@
 
   var images = Object.create(null);       // name -> Image
   var silhouettes = Object.create(null);  // name -> canvas（白色剪影）
+  var editionImages = Object.create(null);
   var total = 0;
   var loaded = 0;
   var supported = false;
@@ -61,6 +62,28 @@
     img.onload = function () {
       loaded++;
       buildSilhouette(name, img);
+      // Bake the warm, restrained palette once; never filter the whole frame.
+      try {
+        var c = makeCanvas(img.naturalWidth, img.naturalHeight);
+        var g = c && c.getContext('2d');
+        if (g) {
+          g.drawImage(img, 0, 0);
+          var pixels = g.getImageData(0, 0, c.width, c.height);
+          var p = pixels.data;
+          for (var k = 0; k < p.length; k += 4) {
+            if (!p[k + 3]) continue;
+            var luma = .2126 * p[k] + .7152 * p[k + 1] + .0722 * p[k + 2];
+            p[k] = Math.min(255, .92 * p[k] + .08 * luma + 3);
+            p[k + 1] = Math.min(255, .92 * p[k + 1] + .08 * luma + 3);
+            p[k + 2] = Math.min(255, .92 * p[k + 2] + .08 * luma + 6);
+          }
+          g.putImageData(pixels, 0, 0);
+          c.naturalWidth = c.width;
+          c.naturalHeight = c.height;
+          c.complete = true;
+          editionImages[name] = c;
+        }
+      } catch (e) { /* Original sprite remains usable. */ }
     };
     img.onerror = function () {
       loaded++;
@@ -103,7 +126,7 @@
 
     /** 取一张图；不存在返回 null */
     img: function (name) {
-      return images[name] || null;
+      return editionImages[name] || images[name] || null;
     },
 
     /** 取受击闪光用的白色剪影 */

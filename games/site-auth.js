@@ -52,20 +52,11 @@
    * 规则（顺序很重要）：
    *  1. 域名为 *.bobbycn.cc（含 staging）→ 用**当前源**：同源最省事，Cookie 也天然可用；
    *  2. 配置了 `site.relay`（跨源部署，或本机把游戏页面与后端分开跑）→ 用它；
-   *  3. 其它情况（GitHub Pages 镜像等）→ 也用当前源，靠门户自身的中继转发 /api。
+   *  3. sites 中登记的镜像 → 指定的 API 源；其它情况 → 当前源。
    *
    * ⚠️ 本机开发就是第 2 种：静态站在 :5180，后端在 :8099 —— 不能用当前源，
    * 否则每个 /api 请求都打到静态服务器上变成 404，而症状是"授权服务不可用"。
    */
-  function siteBase() {
-    var origin = '';
-    try { origin = location.origin; } catch (e) { origin = ''; }
-    var cfg = relay();
-    if (/(^|\.)bobbycn\.cc$/.test(hostname())) return origin;
-    if (cfg) return cfg;
-    return origin;
-  }
-
   function hostname() {
     try { return location.hostname || ''; } catch (e) { return ''; }
   }
@@ -86,10 +77,12 @@
   };
 
   function normalizeConfig(c) {
+    c = c || {};
+    var site = c.site || c;
     return {
-      relay: String((c && (c.relay || (c.github && c.github.relay))) || '').replace(/\/+$/, ''),
-      games: (c && c.games) || {},
-      sites: (c && c.sites) || null,
+      relay: String(site.relay || '').replace(/\/+$/, ''),
+      games: site.games || {},
+      sites: site.sites || null,
     };
   }
 
@@ -119,7 +112,7 @@
    * 规则（顺序很重要）：
    *  1. 域名为 *.bobbycn.cc（含 staging）→ 用**当前源**：同源最省事，Cookie 也天然可用；
    *  2. 配置了 `site.relay`（跨源部署，或本机把游戏页面与后端分开跑）→ 用它；
-   *  3. 其它情况（GitHub Pages 镜像等）→ 也用当前源，靠门户自身的中继转发 /api。
+   *  3. sites 中登记的镜像 → 指定的 API 源；其它情况 → 当前源。
    *
    * ⚠️ 本机开发就是第 2 种：静态站在 :5180，后端在 :8099。不能用当前源 ——
    * 否则每个 /api 请求都打到静态服务器上变成 404，症状却是"授权服务不可用"。
@@ -130,6 +123,7 @@
     if (/(^|\.)bobbycn\.cc$/.test(hostname())) return origin;
     var cfg = relay();
     if (cfg) return cfg;
+    if (config.sites && config.sites[hostname()]) return String(config.sites[hostname()]).replace(/\/+$/, '');
     return origin;
   }
 
@@ -165,6 +159,7 @@
     }
     var dir = currentDir();
     var seg = dir.replace(/\/+$/, '').split('/').pop() || '';
+    if (seg && config.games[seg]) return resolveClient(seg, null);
     if (seg === 'games') return 'bobbycn-games';
     return seg || 'bobbycn-games';
   }
@@ -174,9 +169,14 @@
       return String(explicit);
     var map = config.games || {};
     var entry = map[clientId];
+    Object.keys(map).some(function (k) {
+      var value = map[k];
+      if (value && typeof value === 'object' && (value.clientId || value.client) === clientId) { entry = value; return true; }
+      return false;
+    });
     if (entry && typeof entry !== 'string' && entry.redirect)
       return String(entry.redirect);
-    return siteBase().replace(/\/+$/, '') + currentDir() + 'oauth-callback.html';
+    return location.origin + '/games/oauth-callback.html';
   }
 
   // ───────────────────────── 小工具 ─────────────────────────
@@ -235,14 +235,16 @@
 
   function tokenFor(clientId) { return allTokens()[clientId] || null; }
 
-  function saveTokens(clientId, payload) {
+  function saveTokens(clientId, payload, preserveUser) {
     var box = allTokens();
+    var previous = box[clientId];
     box[clientId] = {
       access: payload.access_token,
       refresh: payload.refresh_token || (box[clientId] && box[clientId].refresh) || '',
       exp: nowMs() + (Number(payload.expires_in) || 600) * 1000,
       scope: payload.scope || '',
       savedAt: nowMs(),
+      user: payload.user || (preserveUser && previous && previous.user) || null,
     };
     writeJSON(localStorage, STORE.tokens, box);
     writeJSON(localStorage, STORE.known, clientId);
@@ -349,7 +351,7 @@
     var data = await res.json().catch(function () { return null; });
     if (!res.ok || !data || !data.access_token) {
       var why = (data && (data.error_description || data.error)) || ('HTTP ' + res.status);
-      throw new Error('授权码兑换失败：' + why);
+      throw new Error((global.I18N ? global.I18N.t("site.copy.17b0a3f5e4a4") : "授权码兑换失败：") + why);
     }
     var entry = saveTokens(clientId, data);
     if (data.user) cacheUser(clientId, data.user);
@@ -366,19 +368,19 @@
     if (cb.error) {
       clearPkce();
       var denied = cb.error === 'access_denied';
-      lastError = denied ? '你拒绝了这次授权' : ('授权失败：' + (cb.description || cb.error));
+      lastError = denied ? (global.I18N ? global.I18N.t("site.copy.d90464098516") : "你拒绝了这次授权") : ((global.I18N ? global.I18N.t("site.copy.b4a05f4922db") : "授权失败：") + (cb.description || cb.error));
       emit();
       return { handled: true, ok: false, denied: denied, error: lastError };
     }
     if (!box || !box.verifier) {
       // 常见原因：授权是在另一个浏览器/隐私窗口里完成的，sessionStorage 里没有 verifier
-      lastError = '这次授权的临时凭据已失效（可能是换了浏览器窗口或标签），请重新点一次登录';
+      lastError = (global.I18N ? global.I18N.t("site.copy.593fcde44d43") : "这次授权的临时凭据已失效（可能是换了浏览器窗口或标签），请重新点一次登录");
       emit();
       return { handled: true, ok: false, error: lastError };
     }
-    if (cb.state && box.state && cb.state !== box.state) {
+    if (!cb.state || !box.state || cb.state !== box.state) {
       clearPkce();
-      lastError = '授权状态校验失败（state 不一致），已中止';
+      lastError = (global.I18N ? global.I18N.t("site.copy.93af2e518d9a") : "授权状态校验失败（state 不一致），已中止");
       emit();
       return { handled: true, ok: false, error: lastError };
     }
@@ -388,7 +390,7 @@
       return { handled: true, ok: true, clientId: box.clientId, entry: entry };
     } catch (e) {
       clearPkce();
-      lastError = (e && e.message) || '授权码兑换失败';
+      lastError = (e && e.message) || (global.I18N ? global.I18N.t("site.copy.6c6eda216895") : "授权码兑换失败");
       emit();
       return { handled: true, ok: false, error: lastError };
     }
@@ -399,6 +401,7 @@
   function authorizeUrl(clientId, redir, state, challenge) {
     return endpoint(API.authorize) + '?' + new URLSearchParams({
       client_id: clientId,
+      lang: global.I18N ? global.I18N.current() : 'zh-CN',
       redirect_uri: redir,
       response_type: 'code',
       scope: 'openid profile email saves arcade',
@@ -431,25 +434,27 @@
    */
   function signInPopup(opts) {
     opts = opts || {};
+    // Reserve the window inside the click gesture, before asynchronous PKCE/probing.
+    var w = global.open('about:blank', 'siteauth', 'width=520,height=680,menubar=no,toolbar=no');
+    if (!w) return Promise.reject(new Error((global.I18N ? global.I18N.t("site.copy.4e8848679ecf") : "弹窗被浏览器拦截了：请允许本站弹窗，或用「整页登录」")));
     return signIn(Object.assign({}, opts, { popup: true })).then(function (url) {
       return new Promise(function (resolve, reject) {
-        var w = global.open(url, 'siteauth', 'width=520,height=680,menubar=no,toolbar=no');
-        if (!w) {
-          reject(new Error('弹窗被浏览器拦截了：请允许本站弹窗，或用「整页登录」'));
-          return;
-        }
+        w.location.href = url;
         var done = false;
+        var startedAt = nowMs();
         var timer = setInterval(function () {
           if (done) return;
           // 用户在弹窗里点了拒绝会回到本页（授权页 302 到 redirect_uri，Redirect 的目标是 oauth-callback.html，
           // 它把结果 postMessage 回来），因此这里只等消息 + 检测弹窗被关掉
-          if (w.closed) {
+          if (w.closed || nowMs() - startedAt > 120000) {
             done = true;
             clearInterval(timer);
+            global.removeEventListener('message', onMessage);
+            try { w.close(); } catch (err) { /* ignore */ }
             var box = pkceBox();
             if (box) {
               clearPkce();
-              reject(new Error('授权窗口被关掉了（未完成授权）'));
+              reject(new Error((global.I18N ? global.I18N.t("site.copy.84cad3538e85") : "授权窗口被关掉了（未完成授权）")));
             } else {
               resolve({ ok: true }); // 已经完成过兑换（消息可能先到）
             }
@@ -457,22 +462,28 @@
         }, 400);
 
         function onMessage(e) {
-          if (e.origin !== siteBase().replace(/\/+$/, '') && e.origin !== location.origin) return;
+          if (done || e.source !== w || e.origin !== location.origin) return;
           var d = e.data || {};
-          if (!d || d.type !== 'siteauth:done') return;
+          if (!d || (d.type !== 'siteauth:done' && d.type !== 'siteauth:error')) return;
+          var box = pkceBox();
+          if (!box || !box.state || d.state !== box.state) return;
           done = true;
           clearInterval(timer);
           global.removeEventListener('message', onMessage);
           try { w.close(); } catch (err) { /* ignore */ }
-          var box = pkceBox();
-          if (!box) { resolve({ ok: true }); return; }
+          if (d.type === 'siteauth:error') {
+            clearPkce();
+            reject(new Error(d.error === 'access_denied' ? (global.I18N ? global.I18N.t("site.copy.d90464098516") : "你拒绝了这次授权") : (global.I18N ? global.I18N.t("site.copy.b4a05f4922db") : "授权失败：") + (d.error_description || d.error)));
+            return;
+          }
+          if (!d.code) { clearPkce(); reject(new Error((global.I18N ? global.I18N.t("site.copy.450e1875a83c") : "授权回调没有 code"))); return; }
           exchangeCode(box.clientId, d.code, box.verifier, box.redirectUri)
             .then(function () { clearPkce(); resolve({ ok: true, clientId: box.clientId }); })
             .catch(function (err) { clearPkce(); reject(err); });
         }
         global.addEventListener('message', onMessage);
       });
-    });
+    }).catch(function (err) { try { w.close(); } catch (e) { /* ignore */ } throw err; });
   }
 
   // ───────────────────────── 令牌续期与带令牌请求 ─────────────────────────
@@ -486,18 +497,30 @@
     }).then(function (res) {
       return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
     }).then(function (out) {
+      // An old response must not restore a session after logout/account switching.
+      var current = tokenFor(clientId);
+      if (!current || current.refresh !== refresh) return null;
       if (!out.ok || !out.data || !out.data.access_token) {
         var why = (out.data && (out.data.error_description || out.data.error)) || ('HTTP ' + out.status);
         clearTokens(clientId);
-        lastError = '登录已失效，请重新授权（' + why + '）';
+        lastError = (global.I18N ? global.I18N.t("site.copy.e77e92f32a12") : "登录已失效，请重新授权（") + why + '）';
         emit();
         return null;
       }
-      return saveTokens(clientId, out.data);
+      return saveTokens(clientId, out.data, true);
     });
   }
 
   var inflightRefresh = {};
+
+  function refreshOnce(clientId, refresh) {
+    if (!inflightRefresh[clientId]) {
+      inflightRefresh[clientId] = refreshTokens(clientId, refresh).finally(function () {
+        delete inflightRefresh[clientId];
+      });
+    }
+    return inflightRefresh[clientId];
+  }
 
   /** 取访问令牌：没过期直接用；过期/快过期就用刷新令牌换；都没有则返回 null */
   /**
@@ -525,12 +548,7 @@
       return entry.access;
     if (!entry.refresh)
       return null;
-    if (!inflightRefresh[clientId]) {
-      inflightRefresh[clientId] = refreshTokens(clientId, entry.refresh).finally(function () {
-        delete inflightRefresh[clientId];
-      });
-    }
-    var fresh = await inflightRefresh[clientId];
+    var fresh = await refreshOnce(clientId, entry.refresh);
     return fresh && fresh.access ? fresh.access : null;
   }
 
@@ -538,21 +556,28 @@
   async function authFetch(url, opts) {
     opts = opts || {};
     var clientId = clientForToken(opts);
+    var original = tokenFor(clientId);
     var token = await getAccessToken({ clientId: clientId });
     if (!token)
-      throw new Error(lastError || '还没有授权登录');
-    var headers = Object.assign({}, opts.headers || {});
-    headers.Authorization = 'Bearer ' + token;
+      throw new Error(lastError || (global.I18N ? global.I18N.t("site.copy.3b9dfd8df442") : "还没有授权登录"));
+    var current = tokenFor(clientId);
+    if (!current || (original && original.user && (!current.user || original.user.sub !== current.user.sub)))
+      throw new Error((global.I18N ? global.I18N.t("site.copy.966b87a1de7e") : "账号已变更，请重新操作"));
+    var headers = new Headers(opts.headers || {});
+    headers.set('Authorization', 'Bearer ' + token);
     var res = await fetch(url, Object.assign({}, opts, { headers: headers }));
     if (res.status !== 401)
       return res;
     var entry = tokenFor(clientId);
     if (!entry || !entry.refresh)
       return res;
-    var fresh = await refreshTokens(clientId, entry.refresh);
+    if (original && original.user && (!entry.user || original.user.sub !== entry.user.sub))
+      throw new Error((global.I18N ? global.I18N.t("site.copy.966b87a1de7e") : "账号已变更，请重新操作"));
+    // A late 401 may belong to the token another request already replaced.
+    var fresh = entry.access !== token ? entry : await refreshOnce(clientId, entry.refresh);
     if (!fresh || !fresh.access)
       return res;
-    headers.Authorization = 'Bearer ' + fresh.access;
+    headers.set('Authorization', 'Bearer ' + fresh.access);
     return fetch(url, Object.assign({}, opts, { headers: headers }));
   }
 
@@ -581,7 +606,7 @@
   /** 登出：撤销刷新令牌（整条授权）；opts.global=true 时连站点会话一起登出 */
   async function signOut(opts) {
     opts = opts || {};
-    var clientId = resolveClient(opts.game, opts.clientId);
+    var clientId = opts.game || opts.clientId ? resolveClient(opts.game, opts.clientId) : activeClientId();
     var entry = tokenFor(clientId);
     if (entry && entry.refresh) {
       try {
