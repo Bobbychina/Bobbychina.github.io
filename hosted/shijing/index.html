@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -7,6 +7,23 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='4' fill='%23a96953'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-size='43' fill='%23fff1dc' font-family='serif'%3E诗%3C/text%3E%3C/svg%3E">
 <meta name="description" content="从意象出发，读懂古诗词的意境与情感。四类意境、完整意象索引、原诗与白话译文，离线可用。">
 <title>诗境 · 古诗词意象研习</title>
+<script>
+(function(){
+  function readTheme(){try{var value=localStorage.getItem('site-theme');return value==='light'||value==='dark'?value:'dark';}catch(e){return document.documentElement.dataset.theme||'dark';}}
+  function applyTheme(theme){
+    document.documentElement.dataset.theme=theme;
+    var button=document.getElementById('theme-toggle');
+    if(button){button.textContent=theme==='dark'?'☾':'☀';button.setAttribute('aria-label',theme==='dark'?'切换为浅色':'切换为深色');button.title=theme==='dark'?'当前深色，切换为浅色':'当前浅色，切换为深色';}
+  }
+  applyTheme(readTheme());
+  document.addEventListener('DOMContentLoaded',function(){
+    applyTheme(readTheme());
+    document.getElementById('theme-toggle').addEventListener('click',function(){var theme=document.documentElement.dataset.theme==='dark'?'light':'dark';applyTheme(theme);try{localStorage.setItem('site-theme',theme);}catch(e){}});
+  });
+  window.addEventListener('storage',function(event){if(event.key==='site-theme'||event.key===null)applyTheme(readTheme());});
+  window.addEventListener('pageshow',function(){applyTheme(readTheme());});
+})();
+</script>
 <style>
 :root{--night:#141715;--night-panel:#1e2320;--paper:#fff;--ink:#242d28;--muted:#6b736d;--line:#e0e5df;--chalk:#e9eee5;--soft:#f5f6f1;--vast:#b9b3a2;--calm:#a9bdad;--sad:#b0bcc5;--noble:#c1b3c6;--accent:#d9bd89;--seal:#a96953;--serif:"Noto Serif CJK SC","Source Han Serif SC","Songti SC","SimSun",serif;--sans:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;--ease:cubic-bezier(.22,.72,.22,1)}
 *{box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:hidden}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.75;transition:background .25s,color .25s}body.home{background:var(--night);color:var(--chalk);color-scheme:dark}button,input,select{font:inherit}button,a,input{ -webkit-tap-highlight-color:transparent}button,a{touch-action:manipulation}button{cursor:pointer}button:disabled{cursor:default;opacity:.45}button{color:inherit}a{color:inherit;text-underline-offset:4px}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #927f53;outline-offset:4px}button{border:0;background:none}svg{display:block}p,h1,h2,h3,h4{margin:0}button,input{border-radius:0}::selection{background:#d8c5a4;color:#161b18}[hidden]{display:none!important}.wrap{width:min(1120px,calc(100% - 64px));margin-inline:auto}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.skip{position:fixed;top:-80px;left:16px;z-index:100;background:var(--paper);color:var(--ink);padding:12px}.skip:focus{top:12px}.serif{font-family:var(--serif)}.eyebrow{font-size:11px;letter-spacing:.19em;text-transform:uppercase;color:var(--muted)}.home .eyebrow{color:#a4afa6}.muted{color:var(--muted)}
@@ -24,6 +41,34 @@ body{color-scheme:light}body.home{color-scheme:dark}
 @media(max-width:560px){.mood-card{min-height:0}.select-grid .mood-card{min-height:190px}}
 @media(max-width:360px){.mood-card{padding:13px 11px}.mood-card h2{font-size:20px}.mood-card p{font-size:9px;line-height:1.6}.mood-top{letter-spacing:1px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}.mood-card:hover{transform:none}}
+
+/* A shared theme applies to every route; print keeps its paper palette. */
+@media screen{
+  :root{--paper:#fbfaf6;--ink:#29362d;--muted:#626e64;--line:#d7ddd2;--soft:#f0f2e9;--accent:#7c6336;--surface:#fff;--hover:#e8eddf;--control:#2c4131;--control-text:#fff;--control-hover:#455e44;--detail:#465248;--highlight:#dfe8cf;--highlight-text:#263721;--evidence:#edf1e6;--evidence-label:#526841;--comparison:#f0ece1;--comparison-line:#cfc6b1;--comparison-text:#605d49;--card-ink:#24322a;--card-muted:#3c4c41;color-scheme:light}
+  :root[data-theme="dark"]{--paper:#141715;--ink:#e3e9df;--muted:#a8b3aa;--line:#38443b;--soft:#202720;--accent:#d9bd89;--surface:#1c231e;--hover:#2c392d;--control:#cfdbc6;--control-text:#182019;--control-hover:#b4c6aa;--detail:#c7d2c5;--highlight:#3c4d34;--highlight-text:#e1edce;--evidence:#222c23;--evidence-label:#b6c89e;--comparison:#29291f;--comparison-line:#4b4a36;--comparison-text:#d0cdb9;--vast:#3c3d32;--calm:#2d4236;--sad:#2f3e47;--noble:#423747;--card-ink:#e2e8dd;--card-muted:#c4cfc0;color-scheme:dark}
+  body,body.home{background:var(--paper);color:var(--ink);color-scheme:inherit}
+  .home .eyebrow,.home .brand-sub,.home-title .intro,.suggestions,.start-label,.home-foot,.home .site-footer,.home .hosting-credit{color:var(--muted)}
+  .home .site-header,.home .site-footer,.home-foot .tiny-line,.home-foot a,.suggestions button{border-color:var(--line)}
+  .suggestions button{color:var(--ink)}.suggestions button:hover{color:var(--accent)}
+  .start-label:before,.start-label:after{background:var(--line)}.moon{border-color:var(--muted)}.moon:after{background:var(--paper)}
+  .search-form{background:var(--surface);border-color:var(--line)}.search-form svg,.search-form input::placeholder{color:var(--muted)}
+  .search-submit{background:var(--control);color:var(--control-text)}.search-submit:hover{background:var(--control-hover)}.search-submit svg{color:inherit}
+  .mood-card,.ribbon-item{color:var(--card-ink)}.mood-top,.mood-card p,.mood-illustration{color:var(--card-muted)}
+  .ribbon-item:not(.selected){opacity:1;filter:saturate(.45)}.ribbon-item.selected{box-shadow:inset 0 -3px var(--accent)}
+  .ribbon-item:not(:last-child):after{color:var(--muted)}
+  .image-entry:hover,.quick-options button:hover{background:var(--hover)}
+  .image-entry .go,.crumb-sep,.empty-symbol{color:var(--muted)}
+  .outline-button,.quick-options button,.poem-section{border-color:var(--line)}
+  .save-button[aria-pressed=true]{background:var(--highlight);color:var(--highlight-text);border-color:var(--evidence-label)}
+  mark{background:var(--highlight);color:var(--highlight-text)}
+  .translation p,.analysis-item p{color:var(--detail)}.analysis-item h3,.evidence-label{color:var(--evidence-label)}.analysis-item.tone p{color:var(--ink)}
+  .evidence{background:var(--evidence);border-color:var(--evidence-label)}
+  .other-images button,.other-images span{background:var(--soft);border-color:var(--line)}.other-images button:hover{border-color:var(--muted)}
+  .comparison{background:var(--comparison);border-color:var(--comparison-line)}.comparison p{color:var(--comparison-text)}.comparison-item{border-color:var(--comparison-line)}
+  .theme-toggle{width:30px;min-height:32px;font-size:19px!important;line-height:1;border:1px solid var(--line)!important;display:inline-grid;place-items:center}
+  @media(max-width:560px){.site-header{gap:10px}.nav{gap:10px}.theme-toggle{width:28px}}
+}
+
 @media print{@page{size:A4;margin:16mm}body,body.home{background:#fff!important;color:#111!important;font-size:11pt}.wrap{width:100%}.site-header{height:55px}.nav,.offline,.site-footer,.search-form,.suggestions,.bottom-search,.action-group,.save-button,.toast,.breadcrumb,.filter-row,.pagination{display:none!important}main{min-height:0}.inner-main{padding:15px 0}.poem-section{display:block;break-inside:avoid;padding:20px 0}.poem-analysis{margin-top:20px}.poem-text h2{font-size:22pt}.verses{font-size:14pt}.evidence,.comparison,mark{background:#fff!important;color:#111!important;border:1px solid #aaa}.analysis-item p{color:#222}.category-ribbon{border:1px solid #aaa}.ribbon-item{background:#fff!important;color:#111!important;opacity:1!important}.ribbon-item.selected{box-shadow:none;font-weight:bold}.home-title .intro,.home .eyebrow,.home-foot{color:#333}.mood-card{border:1px solid #888}.view-enter{animation:none}.translation p{color:#222}.comparison-list{display:block}.comparison-item{margin-bottom:15px}.home-title h1 em{color:#333}.source-link{color:#333}.home-main{padding:20px 0}.moon{display:none}}
 @media print{.skip,.seal{display:none!important}.mood-illustration{color:#333!important}.home-title h1,.mood-card h2,.mood-card p,.mood-top,.home .brand-sub{color:#111!important}.comparison{break-inside:avoid}}
 </style>
@@ -31,7 +76,7 @@ body{color-scheme:light}body.home{color-scheme:dark}
 <style id="hosting-credit-style">
 .hosting-credit{display:flex;align-items:center;justify-content:space-between;gap:10px 24px;padding-top:12px;font-size:11px;line-height:1.8;color:var(--muted)}
 .hosting-credit strong{font-weight:500;border:1px solid currentColor;padding:2px 7px;margin-right:8px;white-space:nowrap}
-.hosting-credit a{flex-shrink:0}.home .hosting-credit{color:#a4afa6}
+.hosting-credit a{flex-shrink:0}.home .hosting-credit{color:var(--muted)}
 @media(max-width:480px){.hosting-credit{flex-wrap:wrap;font-size:10px;gap:5px}}
 @media print{.hosting-credit{font-size:9px}.hosting-credit a{display:none}}
 </style>
@@ -40,7 +85,7 @@ body{color-scheme:light}body.home{color-scheme:dark}
 <a href="#main" class="skip">跳到主要内容</a>
 <header class="site-header wrap">
   <a class="brand" href="#home" aria-label="诗境，返回首页"><span class="seal" aria-hidden="true">诗<br>境</span><div><div class="brand-name">诗境</div><div class="brand-sub">古诗词意象研习</div></div></a>
-  <nav class="nav" aria-label="主导航"><a href="#library">意象索引</a><a href="#saved">我的收藏</a><a class="nav-about" href="#about">关于诗境</a><span class="offline">离线可用</span></nav>
+  <nav class="nav" aria-label="主导航"><a href="#library">意象索引</a><a href="#saved">我的收藏</a><a class="nav-about" href="#about">关于诗境</a><span class="offline">离线可用</span><button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换为浅色" title="当前深色，切换为浅色">☾</button></nav>
 </header>
 <aside class="hosting-credit wrap" aria-label="部署说明"><span><strong>代部署</strong>本页面由 Bobbychina 提供托管。</span><a href="https://bobbycn.cc/#hosted">返回主站 ↗</a></aside>
 <main id="main" class="wrap" tabindex="-1"></main>

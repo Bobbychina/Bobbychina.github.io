@@ -24,6 +24,15 @@
         apply(theme);
     });
 
+    function syncTheme() {
+        var next;
+        try { next = localStorage.getItem(KEY); } catch (e) { return; }
+        theme = next === 'light' || next === 'dark' ? next : 'dark';
+        apply(theme);
+    }
+    window.addEventListener('storage', function (event) { if (event.key === KEY || event.key === null) syncTheme(); });
+    window.addEventListener('pageshow', syncTheme);
+
     var box = document.getElementById('meBox');
     var nameEl = document.getElementById('meName');
     var btnIn = document.getElementById('btnIn');
