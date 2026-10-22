@@ -1300,5 +1300,9 @@ I18N.define("zh-TW", {
   "racing.panel.refresh": "重新整理",
   "racing.panel.close": "關閉 (L)",
   "racing.panel.hint": "排行榜按<b>單圈</b>排名，時間越短名次越高；每條賽道各有一張榜。查看不需登入，提交需要雲端帳號。",
-  "common.error.network": "網路錯誤，請檢查連線後再試"
+  "common.error.network": "網路錯誤，請檢查連線後再試",
+  "home.hosted.label": "HOSTED",
+  "home.hosted.title": "代部署",
+  "home.hosted.shijing": "詩境 · 古詩詞意象研習",
+  "home.hosted.description": "AI SDL 學習專案。本站提供頁面託管與存取入口。"
 });

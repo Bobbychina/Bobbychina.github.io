@@ -1300,5 +1300,9 @@ I18N.define("zh-CN", {
   "racing.panel.refresh": "刷新",
   "racing.panel.close": "关 闭 (L)",
   "racing.panel.hint": "排行榜按<b>单圈</b>排名，越短越靠前；每个赛道各有一张榜。看榜不用登录，上榜要云账号（游戏厅注册的那个）。",
-  "common.error.network": "网络错误，请检查连接后重试"
+  "common.error.network": "网络错误，请检查连接后重试",
+  "home.hosted.label": "HOSTED",
+  "home.hosted.title": "代部署",
+  "home.hosted.shijing": "诗境 · 古诗词意象研习",
+  "home.hosted.description": "AI SDL 学习项目。本站提供页面托管与访问入口。"
 });

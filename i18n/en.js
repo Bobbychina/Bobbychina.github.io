@@ -1300,5 +1300,9 @@ I18N.define("en", {
   "racing.panel.refresh": "Refresh",
   "racing.panel.close": "Close (L)",
   "racing.panel.hint": "Rankings use <b>lap time</b>: lower is better. Each track has a board. Anyone can view it; submitting requires an arcade cloud account.",
-  "common.error.network": "Network error. Check your connection and try again."
+  "common.error.network": "Network error. Check your connection and try again.",
+  "home.hosted.label": "HOSTED",
+  "home.hosted.title": "Hosted for others",
+  "home.hosted.shijing": "Shijing · Exploring imagery in Chinese poetry",
+  "home.hosted.description": "An AI SDL learning project. This site provides hosting and a link to access it."
 });
