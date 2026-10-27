@@ -25,6 +25,8 @@
 | `games/auth-config.js` | 云后端地址与 GitHub OAuth client_id |
 | `games/oauth-callback.html` | OAuth 回调页 |
 | `beta-notice.js` | 全站 BETA 声明条 + 手机端未适配提醒 + 第一方匿名访问计数 |
+| `chat/index.html` | 站内私线（2026-10-27）：站主与受邀账号（`role=subadmin`）的两人对话页 |
+| `assets/chat.css`、`assets/chat.js` | 私线的样式与交互：发文本/文件/链接、内置 emoji、SSE 实时、手机自适应 |
 | `tools/site-probe.mjs` | 站点自检：公开文案、外链、横向滚动、移动视口 |
 | `tools/site-beta-probe.mjs` | BETA 条与手机提醒的 DOM 自检（含截图） |
 
@@ -57,6 +59,18 @@
 `I18N.onChange(render)` 返回取消订阅函数。账号弹窗切换语言会保留输入，不要求重新登录。
 验收范围、源文件与命令见 [国际化说明](docs/i18n.md)。
 
+## 站内私线（`/chat/`，2026-10-27）
+
+只对两类人开放：**站主本人**与**受邀账号**（身份表 `role=subadmin`，当前只有 `tina`）。页面地址不保密，
+门在服务端：`/api/chat/access` 与每个读写端点都会裁决，其它账号看到的是「这条线不通」。
+
+- 能力：发文本、发文件（≤20MB，图片内联预览、其它给下载卡）、发链接（带说明）、内置 emoji（常用/表情/手势/物件）；
+  已读回执、对方在线状态、时间分隔、历史分页。
+- 实时：上行全 REST，下行 SSE（`/api/chat/stream`，零第三方脚本）；SSE 断了自动退回 5 秒轮询。
+- 入口：登录后若你是站主或受邀账号，顶栏会多一个「对话」；账号页也会出现「私线」卡片。
+- 后端与部署：见 `stockGameOnlinePro/docs/PRIVATE-LINE-20261027.md`。
+- 文案三语齐全，改完跑 `node tools/i18n-check.mjs`。
+
 ## 反馈
 
 有 bug、想提建议、或者哪个页面在手机上炸了：**<https://github.com/Bobbychina/Bobbychina.github.io/issues>**
@@ -70,7 +84,7 @@
 
 - **手机端做了基础适配**（按钮 ≥44px、字号下限、无横向滚动），但游戏仍以键鼠为设计目标，地图操作和快捷键在手机上不如电脑顺手；手机上会弹一条提醒。
 - 访问计数是自己 Worker 上的匿名计数（无 Cookie、不存 IP）；除此之外页面不加载任何第三方脚本。
-- 云后端是自建的 Cloudflare Worker（免费额度），忙时可能返回"今天上传次数用完"，本地存档不受影响。
+- 当前站点账号与云存档入口按 `games/auth-config.js` 的 `site` 配置连接主站 API。仓库保留部分历史 Worker 路线；不要把旧额度提示当成现有后端架构或套餐承诺。
 
 ## 许可
 
@@ -80,12 +94,15 @@
 
 账号、云存档和在线游戏注入的维护边界、本次 bug 修复与验证命令见 [架构说明](docs/architecture.md)。
 
-任何静态服务器都行（请不要直接双击 `file://`，云存档与 OAuth 需要 http 源）：
+从本仓库根目录启动静态预览（不要用 `file://` 测试账号流程）：
 
 ```powershell
-npx serve .          # 或
-python -m http.server 5180
+python -m http.server 5180 --bind 127.0.0.1
 ```
+
+打开 `http://127.0.0.1:5180/`，先检查主页、游戏厅与语言切换。静态服务器不会实现 `/api`；本地登录和云存档需要按 `games/auth-config.js` 的开发说明连接真实后端。页面能打开不等于认证链路已通过。
+
+2026-10-22 已静态核对当前配置与词典脚本，未重新登录、部署或测试生产 API。练习新增一个词条时，同步三份词典，运行 `node tools/i18n-check.mjs`，然后切换三种语言确认动态内容也更新。新增语言还需检查后端邮件及同意页支持，不能只修改前端 `LANGS` 就声称全站支持。
 
 ## macOS 访问（2026-10-10）
 

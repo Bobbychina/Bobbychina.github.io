@@ -1,0 +1,498 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   站内私线 /chat/（2026-10-27）
+   设计：不套「圆角气泡聊天」模板，沿用本站的印刷感 —— 消息是一张张纸条（电报纸条）：
+     · 我的：右对齐，左侧一道 var(--seal) 竖线
+     · 对方：左对齐，左侧一道 var(--line) 墨线
+     · 时间不用居中胶囊，用「— 18:35 ──────」的短横线节奏
+     · 抬头一枚 -6° 旋转的双圈印章，在线状态是呼吸点（不是绿色圆点）
+   尺寸与手机适配：100dvh + safe-area，输入区贴底；桌面居中成一封「信笺」。
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.chat-edition {
+  --slip-bg: var(--paper2);
+  --slip-line: var(--line);
+  --slip-texture: color-mix(in srgb, var(--ink) 2.2%, transparent);
+  --stamp: var(--seal);
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-edition .site-header { flex: 0 0 auto; }
+
+/* ── 主体容器 ────────────────────────────────────────────────────────── */
+.chat-shell {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 14px 28px 18px;
+  min-height: 0;
+  position: relative;
+}
+
+/* ── 抬头 ────────────────────────────────────────────────────────────── */
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 2px 14px;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.seal {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border: 1.5px solid var(--stamp);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  transform: rotate(-6deg);
+  color: var(--stamp);
+  animation: seal-in .5s cubic-bezier(.2, .8, .2, 1) both;
+}
+.seal::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid color-mix(in srgb, var(--stamp) 55%, transparent);
+  border-radius: 50%;
+}
+.seal .seal-mark { font: 600 15px/1 var(--sans); letter-spacing: .08em; }
+.seal .seal-no {
+  position: absolute;
+  bottom: 6px;
+  font: 500 8px/1 var(--mono);
+  letter-spacing: .18em;
+  opacity: .85;
+}
+@keyframes seal-in {
+  from { opacity: 0; transform: rotate(-6deg) scale(.82); }
+  to { opacity: 1; transform: rotate(-6deg) scale(1); }
+}
+
+.who { min-width: 0; flex: 1 1 auto; }
+.who h1 {
+  font: 650 20px/1.3 var(--sans);
+  letter-spacing: -.35px;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.line-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  max-width: none;
+  font: 400 11.5px/1.5 var(--mono);
+  letter-spacing: .02em;
+  color: var(--dim);
+}
+.line-status .rule { color: var(--line); }
+.me-mini { color: var(--dim); }
+/* 进不去（未登录/无权限）时，抬头只剩一句状态，别留「/ 我 ·」这种半截尾巴 */
+.chat-shell.is-gated .line-status .rule,
+.chat-shell.is-gated .me-mini { display: none; }
+
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+  flex: 0 0 auto;
+}
+.pulse.on {
+  background: var(--stamp);
+  animation: breathe 2.4s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { opacity: .35; transform: scale(.85); box-shadow: 0 0 0 0 color-mix(in srgb, var(--stamp) 45%, transparent); }
+  50% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 4px color-mix(in srgb, var(--stamp) 0%, transparent); }
+}
+
+.head-side { flex: 0 0 auto; }
+.ghost-link {
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: 400 11.5px/1.5 var(--mono);
+  padding: 6px 2px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--dim) 45%, transparent);
+}
+.ghost-link:hover { color: var(--ink); border-bottom-color: var(--stamp); }
+
+/* ── 门（未登录/无权限）──────────────────────────────────────────────── */
+.gate {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 32px 4px 60px;
+  max-width: 46ch;
+}
+.gate-title { font: 650 19px/1.45 var(--sans); margin: 0; color: var(--ink); max-width: none; }
+.gate-text { margin: 0; color: var(--soft); font-size: 14px; max-width: none; }
+.gate-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+/* ── 消息流 ──────────────────────────────────────────────────────────── */
+.thread-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 2px 8px;
+  scroll-behavior: smooth;
+  /* 顶部留一点渐隐，避免消息硬邦邦地切在抬头下 */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 10px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 10px);
+}
+
+.thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.more {
+  display: block;
+  margin: 0 auto 16px;
+  border: 1px dashed color-mix(in srgb, var(--line) 90%, var(--dim));
+  background: none;
+  color: var(--dim);
+  font: 400 11.5px/1.5 var(--mono);
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+.more:hover { color: var(--ink); border-color: var(--stamp); }
+
+/* 时间分隔：— 18:35 ───────── */
+.stamp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 2px;
+  color: var(--dim);
+  font: 400 11px/1.4 var(--mono);
+  letter-spacing: .06em;
+  user-select: none;
+}
+.stamp::before { content: ""; width: 14px; height: 1px; background: var(--line); }
+.stamp::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: repeating-linear-gradient(to right, var(--line) 0 3px, transparent 3px 7px);
+}
+
+/* 纸条 */
+.msg { display: flex; }
+.msg.mine { justify-content: flex-end; }
+
+.slip {
+  position: relative;
+  max-width: min(78%, 560px);
+  padding: 11px 14px 9px 15px;
+  background:
+    repeating-linear-gradient(0deg, var(--slip-texture) 0 1px, transparent 1px 5px),
+    var(--slip-bg);
+  border: 1px solid var(--slip-line);
+  border-left: 2px solid var(--line);
+  border-radius: 2px;
+  animation: slip-in .16s ease-out both;
+}
+.msg.mine .slip {
+  border-left-color: var(--stamp);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stamp) 6%, transparent);
+}
+@keyframes slip-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+
+.slip-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font: 400 10.5px/1.5 var(--mono);
+  letter-spacing: .03em;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+.slip-head .who-mini { color: var(--soft); }
+.msg.mine .slip-head .who-mini { color: var(--stamp); }
+
+.slip-text {
+  margin: 0;
+  max-width: none;
+  font-size: 14.5px;
+  line-height: 1.72;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.slip-text a { color: var(--stamp); text-decoration: underline; text-underline-offset: 2px; }
+
+.slip-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 2px;
+  font: 400 10px/1.4 var(--mono);
+  color: var(--dim);
+  min-height: 14px;
+}
+.slip-foot .tick { color: var(--stamp); }
+.slip-foot .tick.pending { color: var(--dim); }
+
+/* 图片 */
+.slip-img {
+  display: block;
+  margin: 2px 0 4px;
+  border: 1px solid var(--line);
+  max-width: min(100%, 320px);
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 1px;
+  background: var(--bg);
+}
+
+/* 文件卡片 */
+.filecard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 4px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  text-decoration: none;
+  min-width: 0;
+}
+.filecard:hover { border-color: var(--stamp); }
+.file-ext {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .04em;
+  color: var(--soft);
+  text-transform: uppercase;
+}
+.filecard-meta { min-width: 0; }
+.filecard-name {
+  display: block;
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+.filecard-size { display: block; font: 400 10.5px/1.4 var(--mono); color: var(--dim); }
+
+/* 链接卡片 */
+.linkcard {
+  display: block;
+  margin: 2px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--stamp);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--stamp) 5%, transparent);
+}
+.linkcard:hover { border-color: var(--stamp); }
+.linkcard-host { display: block; font: 500 10.5px/1.5 var(--mono); color: var(--dim); letter-spacing: .05em; }
+.linkcard-url {
+  display: block;
+  font-size: 13.5px;
+  color: var(--stamp);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+/* 空状态 / 输入中 */
+.empty { padding: 44px 6px; color: var(--dim); }
+.empty-title { font: 650 17px/1.5 var(--sans); color: var(--soft); margin: 0 0 6px; }
+.empty-hint { font-size: 13px; margin: 0; max-width: 34ch; }
+
+.typing {
+  font: 400 11px/1.6 var(--mono);
+  color: var(--dim);
+  padding: 8px 6px 0;
+  letter-spacing: .04em;
+}
+.typing::after { content: "…"; animation: dots 1.2s steps(3, end) infinite; }
+@keyframes dots { 0% { opacity: .25; } 50% { opacity: 1; } 100% { opacity: .25; } }
+
+/* ── 待发送条 ────────────────────────────────────────────────────────── */
+/* 注意：类名不能叫 .pending —— 会命中 .slip-foot .tick.pending（未读标记），
+   把它渲染成一个虚线框。踩过一次。 */
+.pending-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px dashed color-mix(in srgb, var(--stamp) 55%, var(--line));
+  background: color-mix(in srgb, var(--stamp) 6%, transparent);
+}
+.pending-chip { min-width: 0; font: 400 12px/1.5 var(--mono); color: var(--soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending-x { border: 0; background: none; color: var(--dim); padding: 2px 4px; font: 400 12px/1 var(--mono); }
+.pending-x:hover { color: var(--ink); }
+
+/* ── 链接输入行 ──────────────────────────────────────────────────────── */
+.link-row {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  background: var(--paper2);
+}
+.link-label { display: block; font: 500 11px/1.5 var(--mono); color: var(--dim); letter-spacing: .08em; margin-bottom: 6px; }
+.link-row input { width: 100%; min-height: 40px; font: 400 13px/1.5 var(--mono); }
+.link-actions { display: flex; gap: 8px; margin-top: 8px; }
+.link-actions .btn { min-height: 34px; padding: 5px 12px; font-size: 12px; }
+
+/* ── 表情面板 ────────────────────────────────────────────────────────── */
+.emoji-panel {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper2);
+  max-height: 216px;
+  display: flex;
+  flex-direction: column;
+}
+.emoji-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--line2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.emoji-tabs::-webkit-scrollbar { display: none; }
+.emoji-tab {
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: 500 11px/1.4 var(--sans);
+  padding: 6px 10px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.emoji-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--stamp); }
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 38px);
+  gap: 2px;
+  padding: 8px;
+  overflow-y: auto;
+  justify-content: start;
+}
+.emoji-item {
+  border: 0;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  padding: 7px 0;
+  border-radius: 4px;
+  text-align: center;
+}
+.emoji-item:hover, .emoji-item:focus-visible { background: color-mix(in srgb, var(--stamp) 12%, transparent); }
+
+/* ── 输入区 ──────────────────────────────────────────────────────────── */
+.composer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+.composer-tools { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+.tool {
+  border: 0;
+  background: none;
+  color: var(--soft);
+  font: 400 17px/1 var(--sans);
+  width: 34px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+}
+.tool:hover, .tool[aria-expanded="true"] { color: var(--stamp); background: color-mix(in srgb, var(--stamp) 8%, transparent); }
+.tool-note { margin-left: auto; font: 400 10.5px/1.4 var(--mono); color: var(--dim); letter-spacing: .03em; }
+
+.input-row { display: flex; align-items: flex-end; gap: 10px; }
+.input-row textarea {
+  flex: 1 1 auto;
+  min-height: 46px;
+  max-height: 148px;
+  resize: none;
+  font: 400 14.5px/1.65 var(--sans);
+  padding: 11px 13px;
+  background: var(--paper2);
+  border: 1px solid var(--control-line);
+  border-radius: 2px;
+}
+.input-row textarea:focus { border-color: var(--stamp); }
+.send {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 0 20px;
+  background: var(--stamp);
+  color: var(--on-accent);
+  border: 1px solid var(--stamp);
+  border-radius: 2px;
+  font: 600 13.5px/1 var(--sans);
+  letter-spacing: .04em;
+}
+.send:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.send:disabled { opacity: .45; }
+.composer-msg { min-height: 16px; font: 400 11px/1.5 var(--mono); color: var(--red); padding-top: 5px; }
+.composer-msg.ok { color: var(--ok); }
+
+/* ── 窄屏：整页变成一张信笺，输入区贴底 ─────────────────────────────── */
+@media (max-width: 720px) {
+  .chat-shell { padding: 8px 14px 6px; max-width: none; }
+  .chat-head { gap: 12px; padding-bottom: 10px; }
+  .seal { width: 44px; height: 44px; }
+  .seal .seal-mark { font-size: 12.5px; }
+  .who h1 { font-size: 17px; }
+  .head-side { display: none; }
+  .thread-wrap { padding-top: 12px; }
+  .slip { max-width: 86%; }
+  .tool-note { display: none; }
+  .emoji-grid { grid-template-columns: repeat(8, 1fr); }
+  .input-row textarea { font-size: 16px; }  /* iOS 聚焦不缩放的下限 */
+  .send { padding: 0 16px; }
+  .site-header .tabs { display: none; }      /* 手机上先省略站点导航，专心对话 */
+  .empty { padding: 28px 2px; }
+}
+
+@media (max-width: 380px) {
+  .seal { display: none; }
+}
+
+/* 极窄/横屏矮窗口：留出可滚动的最小高度 */
+@media (max-height: 460px) {
+  .chat-head { padding-bottom: 6px; }
+  .seal { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seal, .slip, .pulse, .typing::after { animation: none !important; }
+  .thread-wrap { scroll-behavior: auto; }
+}

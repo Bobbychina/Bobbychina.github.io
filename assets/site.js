@@ -33,6 +33,27 @@
     window.addEventListener('storage', function (event) { if (event.key === KEY || event.key === null) syncTheme(); });
     window.addEventListener('pageshow', syncTheme);
 
+    /** 顶栏私线入口：只在「站主 / 受邀账号」的登录态下出现，普通用户看不到 */
+    function injectChatLink() {
+        var actions = document.querySelector('.header-actions');
+        if (!actions || document.getElementById('navChat')) return;
+        var a = document.createElement('a');
+        a.id = 'navChat';
+        a.className = 'iconbtn';
+        a.href = '/chat/';
+        // 提示语可能还没进到当前页面的词典（词典按页缓存）：拿不到词条就退中文，别把 key 显示出来
+        var label = function () {
+            var key = 'chat.nav';
+            var text = window.I18N && I18N.t ? I18N.t(key) : key;
+            return text && text !== key ? text : '对话';
+        };
+        if (window.I18N && I18N.bind) I18N.bind(a, 'textContent', label);
+        else a.textContent = label();
+        var before = document.getElementById('btnIn') || null;
+        if (before && before.parentNode === actions) actions.insertBefore(a, before);
+        else actions.appendChild(a);
+    }
+
     var box = document.getElementById('meBox');
     var nameEl = document.getElementById('meName');
     var btnIn = document.getElementById('btnIn');
@@ -46,6 +67,8 @@
                 if (box) box.hidden = false;
                 if (btnIn) btnIn.hidden = true;
                 if (btnReg) btnReg.hidden = true;   // 已登录就别再摆"注册"了
+                // 2026-10-27：站主与受邀账号（role=subadmin）在任意页面顶栏都能直接进私线
+                if (d.isOwner || d.role === 'subadmin') injectChatLink();
                 return d;
             })
             .catch(function () { return null; });

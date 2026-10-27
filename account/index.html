@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script src="/mac-block.js" defer></script>
 <!-- i18n 引擎：解析期同步执行（勿加 defer/async）——与主页/游戏厅同一套词典 -->
-<script src="/i18n/i18n.js?v=20261021res1"></script>
+<script src="/i18n/i18n.js?v=20261027chat1"></script>
 <script src="/games/auth-config.js"></script>
 <script src="/games/site-auth.js?v=20261021res1"></script>
 <script src="/games/site-saves.js?v=20261021res1"></script>
@@ -80,6 +80,12 @@
   <div class="card">
     <h2 data-i18n="account.saves">云存档</h2>
     <div id="saves"><span data-i18n="games.panel.savesLoading">正在读取…</span></div>
+  </div>
+
+  <div class="card" id="chatcard" hidden>
+    <h2 data-i18n="chat.entry.title">私线</h2>
+    <p class="hintline" data-i18n="chat.entry.text">和 tina 的两人对话：发消息、传文件、贴链接。</p>
+    <a class="btn" href="/chat/" data-i18n="chat.entry.cta">进入对话</a>
   </div>
 
   <div class="card">
@@ -200,7 +206,16 @@
       renderIdentity(SiteAuth.status());
       loadGrants();
       loadSaves();
+      loadChatEntry();
     });
+  }
+
+  /* 私线入口：只有站主与受邀账号（role=subadmin）能看到这张卡；能不能聊由服务端裁决 */
+  function loadChatEntry(){
+    fetch('/api/chat/access',{credentials:'same-origin',cache:'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if(d && d.allowed) el('chatcard').hidden=false; })
+      .catch(function(){ /* 没有私线权限就是看不到，不需要提示 */ });
   }
   boot(true);
 })();
