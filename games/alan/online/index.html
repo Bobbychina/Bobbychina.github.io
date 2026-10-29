@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="ink-online-version" content="2.1.0">
+  <title>墨狂 · 千里论剑</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header class="masthead"><a class="brand" href="../">墨狂<span>千里论剑</span></a><span class="edition">双人线上对战 / 02</span><span id="network-badge" class="badge">尚未连接</span></header>
+    <div id="status" class="status" role="status" aria-live="polite">两人各自打开本页，创建房间，再用房间码相逢。</div>
+    <section id="setup" class="setup">
+      <aside class="intro"><p class="eyebrow">山海之间，落笔成锋</p><h1>相隔千里<br>一招相逢<span class="seal">墨</span></h1><p>不必同一个 Wi-Fi。<br>约一位朋友，来一场水墨切磋。</p><div class="rules"><span>两位行者</span><span>180 秒一局</span><span>统一 Lv.1</span></div></aside>
+      <div class="entry">
+        <div class="identity"><label>你的称呼<input id="player-name" maxlength="12" value="行者" autocomplete="nickname"></label><label>出战角色<select id="character"><option value="nameless">无名</option><option value="panshan">磐山</option><option value="mingxiao">鸣霄</option></select></label></div>
+        <div class="entry-action"><span class="step">壹</span><div><h2>开一场论剑</h2><p>创建房间，把房间码发给朋友。</p><button id="create" class="primary">创建房间</button></div></div>
+        <form id="join-form" class="entry-action"><span class="step">贰</span><div><h2>赴朋友之约</h2><label for="room-code">10 位房间码</label><div class="join-row"><input id="room-code" maxlength="24" placeholder="例如 7H3KP 9A2MX" autocomplete="off" autocapitalize="characters" spellcheck="false"><button id="join" type="submit">加入房间</button></div></div></form>
+        <button id="retry" class="retry" hidden>重新连接</button>
+        <details id="connection-settings"><summary>网络设置与连接说明</summary><p>双方直接打开本页即可。房主保持游戏页在前台；信令负责配对，战斗数据优先直连。</p><label>信令服务地址<input id="signal-url" value="https://0.peerjs.com" type="url" spellcheck="false"></label><p>若两端网络无法直连，可以填入自己可用的 TURN 中继。两端都填写；凭据只在本次页面内使用。</p><label>TURN 地址<input id="turn-url" placeholder="turn:你的中继地址:3478" spellcheck="false"></label><div class="identity"><label>TURN 用户名<input id="turn-user" autocomplete="off"></label><label>TURN 密码<input id="turn-password" type="password" autocomplete="off"></label></div><label class="check"><input id="force-relay" type="checkbox">只通过 TURN 中继连接</label><p>校园网、对称 NAT 或禁用 UDP 的网络可能需要中继；没有可用中继时无法保证连通。不会自动修改防火墙或路由器。</p></details>
+      </div>
+    </section>
+    <section id="room" hidden>
+      <div class="room-bar"><div><span class="eyebrow">此间论剑</span><strong id="invite-code"></strong></div><span id="room-phase">静候另一位行者</span><div class="room-actions"><button id="copy-code">复制邀请</button><button id="leave">退出房间</button></div></div>
+      <div id="waiting" class="waiting"><div class="waiting-copy"><h2>落座，静候出招。</h2><p>两人都准备后，倒计时三秒开战。</p></div><div id="seats" class="seats"></div><div class="ready-row"><label>本局角色<select id="room-character"><option value="nameless">无名</option><option value="panshan">磐山</option><option value="mingxiao">鸣霄</option></select></label><button id="ready" class="primary">准备</button></div></div>
+      <div id="battle" hidden>
+        <div class="scoreboard"><div id="score-0" class="score"><strong></strong><progress aria-label="一号玩家生命" max="100" value="100"></progress><span></span></div><div class="clock"><strong id="clock">180</strong><span>剩余秒数</span></div><div id="score-1" class="score"><strong></strong><progress aria-label="二号玩家生命" max="100" value="100"></progress><span></span></div></div>
+        <div class="arena"><canvas id="arena" width="1280" height="720" aria-label="双人水墨对战场"></canvas><div id="countdown" class="arena-message" hidden></div><div id="pause" class="arena-message" hidden>连接中断，战斗已暂停<span>等待对方重连，最多保留 20 秒</span></div><div id="result" class="result" hidden><p class="eyebrow">本局终了</p><h2 id="result-title"></h2><p id="result-reason"></p><button id="rematch" class="primary">再战一局</button></div></div>
+        <div class="battle-footer"><p>A / D 移动 · W 跳跃 · S 急落 · 空格闪步 · K 普攻 · J / I 技能 · L 大招</p><span id="ping">— ms</span><button id="surrender">认输</button></div>
+        <div id="touch" class="touch" aria-label="触屏操作"><button data-hold="left">←</button><button data-hold="right">→</button><button data-edge="jump">跳</button><button data-edge="dive">落</button><button data-edge="dash">闪</button><button data-hold="attack">K</button><button data-edge="heavy">J</button><button data-edge="skill2">I</button><button data-edge="ultimate">L</button></div>
+      </div>
+    </section>
+    <footer class="page-footer"><span>以墨会友，胜负随心。</span><span>切磋不修改单机存档，不发放单机奖励。</span></footer>
+  </main>
+  <script src="../chapters.js"></script><script src="../landscape.js"></script><script src="../art.js"></script><script src="game-data.js"></script>
+  <script src="vendor/peerjs.min.js"></script><script src="protocol.js"></script><script src="local-authority.js"></script><script src="transport.js"></script><script src="client.js"></script>
+</body>
+</html>
