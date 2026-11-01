@@ -17,6 +17,8 @@
 |---|---|
 | `index.html` | 主页（项目 / 游戏厅 / 关于），单文件、零依赖 |
 | `games/index.html` | 游戏厅入口，含账号面板说明 |
+| `games/alan/index.html` | 墨狂网页动作游戏，游戏厅入口为 `/games/alan/` |
+| `games/math-inspiration/index.html` | 数学灵感：公理纪元；从 `Games/afkGame/dist/index.html` 同步的自包含发布版本，本地存档，不接游戏厅云存档 |
 | `i18n/i18n.js` | 多语言引擎：按语言同步载入词典、替换 `data-i18n`、生成语言切换器 |
 | `i18n/zh-CN.js`、`i18n/zh-TW.js`、`i18n/en.js` | 简中、繁中、英文词典 |
 | `tools/i18n-check.mjs` | i18n 自检：词典键 ↔ 页面实际用键是否对齐 |

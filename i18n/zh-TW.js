@@ -1,4 +1,13 @@
 I18N.define("zh-TW", {
+  "games.ink.title": "墨狂 · INK / FURY",
+  "games.ink.desc": "水墨橫向動作闖關：在屋簷與山雨間跳躍、揮刀、閃避，用連擊打出戰鬥評價，逐章奪回失去的顏色。",
+  "games.ink.genre": "動作 / 闖關",
+  "games.math.title": "數學靈感：公理紀元",
+  "games.math.desc": "把猜想變成定理：拼接推理鏈、尋找反例，發展六個領域的自動研究，再用典範革命開啟下一紀元。30 項研究，適合慢慢琢磨。",
+  "games.math.genre": "推理 / 放置成長",
+  "games.math.save": "瀏覽器本機存檔",
+  "games.catalog.intro": "我自己做、自己玩的網頁遊戲，也收錄與朋友共創的作品。選一款直接在瀏覽器裡玩；存檔方式以各遊戲說明為準。",
+  "games.catalog.meta": "Bobbychina 網頁遊戲廳：詞鋒對決、墨狂、數學靈感、末日生存、賽車與更多瀏覽器遊戲。",
   "home.reset.kicker": "個人站 / BOBBYCHINA",
   "home.reset.title": "遊戲、工具，\n還有一些開發記錄。",
   "home.reset.intro": "你好，我是 Bobbychina。一名喜歡 Minecraft、做遊戲和折騰工具的學生。這里放著我和伙伴們做的東西，以及開發過程中的記錄。",

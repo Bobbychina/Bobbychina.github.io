@@ -14,18 +14,18 @@
 <!-- i18n 引擎：解析期同步执行（勿加 defer/async），词典文件由它按语言同步引入；同源脚本，CSP 已放行
      ⚠️ ?v= 与 i18n.js 里的 VER 必须同时跳：改词典不跳号 = 线上还被缓存成旧词典，
      新词条会显示成 key（2026-10-09 踩过一次，表现为"i18n 没生效"）。 -->
-<script src="/i18n/i18n.js?v=20261021res1"></script>
+<script src="/i18n/i18n.js?v=20261101arcade1"></script>
 <title>GAMES · Bobbychina</title>
-<meta name="description" content="Bobbychina 的网页游戏厅：在线试玩 + 账号云存档（可绑定 GitHub / 微软账号）。" data-i18n-attr="content:games.meta.desc">
+<meta name="description" content="Bobbychina 网页游戏厅：词锋对决、墨狂、数学灵感、末日生存、赛车与更多浏览器游戏。" data-i18n-attr="content:games.catalog.meta">
 <!-- 分享卡：与主页同一张 1200×630（渲染脚本 archive/sessions/2026-09/scripts/render-og.js）；本页此前没有任何 og:* -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="游戏厅 · Bobbychina" data-i18n-attr="content:site.copy.f2bc6d514055">
-<meta property="og:description" content="三款在线就能玩的游戏：3D 竞速 / 末日生存 / 割草肉鸽。看榜不用登录，云存档可绑 GitHub。" data-i18n-attr="content:games.meta.desc">
+<meta property="og:description" content="Bobbychina 网页游戏厅：词锋对决、墨狂、数学灵感、末日生存、赛车与更多浏览器游戏。" data-i18n-attr="content:games.catalog.meta">
 <meta property="og:url" content="https://bobbychina.github.io/games/">
 <meta property="og:image" content="https://bobbychina.github.io/og/home.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Bobbychina 游戏厅：三款在线可玩的游戏" data-i18n-attr="content:site.copy.3d951e45b709">
+<meta property="og:image:alt" content="Bobbychina 游戏厅：在线浏览器游戏" data-i18n-attr="content:site.copy.3d951e45b709">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://bobbychina.github.io/og/home.png">
 <!-- 标签页图标：和主页 favicon 同一套（深底 #0a0e14 + 绿 #3fd07a 主色），
@@ -141,7 +141,7 @@
   <nav class="catalog-tools" aria-label="游戏目录选项" data-i18n-attr="aria-label:site.copy.7cf1cecfe244"><a href="#thanks" data-i18n="games.nav.thanks">鸣谢</a><a href="https://github.com/bobbychina32747" target="_blank" rel="noopener">GitHub</a><span data-i18n-switch></span></nav>
 
   <h1 data-i18n="games.h1">游戏厅</h1>
-  <p class="sub" data-i18n="games.sub">我自己做、自己玩的网页游戏。都在浏览器里跑，不用装东西；登录账号后存档会跟着你走（可绑定 GitHub 或微软账号）。</p>
+  <p class="sub" data-i18n="games.catalog.intro">我自己做、自己玩的网页游戏，也收录与朋友共创的作品。选一款直接在浏览器里玩；存档方式以各游戏说明为准。</p>
 
   <!-- 账号条 -->
   <div class="acct" id="acct">
@@ -153,6 +153,14 @@
 
   <h2 data-i18n="games.h2.online">// 在线游戏</h2>
   <div class="grid">
+    <div class="game" id="lexicon-arena">
+      <h3 data-i18n="games.lexicon.title">词锋对决 · Lexicon Arena</h3>
+      <p class="desc" data-i18n="games.lexicon.desc">用 9 张字母牌在共享棋盘交叉拼词，再挑战词义，争夺生命与棋盘分。包含新手教程、人机练习、自定义房间和排位对战。</p>
+      <div class="meta"><span class="badge g" data-i18n="games.zombie.badge1">可玩</span><span class="badge b" data-i18n="games.lexicon.learning">英语学习</span><span class="badge" data-i18n="games.lexicon.multiplayer">人机 / 联机对战</span><span class="badge y" data-i18n="games.lexicon.project">课程项目</span></div>
+      <div class="acts">
+        <a class="btn ok" href="https://bobbycn.cc/lexicon-arena/" data-i18n="games.zombie.start">▶ 开始游戏</a>
+      </div>
+    </div>
     <div class="game">
       <h3 data-i18n="games.zombie.title">丧尸末日生存 v4.0 · 余烬</h3>
       <p class="desc" data-i18n="games.zombie.desc">24×24 区块的大世界、宝可梦式回合制战斗、营地/农业/季节/天气/水体。木头要自己砍、水要自己去接——活到第 100 天等救援。</p>
@@ -189,6 +197,18 @@
         <a class="btn" href="https://game.bobbycn.cc/ranking" target="_blank" rel="noopener" data-i18n="games.stock.board">排行榜</a>
         <a class="btn" href="https://github.com/bobbychina32747/StockGameOnlinePro" target="_blank" rel="noopener" data-i18n="games.src">源码</a>
       </div>
+    </div>
+    <div class="game" id="ink-fury">
+      <h3 data-i18n="games.ink.title">墨狂 · INK / FURY</h3>
+      <p class="desc" data-i18n="games.ink.desc">水墨横版动作闯关：在屋檐与山雨间跳跃、挥刀、闪避，用连击打出战斗评价，逐章夺回失去的颜色。</p>
+      <div class="meta"><span class="badge g" data-i18n="games.zombie.badge1">可玩</span><span class="badge b" data-i18n="games.ink.genre">动作 / 闯关</span></div>
+      <div class="acts"><a class="btn ok" href="/games/alan/" data-i18n="games.zombie.start">▶ 开始游戏</a></div>
+    </div>
+    <div class="game" id="math-inspiration">
+      <h3 data-i18n="games.math.title">数学灵感：公理纪元</h3>
+      <p class="desc" data-i18n="games.math.desc">把猜想变成定理：拼接推理链、寻找反例，发展六个领域的自动研究，再用范式革命开启下一纪元。30 项研究，适合慢慢琢磨。</p>
+      <div class="meta"><span class="badge g" data-i18n="games.zombie.badge1">可玩</span><span class="badge b" data-i18n="games.math.genre">推理 / 放置成长</span><span class="badge" data-i18n="games.math.save">浏览器本地存档</span></div>
+      <div class="acts"><a class="btn ok" href="/games/math-inspiration/" data-i18n="games.zombie.start">▶ 开始游戏</a></div>
     </div>
     <div class="game soon">
       <h3 data-i18n="games.next.title">＋ 下一个坑</h3>

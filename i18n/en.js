@@ -1,4 +1,13 @@
 I18N.define("en", {
+  "games.ink.title": "INK / FURY",
+  "games.ink.desc": "Fight through an ink-painted world. Jump across rooftops, strike, dodge and build combos to earn combat ranks and bring color back, chapter by chapter.",
+  "games.ink.genre": "Action / Platformer",
+  "games.math.title": "Math Inspiration: Axiom Era",
+  "games.math.desc": "Turn conjectures into theorems. Build proof chains, find counterexamples and grow automated research across six fields. Explore 30 investigations and start another era through a paradigm shift.",
+  "games.math.genre": "Logic / Idle progression",
+  "games.math.save": "Browser saves",
+  "games.catalog.intro": "Browser games I make and play, plus work created with friends. Pick a game and play in your browser. Check each game for its save options.",
+  "games.catalog.meta": "Bobbychina browser arcade: Lexicon Arena, INK / FURY, Math Inspiration, Zombie Survival, racing and more.",
   "home.reset.kicker": "PERSONAL SITE / BOBBYCHINA",
   "home.reset.title": "Games, tools,\nand notes along the way.",
   "home.reset.intro": "Hi, I’m Bobbychina, a student who enjoys Minecraft, making games and building tools. This is a home for our projects and development notes.",
