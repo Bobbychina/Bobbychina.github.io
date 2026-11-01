@@ -1,0 +1,17 @@
+.story-overlay.cinematic{background:#e8e3d5;pointer-events:auto;overflow:hidden;color:#28332f}
+.cinematic .cinematic-stage{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.story-overlay.cinematic:before,.story-overlay.cinematic:after{height:5.2%;background:#242d28;z-index:2}
+.cinematic .story-frame{position:absolute;left:7.5%;right:23%;bottom:12.5%;max-width:790px;padding:24px 28px 16px 0;text-align:left;color:#28332f;background:none;text-shadow:none;z-index:3}
+.cinematic .story-frame:before{content:"";position:absolute;z-index:-1;inset:-30px -100px -35px -50px;background:radial-gradient(ellipse at 32% 80%,rgba(232,227,213,.99) 10%,rgba(232,227,213,.9) 56%,rgba(232,227,213,0) 74%);pointer-events:none}
+.cinematic .story-frame #storyKicker,.cinematic .story-frame #storyTitle,.cinematic .story-stroke{display:none}
+.cinematic .story-frame .cinematic-scene-label{font:10px/1.5 system-ui,sans-serif;letter-spacing:2.1px;color:#697563;margin:0 0 13px}
+.cinematic .story-frame .cinematic-speaker{font:600 13px/1.5 system-ui,sans-serif;letter-spacing:3px;color:#9b4433;margin:0 0 9px}
+.cinematic .story-frame .cinematic-caption{font-family:"Noto Serif SC","Songti SC",SimSun,serif;font-size:clamp(19px,2.1vw,29px);letter-spacing:1.4px;line-height:1.75;margin:0;min-height:3.5em;max-width:32em}
+.cinematic .cinematic-next{position:absolute;right:6%;bottom:17%;z-index:4;background:#303e33;border:1px solid #303e33;color:#f1ecdf;font:13px/1.5 system-ui,sans-serif;letter-spacing:1px;padding:13px 18px;cursor:pointer;clip-path:polygon(1% 3%,99% 0,100% 95%,0 100%)}
+.cinematic .cinematic-next:hover{background:#53634f}
+.cinematic .story-skip{right:6%;bottom:9%;color:#5a6754;background:none;z-index:4;font:11px/1.4 system-ui,sans-serif;letter-spacing:1px}
+.cinematic button:focus-visible{outline:3px solid #a34535;outline-offset:5px}
+.cinematic-progress{position:absolute;z-index:4;bottom:5.2%;left:0;height:2px;background:#a34535;max-width:100%;pointer-events:none}
+body:has(.cinematic:not([hidden])) .brand,body:has(.cinematic:not([hidden])) .utility{visibility:hidden}
+@media(max-width:700px){.cinematic .story-frame{left:7%;right:7%;bottom:20%;padding:0}.cinematic .story-frame .cinematic-caption{font-size:19px;line-height:1.65;min-height:5em}.cinematic .cinematic-next{bottom:11%;right:7%;font-size:12px}.cinematic .story-skip{bottom:11%;left:6%;right:auto;padding:13px 4px}.cinematic .story-frame .cinematic-scene-label{font-size:9px;letter-spacing:1px}.cinematic .cinematic-stage{height:77%;top:1%}}
+@media(max-height:500px) and (min-width:650px){.cinematic .story-frame{bottom:11%;right:25%;padding:0}.cinematic .story-frame .cinematic-caption{font-size:18px;min-height:3.5em}.cinematic .story-frame .cinematic-scene-label{margin-bottom:4px}.cinematic .story-frame .cinematic-speaker{margin-bottom:3px}.cinematic .cinematic-next{bottom:20%}.cinematic .story-skip{bottom:8%}}

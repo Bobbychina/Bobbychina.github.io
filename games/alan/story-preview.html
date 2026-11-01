@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>墨狂 · 追影山河 · 演出预览</title>
+  <link rel="stylesheet" href="src/story.css?v=20261102-story1">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#e8e3d5;font-family:system-ui,sans-serif;color:#28332f}button,select{font:inherit}button{cursor:pointer}.story-overlay{position:fixed;inset:0;display:flex}.story-overlay:before,.story-overlay:after{content:"";position:absolute;left:0;right:0;z-index:2}.story-overlay:before{top:0}.story-overlay:after{bottom:0}.preview-toolbar{position:fixed;top:0;left:0;right:0;z-index:9;display:flex;gap:15px;align-items:center;padding:12px 4%;background:#242d28;color:#ede7d8;font-size:12px;min-height:58px}.preview-toolbar strong{letter-spacing:2px;margin-right:auto}.preview-toolbar select,.preview-toolbar button{border:1px solid #818974;background:#303d32;color:#ede7d8;padding:6px 10px;font-size:12px}.preview-toolbar a{color:#c7d3b5;text-decoration:none;font-size:11px}.preview-scrub{position:fixed;left:7.5%;bottom:7%;width:65%;z-index:8;accent-color:#a34535;height:14px}.preview-status{position:fixed;right:6%;bottom:6.5%;z-index:8;color:#64715e;font-size:10px;letter-spacing:1px}.story-skip{position:absolute;cursor:pointer;border:0;padding:9px 14px}.preview-end-note{position:fixed;left:7.5%;bottom:9%;font-size:10px;z-index:8;color:#6f7a66}.story-overlay[hidden]{display:none}@media(max-width:700px){.preview-toolbar{gap:7px;flex-wrap:wrap;padding:9px 5%;font-size:11px}.preview-toolbar strong{font-size:11px;flex:1 0 100%}.preview-toolbar select{padding:5px;font-size:11px}.preview-toolbar a{margin-left:auto}.preview-scrub{bottom:6%;width:69%;left:7%}.preview-status{bottom:5.5%;font-size:9px}.preview-end-note{display:none}}
+  </style>
+</head>
+<body>
+  <header class="preview-toolbar">
+    <strong>墨狂 / 追影山河 · 演出预览</strong>
+    <label>关卡 <select id="previewChapter" aria-label="选择预览关卡"></select></label>
+    <label>段落 <select id="previewPhase" aria-label="选择预览段落"><option value="intro">入境</option><option value="outro">余波</option></select></label>
+    <button id="previewPlay" type="button">暂停</button>
+    <a href="index.html">返回游戏 ↗</a>
+  </header>
+  <section id="storyOverlay" class="story-overlay cinematic" aria-label="剧情演出预览">
+    <canvas id="previewCanvas" class="cinematic-stage" aria-hidden="true"></canvas>
+    <div class="story-frame"><p id="previewMeta" class="cinematic-scene-label"></p><p id="previewSpeaker" class="cinematic-speaker"></p><p id="storyText" class="cinematic-caption" aria-live="polite"></p></div>
+    <button id="previewNext" class="cinematic-next" type="button">下一镜 · Enter ↗</button>
+    <button id="previewRestart" class="story-skip" type="button">从头播放</button>
+  </section>
+  <input id="previewTime" class="preview-scrub" type="range" min="0" max="1000" value="0" aria-label="预览进度">
+  <span id="previewStatus" class="preview-status"></span>
+  <p class="preview-end-note">此页只预览演出；游戏进度与奖励保持不变。</p>
+  <script src="chapters.js?v=20261102-story1"></script><script src="landscape.js?v=20261102-story1"></script><script src="src/story-content.js?v=20261102-story1"></script><script src="src/story-timeline.js?v=20261102-story1"></script><script src="src/story-renderer.js?v=20261102-story1"></script><script src="src/story-preview.js?v=20261102-story1"></script>
+</body>
+</html>
