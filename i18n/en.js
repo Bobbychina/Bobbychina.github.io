@@ -1,6 +1,6 @@
 I18N.define("en", {
   "games.ink.title": "INK / FURY",
-  "games.ink.desc": "Fight through an ink-painted world. Jump across rooftops, strike, dodge and build combos to earn combat ranks and bring color back, chapter by chapter.",
+  "games.ink.desc": "Created by Alan; hosted and listed on this site. Fight through an ink-painted world. Jump across rooftops, strike, dodge and build combos to earn combat ranks and bring color back, chapter by chapter.",
   "games.ink.genre": "Action / Platformer",
   "games.math.title": "Math Inspiration: Axiom Era",
   "games.math.desc": "Turn conjectures into theorems. Build proof chains, find counterexamples and grow automated research across six fields. Explore 30 investigations and start another era through a paradigm shift.",
