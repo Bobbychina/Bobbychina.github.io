@@ -99,6 +99,18 @@ test('game hall uses site session and game authorization consistently', async t 
     assert.equal(await page.locator('#btn-acct').textContent(), '用站点账号登录');
   });
 
+  await t.test('games can request account scopes without saves while default authorization stays compatible', async t => {
+    const { page } = await visit(t, { signedIn: false });
+    const scopes = await page.evaluate(async () => {
+      const limited = new URL(await SiteAuth.signIn({ game: 'vampire-survivors', scope: 'openid profile arcade', popup: true }));
+      const standard = new URL(await SiteAuth.signIn({ clientId: 'bobbycn-games', popup: true }));
+      return { client: limited.searchParams.get('client_id'), limited: limited.searchParams.get('scope'), standard: standard.searchParams.get('scope') };
+    });
+    assert.equal(scopes.client, 'vampire-survivors');
+    assert.equal(scopes.limited, 'openid profile arcade');
+    assert.equal(scopes.standard, 'openid profile email saves arcade');
+  });
+
   await t.test('unavailable authorization does not mislabel a Cookie login', async t => {
     const { page } = await visit(t, { unavailable: true });
     assert.match(await page.locator('#acct-who').textContent(), /TestPlayer.*已登录/);

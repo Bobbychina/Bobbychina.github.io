@@ -145,6 +145,21 @@
     for (i = 0; i < p.weapons.length; i++) {
       var w2 = p.weapons[i];
       var wdef2 = C.WEAPONS[w2.id];
+      if (wdef2 && wdef2.schools) {
+        for (var branch = 0; branch < wdef2.schools.length; branch++) {
+          var schoolId = wdef2.schools[branch];
+          if (w2.schoolId && w2.schoolId !== schoolId) continue;
+          var school = C.SCHOOLS[schoolId];
+          var rank = w2.schoolId === schoolId ? (w2.schoolRank || 0) : 0;
+          if (!school || rank >= school.max) continue;
+          pool.push({ kind: 'school', id: w2.id, schoolId: schoolId,
+            name: school.name, icon: school.icon, color: school.color,
+            desc: school.short + '<br><span class="school-note">' + wdef2.name + ' · 三选一分支，本局选定后保留</span>',
+            tag: rank ? '流派 Lv ' + rank + ' → ' + (rank + 1) : '选择流派分支', maxLevel: school.max, isSchool: true });
+          weights.push(school.weight || 9);
+        }
+        continue;
+      }
       if (!wdef2 || !wdef2.school) continue;
 
       var stacks = w2.school || 0;
@@ -165,9 +180,20 @@
       weights.push(11);
     }
 
+    if (game.mode === 'endless' && pool.length < 3) {
+      [
+        { id: 'heal', name: '战场补给', icon: '✚', desc: '立即回复最大生命的 30%' },
+        { id: 'power', name: '无尽战意', icon: '⚔', desc: '全武器伤害 +2%（最高 ×1000000）' },
+        { id: 'guard', name: '百战护甲', icon: '⛨', desc: '护甲 +0.5（最高 500）' }
+      ].forEach(function (supply) {
+        pool.push({ kind: 'supply', id: supply.id, name: supply.name, icon: supply.icon,
+          color: '#dfc58e', desc: supply.desc, tag: '无尽补给' }); weights.push(8);
+      });
+    }
+
     var hasAlternative = pool.length > Math.min(3, pool.length);
     var old = {};
-    (previousChoices || []).forEach(function (choice) { old[choice.kind + ':' + choice.id] = true; });
+    (previousChoices || []).forEach(function (choice) { old[choice.kind + ':' + choice.id + ':' + (choice.schoolId || '')] = true; });
     var out = [];
     while (out.length < 3 && pool.length > 0) {
       // 重选优先抽出未展示过的选项；池子不够时才补回原选项。
@@ -175,7 +201,7 @@
       var forceEvolution = out.length === 0 && pool.some(function (c) { return c.kind === 'evolution'; });
       for (i = 0; i < pool.length; i++) {
         if (forceEvolution && pool[i].kind !== 'evolution') continue;
-        if (!old[pool[i].kind + ':' + pool[i].id]) {
+        if (!old[pool[i].kind + ':' + pool[i].id + ':' + (pool[i].schoolId || '')]) {
           candidates.push(i);
           candidateWeights.push(weights[i]);
         }
@@ -199,13 +225,18 @@
   function applyChoice(game, c) {
     var p = game.player;
 
-    if (c.kind === 'evolution') {
+    if (c.kind === 'supply') {
+      if (c.id === 'heal') VS.Player.heal(p, p.maxHp * 0.3, game);
+      if (c.id === 'power') p.damageMul = Math.min(1000000, p.damageMul * 1.02);
+      if (c.id === 'guard') p.armor = Math.min(500, p.armor + 0.5);
+    } else if (c.kind === 'evolution') {
       return VS.Weapons.evolve(p, c.id);
     } else if (c.kind === 'weapon-up') {
       VS.Weapons.upgrade(p, c.id);
     } else if (c.kind === 'weapon-new') {
       VS.Weapons.add(p, c.id);
     } else if (c.kind === 'school') {
+      if (c.schoolId) return VS.Weapons.chooseSchool(p, c.id, c.schoolId);
       /* 流派增益：层数记在武器上，具体效果由武器自己的 school.apply 决定 */
       var wdef = C.WEAPONS[c.id];
       var w = VS.Weapons.get(p, c.id);
@@ -230,6 +261,8 @@
 
       var game = {
         state: STATE.MENU,
+        mode: 'campaign',
+        endlessWave: 1,
         time: 0,
         totalTime: 0,          // 已经打完的关卡时长之和（结算/排行用 runTime()）
         level: 0,              // 当前关卡下标（0 起）
@@ -303,6 +336,8 @@
     /** 重置一整局（不改变 state，由调用方决定） */
     newRun: function (game, opt) {
       opt = opt || {};
+      game.runSerial = (game.runSerial || 0) + 1;
+      if (opt.mode === 'campaign' || opt.mode === 'endless') game.mode = opt.mode;
       if (C.START_WEAPONS.indexOf(opt.startWeapon) >= 0) game.startWeapon = opt.startWeapon;
       game.time = 0;
       game.totalTime = 0;
@@ -315,6 +350,7 @@
       game.rerollsRemaining = C.LEVELUP_REROLLS;
       game.choiceHasAlternative = false;
       game.animTime = 0;
+      game.endlessWave = 1;
 
       game.world = VS.World.create();
       game.fx = VS.Effects.create();
@@ -323,6 +359,7 @@
       game.pickups = VS.Pickups.create();
       game.pets = VS.Pets.create();
       game.player = VS.Player.create(game.world);
+      game.player.endless = game.mode === 'endless';
 
       game.pendingPetSelect = false;
       game.petChoices = [];
@@ -442,6 +479,7 @@
      */
     startAt: function (game, index, opt) {
       opt = opt || {};
+      opt.mode = 'campaign';
       Game.newRun(game, opt);
 
       index = Math.max(0, Math.min(Math.floor(index || 0), VS.Levels.count() - 1));
@@ -494,10 +532,24 @@
       game.time += dt;
 
       /* --- 阶段推进：跨过时间点就播报一次 --- */
-      var entered = VS.Phases.crossed(prevTime, game.time);
-      if (entered) {
-        game.phase = entered.id;
-        Game.announcePhase(game, entered);
+      if (game.mode === 'endless') {
+        var wave = Math.floor(game.time / C.ENDLESS.WAVE_SECONDS) + 1;
+        if (wave !== game.endlessWave) {
+          game.endlessWave = wave;
+          game.rerollsRemaining = C.LEVELUP_REROLLS;
+          if (game.deps.panels) game.deps.panels.showBanner('无 尽 · 第 ' + wave + ' 波', '敌人继续强化 · 重选次数补满');
+        }
+        if (prevTime < C.ENDLESS.BIOME_AT && game.time >= C.ENDLESS.BIOME_AT) {
+          game.level = Math.min(1, VS.Levels.count() - 1);
+          game.levelDef = VS.Levels.def(game.level);
+          if (game.deps.panels) game.deps.panels.showBanner('深 渊 侵 蚀', '酸液与深渊敌人加入 · 保留全部构筑');
+        }
+      } else {
+        var entered = VS.Phases.crossed(prevTime, game.time);
+        if (entered) {
+          game.phase = entered.id;
+          Game.announcePhase(game, entered);
+        }
       }
 
       /* --- 金色经验球解锁（存活满 3 分钟）：单独播报一次 --- */
@@ -547,7 +599,7 @@
           return;
         }
       }
-      if (game.time >= game.levelDef.duration) {
+      if (game.mode !== 'endless' && game.time >= game.levelDef.duration) {
         Game.clearLevel(game);
         return;
       }
@@ -599,6 +651,7 @@
 
     /** 本关时间到：符合通关条件就弹过关面板，否则判负（最后一关则是通关结算） */
     clearLevel: function (game) {
+      if (game.mode === 'endless') return false;
       game.time = game.levelDef.duration;
 
       /* 通关条件：某些关要求"最终 Boss 必须被打死"（C.LEVELS[i].clearRule）。
@@ -788,7 +841,7 @@
         game.deps.panels.showPause(
           '存活 ' + U.formatTime(game.time) +
           ' · 击杀 ' + game.player.kills +
-          ' · 等级 ' + game.player.level
+          ' · 等级 ' + game.player.level, game
         );
       }
       return true;
@@ -811,6 +864,7 @@
 
     endRun: function (game, opt) {
       opt = opt || {};
+      if (game.state === STATE.GAMEOVER) return false;
       game.state = STATE.GAMEOVER;
       game.victory = !!opt.victory;
       game.failedClear = !!opt.failedClear;      // 时间到但没打死最终 Boss
@@ -819,7 +873,7 @@
       /* 一局的总时长：打完的关卡 + 本关已经过的时间。
          第一关就死了的话就等于第一关的时间，和以前的口径一致。 */
       var total = runTime(game);
-      var wave = VS.Enemies.waveFor(game.time);
+      var wave = game.mode === 'endless' ? game.endlessWave : VS.Enemies.waveFor(game.time);
       var p = game.player;
 
       var isNewBest = VS.Save.submit({
@@ -828,24 +882,17 @@
         level: p.level,
         wave: wave,
         stage: game.level + 1
-      }, game.data);
+      }, game.data, game.mode);
 
-      /* 个人纪录榜（本机 top5，登录后跟着云存档合并） */
+      /* 两种模式分别保存本机个人纪录。 */
       var rankInfo = null;
       if (VS.Scores) {
-        rankInfo = VS.Scores.add({ time: total, kills: p.kills, level: p.level, wave: wave, stage: game.level + 1 });
-        if (VS.ScoresUI) VS.ScoresUI.refresh();
+        rankInfo = VS.Scores.add({ time: total, kills: p.kills, level: p.level, wave: wave, stage: game.level + 1, mode: game.mode });
+        if (VS.ScoresUI) VS.ScoresUI.refresh(game.mode);
       }
 
       if (game.deps.audio) game.deps.audio.play(game.victory ? 'level' : 'over');
       if (game.deps.panels && game.deps.panels.hideBanner) game.deps.panels.hideBanner();
-
-      /* 云存档：登录了就往自己的 Gist 推一份（安静做，失败只更新一下面板提示） */
-      if (VS.Cloud && VS.Cloud.logged()) {
-        VS.Cloud.push(true).then(function (r) {
-          if (r && r.ok && VS.CloudUI) VS.CloudUI.note('本局成绩已同步到云端 Gist', 'ok');
-        });
-      }
 
       /* 死亡爆散 */
       game.shake = 13;
@@ -856,12 +903,13 @@
       if (game.deps.panels) {
         game.deps.panels.showGameOver({
           time: total,
-          best: game.data.bestTime,
+          best: VS.Save.profile(game.data, game.mode).bestTime,
           kills: p.kills,
           level: p.level,
           wave: wave,
           stage: game.level + 1,
-          stageLabel: VS.Levels.label(game.level),
+          stageLabel: game.mode === 'endless' ? '无尽 · 第 ' + game.endlessWave + ' 波' : VS.Levels.label(game.level),
+          mode: game.mode,
           victory: game.victory,
           failedClear: game.failedClear,
           reason: game.failReason,
@@ -870,9 +918,9 @@
       }
       if (VS.ScoresUI) VS.ScoresUI.showRank(rankInfo);   // 本局排名（没进前 5 就自己藏起来）
 
-      /* 全站榜：云账号登录了就提交（GitHub-Gist 模式的账号不经过服务端，跳过） */
-      if (VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
-        VS.LeaderboardUI.submitRun({ time: total, kills: p.kills, level: p.level, wave: wave });
+      if (VS.LeaderboardUI && VS.LeaderboardUI.showRank) VS.LeaderboardUI.showRank(null);
+      if (game.mode !== 'endless' && VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
+        VS.LeaderboardUI.submitRun({ time: total, kills: p.kills, level: p.level, wave: wave, mode: game.mode });
       }
     },
 

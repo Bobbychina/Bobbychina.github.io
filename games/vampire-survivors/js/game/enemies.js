@@ -15,12 +15,13 @@
    * 再乘上**关卡**的额外乘区（第二关实际是 hp ×1.30 / dmg ×1.50 / speed ×1.08，
    * 以 C.LEVELS[1] 为准 —— 这里原写的 1.6/1.35/1.10 是早期数值，已过时）。
    */
-  function scaleFor(t, levelIndex) {
+  function scaleFor(t, levelIndex, mode) {
     var mul = VS.Levels ? VS.Levels.statMul(levelIndex || 0) : { hp: 1, dmg: 1, speed: 1 };
+    var waves = mode === 'endless' ? Math.floor(t / C.ENDLESS.WAVE_SECONDS) : 0;
     return {
-      hp: VS.Phases.hpMult(t) * mul.hp,
-      dmg: VS.Phases.dmgMult(t) * mul.dmg,
-      speed: VS.Phases.speedMult(t) * mul.speed
+      hp: VS.Phases.hpMult(t) * mul.hp * Math.min(C.ENDLESS.MAX_HP_MULT, Math.pow(C.ENDLESS.HP_GROWTH, waves)),
+      dmg: VS.Phases.dmgMult(t) * mul.dmg * Math.min(C.ENDLESS.MAX_DAMAGE_MULT, Math.pow(C.ENDLESS.DAMAGE_GROWTH, waves)),
+      speed: VS.Phases.speedMult(t) * mul.speed * Math.min(C.ENDLESS.MAX_SPEED_MULT, Math.pow(C.ENDLESS.SPEED_GROWTH, waves))
     };
   }
 
@@ -83,7 +84,7 @@
     var pos = (opt.x !== undefined && opt.y !== undefined)
       ? { x: opt.x, y: opt.y }
       : VS.World.ringSpawnPoint(game.world, p.x, p.y, spawnRadius(game), state._pt);
-    var sc = scaleFor(game.time, game.level);
+    var sc = scaleFor(game.time, game.level, game.mode);
 
     var hp = type.hp * sc.hp * (opt.hpMult || 1);
 
@@ -147,7 +148,7 @@
     /* 远程攻击的伤害按生成时的难度倍率定下来 */
     if (def.ranged) {
       e.fireCd = def.ranged.cooldown * 0.6;    // 登场后先缓一下再吐
-      e.rangedDamage = def.ranged.damage * scaleFor(game.time, game.level).dmg;
+      e.rangedDamage = def.ranged.damage * scaleFor(game.time, game.level, game.mode).dmg;
       e.patternIndex = 0;                      // 三种攻击从扇形开始轮
     }
 
@@ -192,6 +193,18 @@
   /** 时间表推进：场上没 Boss 且到点了就投放下一只（时间表按关卡取） */
   function updateBoss(state, dt, game) {
     if (state.boss) return;                              // 上一只还活着
+
+    if (game.mode === 'endless') {
+      var nextAt = state.endlessBossAt || C.ENDLESS.BOSS_INTERVAL;
+      if (game.time < nextAt) return;
+      var lemon = state.bossCount % 2 === 1;
+      spawnBoss(state, game, { at: nextAt, type: lemon ? 'lemonPig' : 'boss', kit: !lemon,
+        name: (lemon ? '柠檬猪' : '尸潮之王') + ' · 无尽 ' + (state.bossCount + 1),
+        reward: state.firstBossDefeated ? 'levelUp' : 'firstBoss',
+        tip: '无 尽 首 领', sub: '击败后继续生存 · 下一个首领仍会到来' });
+      state.endlessBossAt = game.time + C.ENDLESS.BOSS_INTERVAL;
+      return;
+    }
 
     var sched = VS.Levels ? VS.Levels.bosses(game.level) : C.BOSS.SCHEDULE;
     if (state.bossIndex >= sched.length) return;         // 时间表跑完，不再有 Boss
@@ -465,15 +478,15 @@
      * 注意是"停止刷新"，场上已有的怪不会凭空消失，仍然要打掉。
      */
     var bossAlive = !!(state.boss && !state.boss.dead);
-    var restHere = VS.Phases.noSpawn(t) && !(VS.Levels && VS.Levels.noRest(game.level));
+    var restHere = game.mode !== 'endless' && VS.Phases.noSpawn(t) && !(VS.Levels && VS.Levels.noRest(game.level));
     if (restHere || (bossAlive && C.BOSS.PAUSE_SPAWN)) {
       state.spawnAcc = 0;   // 清掉欠账，恢复刷怪时才不会一次涌出一大批
       return;
     }
 
     /* 阶段倍率：尸潮阶段间隔缩短、每波数量翻倍 */
-    var spawnMul = VS.Phases.spawnMul(t);
-    var batchMul = VS.Phases.batchMul(t);
+    var spawnMul = game.mode === 'endless' ? Math.max(0.55, Math.pow(0.97, game.endlessWave - 1)) : VS.Phases.spawnMul(t);
+    var batchMul = game.mode === 'endless' ? 1 : VS.Phases.batchMul(t);
 
     /* 人潮刹车（平衡安全网，2026-09-23 测量台数据）：
        弱构筑时"刷得比打得快"会滚成雪崩 —— 实测最差的一局 180 秒就顶到 520 硬上限、
@@ -749,6 +762,7 @@
         boss: null,                    // 当前存活的 Boss（HUD 血条读它）
         bossIndex: 0,                  // 时间表指针：下一只要投放的是第几条（每关重置）
         bossCount: 0,                  // 已经投放了几只
+        endlessBossAt: 0,
         bossesKilled: 0,               // 已经打死了几只
         requiredKilled: 0,             // 打死了几只"必须击杀"的 Boss（通关判定用）
         firstBossDefeated: false,      // 第一只 Boss 是否已击杀（金球掉率分档要用，跨关保留）
@@ -767,6 +781,7 @@
       state.boss = null;
       state.bossIndex = 0;
       state.bossCount = 0;
+      state.endlessBossAt = 0;
       state.bossesKilled = 0;
       state.firstBossDefeated = false;
     },

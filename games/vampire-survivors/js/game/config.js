@@ -62,6 +62,11 @@
 
   // 每关独立计算，重选不会消耗升级次数。
   C.LEVELUP_REROLLS = 2;
+  C.ENDLESS = {
+    WAVE_SECONDS: 180, BOSS_INTERVAL: 300, BIOME_AT: 600,
+    HP_GROWTH: 1.16, DAMAGE_GROWTH: 1.08, SPEED_GROWTH: 1.025,
+    MAX_HP_MULT: 1000, MAX_DAMAGE_MULT: 100, MAX_SPEED_MULT: 1.8
+  };
 
   /* ---------------- 怪物类型 ----------------
      hp/speed/damage 是 1 级波次（t=0）的基准值，

@@ -84,7 +84,7 @@
 
     /* ---- 面板 ---- */
     var panels = VS.Panels.init({
-      onStart: function (weapon) { VS.Game.start(game, { startWeapon: weapon }); },
+      onStart: function (weapon, mode) { VS.Game.start(game, { startWeapon: weapon, mode: mode }); },
       onPreviewLevel: function (index, weapon) { VS.Game.startAt(game, index, { startWeapon: weapon }); },
       onRetry: function () { VS.Game.start(game); },
       onResume: function () { VS.Game.resume(game); },
@@ -92,7 +92,11 @@
       onChoose: function (index) { VS.Game.choose(game, index); },
       onReroll: function () { VS.Game.reroll(game); },
       onChoosePet: function (index) { VS.Game.choosePet(game, index); },
-      onNextLevel: function () { VS.Game.nextLevel(game); }
+      onNextLevel: function () { VS.Game.nextLevel(game); },
+      onEndEndless: function () {
+        if (game.mode === 'endless' && game.state === VS.Game.STATE.PAUSED) VS.Game.endRun(game, { reason: '主动结束 · 成绩已计入无尽本机纪录' });
+      },
+      onMenu: function () { VS.Game.toMenu(game); }
     });
     game.deps.panels = panels;
 
@@ -107,16 +111,14 @@
       VS.PlayerSkins.forEach(function (skin) {
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = 'skin-chip' + (skin.id === data.playerSkin ? ' on' : '');
+        b.className = 'skin-chip' + (skin.id === game.data.playerSkin ? ' on' : '');
         b.setAttribute('data-skin', skin.id);
         /* 用皮肤的斗篷主色 + 帽子主色做一个小色标，省得再画一张缩略图 */
         var c = skin.pal || {};
         b.innerHTML = '<i style="background:' + (c.C || '#888') + ';border-color:' + (c.H || '#444') + '"></i>' +
                       '<span>' + skin.name + '</span>';
         b.addEventListener('click', function () {
-          data.playerSkin = VS.Save.setSkin(data, skin.id);
-          if (game.data) game.data.playerSkin = data.playerSkin;
-          game.playerSkin = data.playerSkin;
+          game.playerSkin = VS.Save.setSkin(game.data, skin.id);
           renderSkinRow();
         });
         row.appendChild(b);

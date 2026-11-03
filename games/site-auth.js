@@ -398,13 +398,13 @@
 
   // ───────────────────────── 登录 ─────────────────────────
 
-  function authorizeUrl(clientId, redir, state, challenge) {
+  function authorizeUrl(clientId, redir, state, challenge, scope) {
     return endpoint(API.authorize) + '?' + new URLSearchParams({
       client_id: clientId,
       lang: global.I18N ? global.I18N.current() : 'zh-CN',
       redirect_uri: redir,
       response_type: 'code',
-      scope: 'openid profile email saves arcade',
+      scope: scope || 'openid profile email saves arcade',
       state: state,
       code_challenge: challenge,
       code_challenge_method: 'S256',
@@ -422,7 +422,7 @@
     /* returnTo：调用方页面所在的目录。回调页是所有游戏共用的一份文件，
        它没法从自己的路径推出调用方是谁 —— 记在这里，回跳时才能把 code 送回正确的页面。 */
     savePkce({ state: state, verifier: verifier, clientId: clientId, redirectUri: redir, returnTo: currentDir(), createdAt: nowMs() });
-    var url = authorizeUrl(clientId, redir, state, challenge);
+    var url = authorizeUrl(clientId, redir, state, challenge, opts.scope);
     if (opts.popup) return url;
     location.href = url;
     return url;

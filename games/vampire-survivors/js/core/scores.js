@@ -1,9 +1,5 @@
 /* ===========================================================
-   个人纪录榜（跨设备）：本机存一份 top5，跟着云存档一起走
-   —— 数据就是 VS.Save 里追加的 top 字段（Alan 的 agent 确认过「只在末尾加字段」没问题）：
-        data.top = [{ time, kills, level, wave, at }, …]   按 time 降序，最多 5 条
-   —— 合并口径：本机 ∪ 云端，按「时间+击杀+等级」去重，取前 5（VS.Cloud.merge 里调用 union）
-   —— 不上传任何身份信息，也不引第三方服务：走的就是账号库那份私有 Gist。
+   本机个人纪录：战役与无尽分别保留 top5。
    =========================================================== */
 (function (VS) {
   'use strict';
@@ -33,15 +29,16 @@
     MAX: MAX,
 
     /** 本机前 5（读的时候顺手清洗一遍，别让手改的存档把界面搞崩） */
-    list: function () {
+    list: function (mode) {
       var data = VS.Save.load();
-      return clean(data.top);
+      return clean(VS.Save.profile(data, mode).top);
     },
 
     /** 记一局；返回 { rank, isTop } —— rank 从 1 开始，0 表示没进前 5 */
     add: function (run) {
       var data = VS.Save.load();
-      var before = clean(data.top);
+      var stats = VS.Save.profile(data, run.mode);
+      var before = clean(stats.top);
       var next = clean(before.concat([{
         time: Math.max(0, run.time || 0),
         kills: run.kills || 0,
@@ -49,7 +46,7 @@
         wave: run.wave || 1,
         at: run.at || new Date().toISOString()
       }]));
-      data.top = next;
+      stats.top = next;
       VS.Save.persist(data);
       if (VS.Game && VS.Game.current) VS.Game.current.data = data;
 
@@ -58,9 +55,6 @@
       for (var i = 0; i < next.length; i++) if (key(next[i]) === k) { rank = i + 1; break; }
       return { rank: rank, isTop: rank > 0 && rank <= MAX, count: next.length };
     },
-
-    /** 两份榜取并集再截前 5（云存档合并用） */
-    union: function (a, b) { return clean(clean(a).concat(clean(b))); },
 
     /** 界面用的一行文案 */
     line: function (r, i) {

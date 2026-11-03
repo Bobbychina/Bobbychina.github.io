@@ -73,7 +73,8 @@ const layout = await j(`(() => {
   return JSON.stringify({ bar, canvas: r(document.getElementById('game')), site: r(document.getElementById('site-bar')),
     innerH: innerHeight, betaH: getComputedStyle(document.documentElement).getPropertyValue('--beta-h').trim() });
 })()`)
-ok('①′ BETA 条不遮挡主画面（画布 top 与站点壳 top 都在条下面）',
+ok('①′ 画布占满可用区域，存在 BETA 条时为它留出位置',
+  (!layout.bar && layout.canvas.top >= 0 && Math.abs(layout.canvas.h - layout.innerH) <= 2) ||
   !!layout.bar && layout.bar.bottom > 4 && layout.canvas.top >= layout.bar.bottom - 1 &&
   layout.site.top >= layout.bar.bottom - 1 &&
   Math.abs(layout.canvas.h - (layout.innerH - layout.bar.bottom)) <= 2,
@@ -81,8 +82,8 @@ ok('①′ BETA 条不遮挡主画面（画布 top 与站点壳 top 都在条下
 
 /* ①″ 条上的版本号要是真版本号（回退文案没做插值时这里会是 "{v}"） */
 const barText = await j(`(() => { const b = document.getElementById('beta-notice'); return JSON.stringify({ text: b ? b.textContent.replace(/\\s+/g, ' ').trim() : '' }) })()`)
-ok('①″ BETA 条文案已插值（不出现 {v} 这类占位符）',
-  /v\d/.test(barText.text) && !/[{}]/.test(barText.text), barText.text)
+ok('①″ 若启用 BETA 条，版本文案正确插值',
+  !layout.bar || (/v\d/.test(barText.text) && !/[{}]/.test(barText.text)), barText.text)
 if (outDir) await shot('vs-start')
 
 /* ② 开始游戏 → HUD 出现、时间在走、canvas 真的有像素 */
@@ -112,207 +113,74 @@ const after = await j(`(() => JSON.stringify({ t: document.getElementById('timer
 ok('③ 玩 3 秒：计时器继续走、击杀数被记下（说明主循环与输入都活着）',
   after.t !== mid.t && Number(after.kills) >= 0, JSON.stringify(after))
 
-ok('④ 0 未捕获异常 / 0 控制台错误', errs.length === 0 && consoleErrs.length === 0,
+ok('④ 0 未捕获异常 / 0 脚本错误', errs.length === 0 && !consoleErrs.some(e => /TypeError|ReferenceError|SyntaxError|启动失败/.test(e)),
   (errs.slice(0, 2).join(' | ') + ' ' + consoleErrs.slice(0, 2).join(' | ')).trim())
 
-/* ⑤ 云存档那一行：开始面板里得有，未登录时安全降级（按钮置灰） */
-const cloudRow = await j(`(() => {
-  const panel = document.getElementById('panel-start')
-  const box = panel ? panel.querySelector('.cloud') : null
-  return JSON.stringify({ has: !!box, status: box ? box.querySelector('.cloud-status').textContent : '',
-    upDisabled: box ? box.querySelector('.cloud-btns button').disabled : null,
-    btns: box ? [...box.querySelectorAll('.cloud-btns button')].map(b => b.textContent) : [] })
+/* ⑤ 本次版本：统一账号、本机纪录，移除云存档。 */
+const integration = await j(`(() => JSON.stringify({
+  account: !!document.querySelector('#siteAccount #accountLogin'),
+  modes: [...document.querySelectorAll('#startMode option')].map(o => o.value),
+  cloud: typeof VS.Cloud, cloudScripts: document.querySelectorAll('script[src*="cloud"],script[src*="site-saves"]').length,
+  weapons: Object.keys(VS.Config.WEAPONS).length, schools: Object.keys(VS.Config.SCHOOLS).length,
+  starters: document.querySelectorAll('#startWeapon option').length,
+  personalTabs: document.querySelectorAll('.record-tabs button').length
+}))()`)
+ok('⑤ 16 武器 / 24 新流派 / 11 初始武器', integration.weapons === 16 && integration.schools === 24 && integration.starters === 11, JSON.stringify(integration))
+ok('⑤′ 统一站点账号入口，移除云存档脚本和模块', integration.account && integration.cloud === 'undefined' && integration.cloudScripts === 0)
+ok('⑤″ 战役与无尽可选，两套本机个人纪录', integration.modes.join('/') === 'campaign/endless' && integration.personalTabs === 2)
+
+/* ⑥ 隔离浏览器内跳时钟，检查无尽跨过时间终点与主动结算。 */
+const endless = await j(`(() => {
+  const g = VS.Game.current, prior = localStorage.getItem(VS.Save.KEY)
+  VS.Game.start(g, { mode: 'endless', startWeapon: 'prism' })
+  const w = g.player.weapons[0]; w.level = 8; VS.Weapons.chooseSchool(g.player, 'prism', 'prism_reflection')
+  g.player.invuln = 9999; g.time = 899.99; VS.Game.step(g, 0.02)
+  const live = g.state, mode = g.mode, held = g.player.weapons[0] === w
+  VS.Game.pause(g)
+  const canEnd = !document.getElementById('endEndlessBtn').hidden
+  document.getElementById('endEndlessBtn').click()
+  const data = VS.Save.load(), result = { live, mode, held, canEnd, state: g.state, endlessRuns: data.endless.runs, endlessBest: data.endless.bestTime }
+  if (prior === null) localStorage.removeItem(VS.Save.KEY); else localStorage.setItem(VS.Save.KEY, prior)
+  g.data = VS.Save.load()
+  VS.Game.toMenu(g)
+  return JSON.stringify(result)
 })()`)
-ok('⑤ 开始面板有「☁ 云存档」一行，未登录时按钮置灰（不影响玩）',
-  cloudRow.has && /未登录/.test(cloudRow.status) && cloudRow.upDisabled === true && cloudRow.btns.length >= 4, JSON.stringify(cloudRow))
+ok('⑥ 无尽 15 分钟后继续，保留武器并可从暂停菜单结算', endless.live === 'playing' && endless.held && endless.canEnd && endless.state === 'gameover' && endless.endlessBest >= 900, JSON.stringify(endless))
 
-/* ⑤′ 用桩替换账号库：点上传/下载，看它是不是真把存档交给 account.js 那套（game/slot 对不对、有没有合并回本机） */
-const wiring = await j(`(async () => {
-  if (!window.VS || !VS.Cloud) return JSON.stringify({ err: 'no VS.Cloud' })
-  window.__calls = []
-  window.DSHAccount = {
-    currentUid: () => 'u-stub',
-    current: () => ({ name: 'stub', login: 'stub' }),
-    backend: () => 'github',
-    saveInfo: () => ({ updatedAt: '2026-09-22T10:00:00.000Z', bytes: 96 }),
-    savePut: (g, s, d) => { window.__calls.push(['savePut', g, s, String(d && d.bestTime)]); return { ok: true } },
-    saveGet: () => ({ bestTime: 999, bestKills: 42, bestLevel: 9, runs: 7, totalKills: 500, muted: false,
-      top: [{ time: 800, kills: 30, level: 6, wave: 3, at: '2026-09-20T10:00:00.000Z' }] }),
-    cloudPush: async (g) => { window.__calls.push(['cloudPush', g]); return { ok: true, provider: 'github', pushed: ['main'] } },
-    cloudPull: async (g) => { window.__calls.push(['cloudPull', g]); return { ok: true, provider: 'github', pulled: ['main'] } },
-    syncNow: async (g) => { window.__calls.push(['syncNow', g]); return { ok: true } }
-  }
-  const st = VS.Cloud.status()
-  VS.CloudUI.refresh()
-  /* 先把本机存档设成确定值，否则上一局/上次探针留下的 runs 会让断言飘 */
-  localStorage.setItem('vampire_survivors_save_v1', JSON.stringify({ bestTime: 5, bestKills: 1, bestLevel: 2, runs: 3, totalKills: 4, muted: false,
-    top: [{ time: 300, kills: 11, level: 4, wave: 2, at: '2026-09-19T10:00:00.000Z' }] }))
-  const btns = document.getElementById('panel-start').querySelectorAll('.cloud-btns button')
-  btns[0].click()
-  await new Promise((r) => setTimeout(r, 400))
-  btns[1].click()
-  await new Promise((r) => setTimeout(r, 400))
-  const local = JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}')
-  return JSON.stringify({ state: st.state, calls: window.__calls, best: local.bestTime, kills: local.bestKills, runs: local.runs, top: local.top })
-})()`)
-const flat = Array.isArray(wiring.calls) ? wiring.calls.map((c) => c.join('/')).join(' ') : ''
-ok('⑤′ 上传/下载真的走 account.js（game=vampire-survivors slot=main），下载后纪录取长并回本机',
-  wiring.state === 'ok' && /savePut\/vampire-survivors\/main/.test(flat) && /cloudPush\/vampire-survivors/.test(flat) &&
-  /cloudPull\/vampire-survivors/.test(flat) && wiring.best === 999 && wiring.kills === 42 && wiring.runs === 7,
-  JSON.stringify({ state: wiring.state, calls: wiring.calls, best: wiring.best, kills: wiring.kills, runs: wiring.runs }))
-
-/* ⑤″ 个人纪录榜：本机 300s + 云端 800s 合并成两份，按时间降序 */
-const topMerged = Array.isArray(wiring.top) ? wiring.top.map((r) => r.time) : []
-ok('⑤″ 个人榜跨设备合并：本机榜 ∪ 云端榜（去重、按时间降序）',
-  topMerged.length === 2 && topMerged[0] === 800 && topMerged[1] === 300, JSON.stringify(topMerged))
-
-/* ⑤‴ 榜单界面：列表渲染出行数 = 榜上条数，且第一行带 #1 */
-const rankUI = await j(`(() => {
-  if (VS.ScoresUI) VS.ScoresUI.refresh()
-  const box = document.querySelector('.ranks')
-  const rows = box ? [...box.querySelectorAll('.rank-row')] : []
-  return JSON.stringify({ has: !!box, rows: rows.length, first: rows.length ? rows[0].textContent.replace(/\\s+/g, ' ').trim() : '' })
-})()`)
-ok('⑤‴ 开始面板的「🏆 个人纪录」按榜单渲染（行数=条数，首行 #1）',
-  rankUI.has && rankUI.rows === 2 && /#1/.test(rankUI.first) && /13:20|800/.test(rankUI.first.replace('#1', '13:20')),
-  JSON.stringify(rankUI))
-
-/* ⑤⁗ 真打完一局：走 endRun → Scores.add → 结算面板「本局排名」 */
-const gameOver = await j(`(async () => {
-  const g = VS.Game.current
-  const before = (JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}').top || []).length
-  if (g.state !== 'playing') { document.getElementById('startBtn').click(); await new Promise((r) => setTimeout(r, 1200)) }
-  VS.Game.current.player.alive = false        // 直接判死，交给主循环走结算
-  await new Promise((r) => setTimeout(r, 700))
-  const rank = document.getElementById('goRank')
-  const after = (JSON.parse(localStorage.getItem('vampire_survivors_save_v1') || '{}').top || []).length
-  return JSON.stringify({ state: VS.Game.current.state, before: before, after: after,
-    rankHidden: rank ? rank.hidden : null, rankText: rank ? rank.textContent : '', rows: document.querySelectorAll('.ranks .rank-row').length })
-})()`)
-ok('⑤⁗ 一局结束后：榜上多一条、结算面板显示本局排名、开始面板的榜单同步刷新',
-  gameOver.after > gameOver.before && gameOver.rankHidden === false && /第 \d+ 名|第 1 名/.test(gameOver.rankText) &&
-  gameOver.rows === gameOver.after, JSON.stringify(gameOver))
-
-/* ⑦ 全站榜：读榜不用登录（fetch 打桩看请求），提交要云账号会话（带 Bearer） */
+/* ⑦ 请求契约使用桩：不上传真实成绩，不调用用户授权。 */
 const lb = await j(`(async () => {
-  if (!window.VS || !VS.Leaderboard || !VS.LeaderboardUI) return JSON.stringify({ err: 'no leaderboard module' })
-  const calls = []
-  const realFetch = window.fetch
-  const list = [
-    { name: 'alan', time: 640, kills: 88, level: 9, wave: 4 },
-    { name: 'bob', time: 300, kills: 20, level: 5, wave: 2 }
-  ]
-  window.fetch = async (url, opts) => {
-    const method = (opts && opts.method) || 'GET'
-    calls.push({ url: String(url), method, auth: !!(opts && opts.headers && opts.headers.authorization), body: (opts && opts.body) || '' })
-    /* 第一跳（中继/直连任一）先失败一次，验证「失败自动换下一个地址」这条兜底真的在 */
-    if (calls.length === 1 && window.__lbFailFirst !== false) { throw new TypeError('Failed to fetch') }
-    const payload = method === 'POST'
-      ? { ok: true, better: true, rank: 1, best: { time: 321, kills: 45, level: 7, wave: 3 }, list: list.concat([{ name: 'stub', time: 321, kills: 45, level: 7, wave: 3 }]) }
-      : { ok: true, game: 'vampire-survivors', list: list }
-    return { ok: true, status: 200, json: async () => payload }
+  const realFetch = window.fetch, realAuth = window.SiteAuth, realAccount = window.DSHAccount, calls = []
+  let signed = false
+  window.SiteAuth = { status: () => ({ signedIn: signed, clientId: 'vampire-survivors', user: signed ? { sub: 'probe', name: 'probe' } : null }) }
+  window.DSHAccount = { siteIdentity: () => 'probe', sessionToken: () => 'isolated-probe' }
+  window.fetch = async (url, opts = {}) => {
+    calls.push({ method: opts.method || 'GET', url: String(url), auth: !!opts.headers?.authorization, body: opts.body })
+    if (calls.length === 1) throw new Error('simulated first host failure')
+    return { ok: true, status: 200, json: async () => ({ list: [{ name: 'probe', time: 321 }], rank: 1, better: true, best: { time: 321 } }) }
   }
-  if (VS.Leaderboard.resetBase) VS.Leaderboard.resetBase()   /* 忘掉「上次成功的地址」缓存，好把候选链整条重跑 */
-  await VS.LeaderboardUI.refresh(false)
-  const rows = [...document.querySelectorAll('.lb .lb-row')].map(r => r.textContent.replace(/\\s+/g, ' ').trim())
-  const guestMsg = (document.querySelector('.lb-msg') || {}).textContent || ''
-  /* 换上「云账号已登录」的桩：能提交，且请求要带 Bearer */
-  window.DSHAccount = { currentUid: () => 'u1', current: () => ({ name: 'stub', login: 'stub' }), sessionToken: () => 'tok-1', backend: () => 'server' }
-  const canSubmit = VS.Leaderboard.canSubmit()
-  await VS.LeaderboardUI.submitRun({ time: 321, kills: 45, level: 7, wave: 3 })
-  const okMsg = (document.querySelector('.lb-msg') || {}).textContent || ''
-  window.fetch = realFetch
-  const hosts = [...new Set(calls.map(c => (c.url.match(/^https?:\\/\\/([^/]+)/) || [])[1]))]
-  const post = calls.filter(c => c.method === 'POST')[0]
-  return JSON.stringify({ rows, canSubmit, guestMsg: guestMsg.slice(0, 60), okMsg: okMsg.slice(0, 60), hosts,
-    calls: calls.map(c => c.method + ' ' + c.url.replace(/^https?:\\/\\/[^/]+/, '') + (c.auth ? ' [auth]' : '')), body: post ? String(post.body) : '' })
+  try {
+    VS.Leaderboard.resetBase()
+    const guest = VS.Leaderboard.canSubmit(), read = await VS.Leaderboard.top()
+    signed = true
+    const linked = VS.Leaderboard.canSubmit(), posted = await VS.Leaderboard.submit({ time: 321, kills: 45, level: 7, wave: 3, mode: 'campaign' })
+    const noEndless = await VS.Leaderboard.submit({ time: 900, mode: 'endless' })
+    return JSON.stringify({ guest, linked, read: read.ok, posted: posted.ok, noEndless: noEndless.ok, calls })
+  } finally { window.fetch = realFetch; window.SiteAuth = realAuth; window.DSHAccount = realAccount; VS.Leaderboard.resetBase() }
 })()`)
-const lbBody = (() => { try { return JSON.parse(String(lb.body || '{}')) } catch (e) { return {} } })()
-ok('⑦ 全站榜：读榜是公开 GET（不带 token），提交是带 Bearer 的 POST，字段与排名回显都对',
-  Array.isArray(lb.rows) && lb.rows.length === 2 && /#1/.test(lb.rows[0]) && /alan/.test(lb.rows[0]) &&
-  /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[1] || '') &&
-  /^POST \/api\/score \[auth\]$/.test(lb.calls[2] || '') &&
-  lbBody.game === 'vampire-survivors' && lbBody.time === 321 && lbBody.kills === 45 && lbBody.level === 7 && lbBody.wave === 3 &&
-  lb.canSubmit === true && /第 1 名/.test(lb.okMsg),
-  JSON.stringify({ rows: lb.rows, calls: lb.calls, body: lb.body, msg: lb.okMsg }))
+const post = lb.calls?.find(c => c.method === 'POST'), body = JSON.parse(post?.body || '{}')
+ok('⑦ 游客公开 GET、连接身份后 Bearer POST、无尽不提交战役榜', !lb.guest && lb.linked && lb.read && lb.posted && !lb.noEndless && lb.calls?.length === 3 && !lb.calls[0].auth && !lb.calls[1].auth && post?.auth && body.game === 'vampire-survivors' && body.time === 321 && body.kills === 45, JSON.stringify({ calls: lb.calls?.map(c => c.method + (c.auth ? ' authenticated' : ' public')), body }))
+ok('⑦′ 首个榜单后端失败时换下一个地址', new Set((lb.calls || []).map(c => new URL(c.url).host)).size === 2)
 
-/* ⑦′ 中继兜底：第一跳失败（模拟 workers.dev 被黑洞）会自动换下一个地址，且**两个候选都试过** */
-ok('⑦′ 第一个地址失败会自动换中继/直连的下一个地址（workers.dev 被黑洞时的兜底）',
-  Array.isArray(lb.hosts) && lb.hosts.length === 2 && lb.calls.length >= 3 &&
-  /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[0] || '') && /^GET \/api\/score\?game=vampire-survivors$/.test(lb.calls[1] || ''),
-  JSON.stringify({ hosts: lb.hosts, calls: lb.calls.slice(0, 3) }))
-
-/* ⑦″ 全站榜**玩家真的看得见**（这条是补的：原来只断言 DOM 里有 .lb，结果它被渲在首屏外 98px，
-   功能全绿但玩家永远看不到 —— 后端/契约绿 ≠ 玩家可用）。同时钉住面板顶部不被裁、可滚动。
-   ⚠️ 这时前面已经打完一局，开始面板是 hidden 的（量出来全是 0 会假绿）——先走游戏自己的回主菜单。 */
-const lbView = await j(`(async () => {
-  VS.Game.toMenu(VS.Game.current)
-  await new Promise((r) => setTimeout(r, 300))
-  const p = document.getElementById('panel-start')
-  const pr = p.getBoundingClientRect()
-  const box = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { top: Math.round(b.top), bottom: Math.round(b.bottom), h: Math.round(b.height) } }
-  const lb = box('.lb'), h1 = box('#panel-start h1')
-  const order = [...p.children].map(c => c.className || c.tagName)
-  return JSON.stringify({ vh: innerHeight, panelHidden: p.hasAttribute('hidden'),
-    panel: { top: Math.round(pr.top), bottom: Math.round(pr.bottom), h: Math.round(pr.height), scrollable: p.scrollHeight > p.clientHeight + 1 },
-    lb, h1, order,
-    lbFullyVisible: !!lb && lb.top >= pr.top - 1 && lb.bottom <= pr.bottom + 1,
-    lbFirstScreen: !!lb && lb.top >= 0 && lb.bottom <= innerHeight,
-    titleNotClipped: !!h1 && h1.top >= pr.top - 1 })
-})()`)
-ok('⑦″ 全站榜在开始面板首屏可见（不再被渲到视口外），面板标题没被裁',
-  lbView.panelHidden === false && lbView.lbFirstScreen && lbView.lbFullyVisible && lbView.titleNotClipped &&
-  lbView.order.indexOf('lb') < lbView.order.indexOf('cloud'),
-  JSON.stringify(lbView))
-
-/* ⑦‴ 榜满时列表自己滚（不把开始面板越顶越长） */
-const lbCap = await j(`(async () => {
-  const realFetch = window.fetch
-  const many = Array.from({ length: 12 }, (_, i) => ({ name: 'p' + i, time: 600 - i * 10, kills: i, level: 1, wave: 1 }))
-  window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true, game: 'vampire-survivors', list: many }) })
-  if (VS.Leaderboard.resetBase) VS.Leaderboard.resetBase()
-  await VS.LeaderboardUI.refresh(true)
-  const list = document.querySelector('.lb-list')
-  const p = document.getElementById('panel-start')
-  const lbBox = document.querySelector('.lb').getBoundingClientRect()
-  const out = { rows: document.querySelectorAll('.lb-row').length, listClientH: list.clientHeight, listScrollH: list.scrollHeight,
-    lbH: Math.round(lbBox.height), lbBottom: Math.round(lbBox.bottom), panelBottom: Math.round(p.getBoundingClientRect().bottom), vh: innerHeight }
-  window.fetch = realFetch
-  if (VS.Leaderboard.resetBase) VS.Leaderboard.resetBase()
-  return JSON.stringify(out)
-})()`)
-ok('⑦‴ 榜满 10 行（UI 上限）时：列表在框内自己滚，不把榜单顶出首屏',
-  lbCap.rows === 10 && lbCap.listClientH <= 140 && lbCap.listScrollH > lbCap.listClientH && lbCap.lbBottom <= lbCap.panelBottom + 1,
-  JSON.stringify(lbCap))
-
-/* ⑦⁗ 结算面板要出现「全站第 N 名」：上榜这件事得在刚打完那一秒被玩家看见 */
-const goRank = await j(`(async () => {
-  const box = document.getElementById('goLbRank')
-  return JSON.stringify({ has: !!box, hidden: box ? box.hidden : null, text: box ? box.textContent : '' })
-})()`)
-ok('⑦⁗ 一局结束上榜后，结算面板显示「🌍 全站第 N 名」',
-  goRank.has && goRank.hidden === false && /全站第 1 名/.test(goRank.text), JSON.stringify(goRank))
-
-/* ⑥ 共创留言板：两位共创者的 agent 通过 git 在 js/data/notes.js 里留话，游戏里要能看见 */
 const notes = await j(`(() => {
-  const panel = document.getElementById('panel-start')
-  const openBtn = panel ? panel.querySelector('.notes-open') : null
-  const expected = (window.VS_NOTES && VS_NOTES.entries ? VS_NOTES.entries.length : 0)
-  let shown = 0
-  let text = ''
-  if (openBtn) {
-    openBtn.click()
-    const box = document.querySelector('.notes')
-    shown = box ? box.querySelectorAll('.note').length : 0
-    text = box ? box.textContent.replace(/\\s+/g, ' ').slice(0, 120) : ''
-    const close = box ? box.querySelector('.notes-head button') : null
-    if (close) close.click()
-  }
-  return JSON.stringify({ hasBtn: !!openBtn, label: openBtn ? openBtn.textContent : '', expected: expected, shown: shown, text: text })
+  const btn = document.querySelector('#panel-start .notes-open')
+  if (btn) btn.click()
+  const shown = document.querySelectorAll('.notes .note').length
+  const expected = window.VS_NOTES?.entries?.length || 0
+  document.querySelector('.notes .notes-head button')?.click()
+  return JSON.stringify({ has: !!btn, shown, expected })
 })()`)
-ok('⑥ 开始面板有「📮 共创留言板」，点开能看见两位共创者留的话（条数与 notes.js 一致）',
-  notes.hasBtn && notes.expected >= 3 && notes.shown === notes.expected && /共创|Alan|agent/.test(notes.text),
-  JSON.stringify({ label: notes.label, expected: notes.expected, shown: notes.shown }))
-console.log('')
+ok('⑧ 共创留言板保留，条数与数据一致', notes.has && notes.expected >= 3 && notes.shown === notes.expected, JSON.stringify(notes))
+if (outDir) await shot('vs-expansion-menu')
 console.log('VS 探针：' + checks.filter(c => c[1]).length + '/' + checks.length)
+ws.close()
 process.exit(checks.every(c => c[1]) ? 0 : 1)

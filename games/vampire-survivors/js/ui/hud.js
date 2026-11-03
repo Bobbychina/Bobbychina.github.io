@@ -133,17 +133,17 @@
 
       /* --- 数值 --- */
       if (dom.timer) dom.timer.textContent = U.formatTime(game.time);
-      if (dom.wave) dom.wave.textContent = String(VS.Enemies.waveFor(game.time));
+      if (dom.wave) dom.wave.textContent = String(game.mode === 'endless' ? game.endlessWave : VS.Enemies.waveFor(game.time));
       if (dom.kills) dom.kills.textContent = U.group(p.kills);
       if (dom.level) dom.level.textContent = String(p.level);
 
       /* --- 当前关卡（存活计时是按"本关"走的，所以要把关卡摆在旁边） --- */
       if (dom.stage) {
-        dom.stage.textContent = String(game.level + 1);
+        dom.stage.textContent = game.mode === 'endless' ? '无尽' : String(game.level + 1);
         dom.stage.setAttribute('data-stage', String(game.level + 1));
         if (VS.Levels) {
           var ld = VS.Levels.def(game.level);
-          dom.stage.title = VS.Levels.label(game.level) +
+          dom.stage.title = game.mode === 'endless' ? '无尽狩猎 · 无时间上限 · 每 3 分钟提升波次' : VS.Levels.label(game.level) +
             ' · 本关 ' + U.formatTime(ld.duration) + ' 过关';
         }
       }
@@ -151,7 +151,8 @@
       /* --- 当前阶段 --- */
       if (dom.phase) {
         var ph = VS.Phases.at(game.time);
-        dom.phase.textContent = ph.short || ph.name;
+        dom.phase.textContent = game.mode === 'endless'
+          ? (game.enemies.boss && !game.enemies.boss.dead ? '首领' : game.level > 0 ? '深层' : '狩猎') : ph.short || ph.name;
         dom.phase.className = 'v ph-' + ph.id;
       }
 
@@ -178,7 +179,7 @@
       /* --- 武器栏（内容变了才重建 DOM） --- */
       var list = VS.Weapons.listForUI(p);
       var sig = '';
-      for (var i = 0; i < list.length; i++) sig += list[i].id + list[i].level + ':' + list[i].evolved + '|';
+      for (var i = 0; i < list.length; i++) sig += list[i].id + list[i].level + ':' + list[i].evolved + ':' + list[i].school + list[i].schoolRank + '|';
 
       /* 环绕骨刃那一格要显示当前形态（E 键切换），所以形态也进签名 */
       var orbitName = (VS.Weapons.has(p, 'orbit') && VS.Weapons.orbitMode)
@@ -209,6 +210,7 @@
                     '<span style="color:' + w.color + '">' + w.icon + '</span>' +
                     '<span class="nm">' + w.name + '</span>' +
                     tail +
+                    (w.school ? '<span class="branch-label">' + w.school + ' ' + w.schoolRank + '</span>' : '') +
                   '</span>';
         }
 

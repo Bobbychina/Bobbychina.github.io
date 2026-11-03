@@ -9,7 +9,8 @@
   var U = VS.Utils;
 
   /** 从 level 升到 level+1 所需经验 */
-  function xpForLevel(level) {
+  function xpForLevel(level, endless) {
+    if (endless) return Math.round(C.XP.BASE * Math.pow(1.17, Math.min(25, level - 1)) * (1 + Math.max(0, level - 26) * 0.09));
     return Math.round(C.XP.BASE * Math.pow(C.XP.GROWTH, level - 1));
   }
 
@@ -41,6 +42,7 @@
         healFlash: 0,
 
         level: 1,
+        endless: false,
         xp: 0,
         xpNeeded: xpForLevel(1),
 
@@ -219,10 +221,11 @@
      * @returns {boolean} 是否成功（已满级返回 false）
      */
     grantLevel: function (p) {
-      if (p.level >= C.XP.MAX_LEVEL) return false;
+      var cap = p.endless ? Infinity : C.XP.MAX_LEVEL;
+      if (p.level >= cap) return false;
       p.level++;
-      p.xpNeeded = xpForLevel(p.level);
-      if (p.level >= C.XP.MAX_LEVEL) {
+      p.xpNeeded = xpForLevel(p.level, p.endless);
+      if (p.level >= cap) {
         p.xp = 0;
         p.xpNeeded = Infinity;
       }
@@ -234,20 +237,21 @@
      * （一次吃一大把经验石可能连升多级，升级面板要排队处理）
      */
     gainXp: function (p, amount) {
-      if (amount <= 0) return 0;
-      if (p.level >= C.XP.MAX_LEVEL) return 0;
+      if (!isFinite(amount) || amount <= 0) return 0;
+      var cap = p.endless ? Infinity : C.XP.MAX_LEVEL;
+      if (p.level >= cap) return 0;
 
       p.xp += amount;
       var levels = 0;
 
-      while (p.xp >= p.xpNeeded && p.level < C.XP.MAX_LEVEL) {
+      while (p.xp >= p.xpNeeded && p.level < cap && levels < 100) {
         p.xp -= p.xpNeeded;
         p.level++;
         levels++;
-        p.xpNeeded = xpForLevel(p.level);
+        p.xpNeeded = xpForLevel(p.level, p.endless);
       }
 
-      if (p.level >= C.XP.MAX_LEVEL) {
+      if (p.level >= cap) {
         p.xp = 0;
         p.xpNeeded = Infinity;
       }

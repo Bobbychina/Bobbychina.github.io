@@ -9,6 +9,16 @@
 
   var KEY = 'vampire_survivors_save_v1';
 
+  function profile(raw) {
+    raw = raw || {};
+    var out = { bestTime: 0, bestKills: 0, bestLevel: 1, runs: 0, totalKills: 0, top: [] };
+    Object.keys(out).forEach(function (key) {
+      if (key === 'top') { if (Array.isArray(raw.top)) out.top = raw.top.slice(0, 5); return; }
+      if (typeof raw[key] === 'number' && isFinite(raw[key]) && raw[key] >= 0) out[key] = raw[key];
+    });
+    return out;
+  }
+
   function defaults() {
     return {
       bestTime: 0,
@@ -18,7 +28,8 @@
       totalKills: 0,
       muted: false,
       playerSkin: 'witch', // 主角皮肤 id（见 tools/player-art.js 的 SKINS）
-      top: []              // 个人前 5（见 core/scores.js），跟云存档一起走
+      top: [],
+      endless: profile()
     };
   }
 
@@ -61,6 +72,7 @@
       for (var k in def) {
         if (!Object.prototype.hasOwnProperty.call(def, k)) continue;
         if (!Object.prototype.hasOwnProperty.call(raw, k)) continue;
+        if (k === 'endless') { def.endless = profile(raw.endless); continue; }
         /* 数组字段（top 榜）：不能走 isFinite 那条判断 —— 两个以上元素的数组 isFinite 为 false，会被整条丢掉 */
         if (Array.isArray(def[k])) { if (Array.isArray(raw[k])) def[k] = raw[k].slice(0); continue; }
         /* 字符串字段（playerSkin 之类）：isFinite('witch') 是 false，会被整条丢掉，
@@ -76,22 +88,29 @@
       return writeRaw(data);
     },
 
+    profile: function (data, mode) {
+      if (mode !== 'endless') return data;
+      if (!data.endless || typeof data.endless !== 'object') data.endless = profile();
+      return data.endless;
+    },
+
     /**
      * 提交一局战绩
      * @param {{time:number,kills:number,level:number,wave:number}} run
      * @param {object} data 由 load() 得到的存档对象（会被就地修改并写回）
      * @returns {boolean} 是否刷新了最高存活时间
      */
-    submit: function (run, data) {
+    submit: function (run, data, mode) {
+      var stats = Save.profile(data, mode);
       var time = Math.max(0, run.time || 0);
-      var isNewBest = time > (data.bestTime || 0);
+      var isNewBest = time > (stats.bestTime || 0);
 
-      data.runs = (data.runs || 0) + 1;
-      data.totalKills = (data.totalKills || 0) + (run.kills || 0);
+      stats.runs = (stats.runs || 0) + 1;
+      stats.totalKills = (stats.totalKills || 0) + (run.kills || 0);
 
-      if (isNewBest) data.bestTime = time;
-      if ((run.kills || 0) > (data.bestKills || 0)) data.bestKills = run.kills || 0;
-      if ((run.level || 1) > (data.bestLevel || 1)) data.bestLevel = run.level || 1;
+      if (isNewBest) stats.bestTime = time;
+      if ((run.kills || 0) > (stats.bestKills || 0)) stats.bestKills = run.kills || 0;
+      if ((run.level || 1) > (stats.bestLevel || 1)) stats.bestLevel = run.level || 1;
 
       writeRaw(data);
       return isNewBest;

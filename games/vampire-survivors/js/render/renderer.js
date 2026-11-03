@@ -266,12 +266,14 @@
       Renderer.drawNovas(ctx, game, time);
       Renderer.drawMeteors(ctx, game, view);
       Renderer.drawWeaponBlasts(ctx, game, view);
+      if (VS.Arsenal) VS.Arsenal.render(ctx, game, view, time, 'ground');
       Renderer.drawBossTelegraph(ctx, game);          // Boss 前摇光环（在它身下，别盖住本体）
       Renderer.drawEnemies(ctx, game, view, time);
       Renderer.drawPlayer(ctx, r, game);
       Renderer.drawPets(ctx, r, game, time);
       Renderer.drawOrbit(ctx, game, time);
       Renderer.drawProjectiles(ctx, game, view, time);
+      if (VS.Arsenal) VS.Arsenal.render(ctx, game, view, time, 'air');
       Renderer.drawBolts(ctx, game, view);            // 雷击链的折线
       Renderer.drawBossShots(ctx, r, game, view);     // 敌方弹幕压在玩家弹幕之上
       Renderer.drawShots(ctx, game, view, time);      // 柠檬猪的酸液（enemies.shots）

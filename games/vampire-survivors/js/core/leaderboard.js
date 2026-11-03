@@ -2,8 +2,7 @@
    全站榜（全球排行榜）：走站点的云后端（Cloudflare Worker 的 /api/score）
    ---------------------------------------------------------------------------
    口径（跟共创伙伴在留言板里定的）：
-     · **看榜不用登录**（GET 是公开只读），**上榜要云账号登录** —— 服务端只认自己的会话，
-       所以名字伪造不了；GitHub-Gist 模式的账号不经过服务端，上不了榜（界面会明说）。
+     · 公开读榜；提交使用统一站点账号连接的既有排行榜会话。
      · 上传的只有 存活时间 / 击杀 / 等级 / 波次，不带身份信息（uid、邮箱、IP 都不出浏览器）。
      · 每人 60 秒只能提交一次（服务端冷却），只记个人最好的一局。
    =========================================================== */
@@ -17,7 +16,8 @@
     try { return String((window.DSH_AUTH_CONFIG && window.DSH_AUTH_CONFIG.api) || '').replace(/\/+$/, ''); }
     catch (e) { return ''; }
   }
-  function who() { try { var u = lib().current(); return u ? (u.login || u.name || '') : ''; } catch (e) { return ''; } }
+  function who() { try { var s = VS.SiteAccount.snapshot(), u = s.user;
+    return s.signedIn && u ? (u.name || u.username || '') : ''; } catch (e) { return ''; } }
   function token() { try { return lib().sessionToken ? lib().sessionToken() : ''; } catch (e) { return ''; } }
 
   /** 榜单后端候选地址，按顺序试：
@@ -41,19 +41,26 @@
     var h = { 'content-type': 'application/json' };
     if (needAuth) {
       var t = token();
-      if (!t) return { ok: false, err: '没登录云账号（用 GitHub 登录的存档是本机 + Gist，上不了全站榜）', needLogin: true, fatal: true };
+      if (!Leaderboard.canSubmit() || !t) return { ok: false, err: '请先使用站点账号连接排行榜', needLogin: true, fatal: true };
       h.authorization = 'Bearer ' + t;
     }
-    var r = await fetch(b + path, Object.assign({ headers: h, mode: 'cors' }, opts || {}));
+    var abort = new AbortController();
+    var timeout = window.setTimeout(function () { abort.abort(); }, 12000);
+    var r;
+    try { r = await fetch(b + path, Object.assign({ headers: h, mode: 'cors', signal: abort.signal }, opts || {})); }
+    finally { window.clearTimeout(timeout); }
     var d = null;
     try { d = await r.json(); } catch (e) { d = null; }
-    if (!r.ok) return { ok: false, status: r.status, err: (d && (d.message || d.error)) || ('HTTP ' + r.status), data: d, fatal: true };
+    if (!r.ok) {
+      if (needAuth && r.status === 401 && VS.SiteAccount) VS.SiteAccount.invalidate();
+      return { ok: false, status: r.status, err: (d && (d.message || d.error)) || ('HTTP ' + r.status), data: d, fatal: true };
+    }
     return { ok: true, data: d };
   }
 
   async function req(path, opts, needAuth) {
     var list = bases();
-    if (!list.length) return { ok: false, err: '这台设备没配云后端（auth-config.js 里的 api 是空的）' };
+    if (!list.length) return { ok: false, err: '排行榜服务暂不可用，本机纪录仍会保存' };
     var lastErr = null;
     for (var i = 0; i < list.length; i++) {
       try {
@@ -65,14 +72,14 @@
         lastErr = { ok: false, err: '连不上 ' + list[i].replace(/^https?:\/\//, '').split('/')[0] + '：' + e.message };
       }
     }
-    return lastErr || { ok: false, err: '连不上云后端' };
+    return lastErr || { ok: false, err: '暂时连不上排行榜服务' };
   }
 
   var Leaderboard = {
 
     GAME: GAME,
-    available: function () { return !!base() && !!lib(); },
-    canSubmit: function () { return !!base() && !!token(); },
+    available: function () { return !!base(); },
+    canSubmit: function () { return !!base() && !!VS.SiteAccount && VS.SiteAccount.isLinked(); },
     who: who,
 
     /** 读榜（不用登录） */
@@ -81,8 +88,9 @@
     /** 给探针用：忘掉「上次成功的地址」缓存，好把候选链完整重跑一遍 */
     resetBase: function () { goodBase = ''; },
 
-    /** 提交一局（要云账号会话） */
+    /** 提交战役成绩（要与当前站点身份一致的排行榜会话） */
     submit: function (run) {
+      if (run.mode === 'endless') return Promise.resolve({ ok: false, err: '无尽模式使用本机独立纪录' });
       return req('/api/score', {
         method: 'POST',
         body: JSON.stringify({

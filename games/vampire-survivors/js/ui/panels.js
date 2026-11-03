@@ -28,12 +28,36 @@
     if (def) dom.starterDesc.textContent = def.desc;
   }
 
+  function modeInfo() {
+    if (!dom) return;
+    var endless = dom.startMode && dom.startMode.value === 'endless';
+    if (dom.modeDesc) dom.modeDesc.textContent = endless
+      ? '无时间上限 · 构筑持续保留 · 每 3 分钟提升波次 · 每 5 分钟刷新首领'
+      : '双关战役 · 第一关生存 15 分钟 · 第二关从 1 级重来，并在 15 分钟内击败最终首领';
+    if (dom.previewL2Btn) dom.previewL2Btn.hidden = endless;
+    var game = VS.Game && VS.Game.current;
+    var data = game ? game.data : VS.Save.load();
+    var best = VS.Save.profile(data, endless ? 'endless' : 'campaign').bestTime || 0;
+    if (dom.startBest) dom.startBest.textContent = best > 0 ? U.formatTime(best) : '--:--';
+    if (dom.startBtn && !dom.startBtn.disabled) dom.startBtn.textContent = endless ? '开始无尽狩猎' : '开始战役';
+    if (VS.ScoresUI) VS.ScoresUI.refresh(endless ? 'endless' : 'campaign');
+  }
+
   function renderArsenal() {
     if (!dom || !dom.arsenalContent) return;
-    var html = '<p>两把武器在第一关即可获得，也可直接选作初始武器。进入第二关仍使用选定的初始武器。</p>';
-    ['frost', 'meteor'].forEach(function (id) {
+    var html = '<p>16 把基础武器，每局最多携带 4 把。八把扩展武器各有三条互斥分支，共新增 24 条流派，每条最高 3 级。第二关专属武器在无尽 10 分钟后入池。</p>';
+    Object.keys(VS.Config.WEAPONS).forEach(function (id) {
       var weapon = VS.Config.WEAPONS[id];
-      html += '<p><b style="color:' + weapon.color + '">' + weapon.icon + ' ' + weapon.name + '</b> · ' + weapon.desc + '</p>';
+      html += '<div class="arsenal-entry"><p><b style="color:' + weapon.color + '">' + weapon.icon + ' ' + weapon.name + '</b> · ' + weapon.desc + '</p>';
+      if (weapon.schools) {
+        html += '<div class="arsenal-branches">';
+        weapon.schools.forEach(function (schoolId) {
+          var s = VS.Config.SCHOOLS[schoolId];
+          html += '<div class="arsenal-branch" style="--branch-color:' + s.color + '"><b>' + s.icon + ' ' + s.name + '</b><span>' + s.short + '</span></div>';
+        });
+        html += '</div>';
+      } else if (weapon.school) html += '<p>原有流派 · ' + weapon.school.name + '：' + weapon.school.short + '</p>';
+      html += '</div>';
     });
     html += '<p>满级武器 + 对应被动 → 升级时出现进化卡。进化保留武器栏位与流派。</p><ul>';
     Object.keys(VS.Config.EVOLUTIONS).forEach(function (id) {
@@ -107,6 +131,8 @@
         startBest: el('startBest'),
         startLevels: el('startLevels'),
         startBtn: el('startBtn'),
+        startMode: el('startMode'),
+        modeDesc: el('modeDesc'),
         previewL2Btn: el('previewL2Btn'),
         startWeapon: el('startWeapon'),
         starterDesc: el('starterDesc'),
@@ -134,6 +160,8 @@
         pauseInfo: el('pauseInfo'),
         resumeBtn: el('resumeBtn'),
         pauseRestartBtn: el('pauseRestartBtn'),
+        endEndlessBtn: el('endEndlessBtn'),
+        goMenuBtn: el('goMenuBtn'),
 
         goTitle: el('goTitle'),
         goReason: el('goReason'),
@@ -162,6 +190,7 @@
         starterInfo();
       }
       renderArsenal();
+      if (dom.startMode) dom.startMode.addEventListener('change', modeInfo);
       bindClick(dom.startBtn, function () { Panels.start(); });
       bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(1, dom.startWeapon ? dom.startWeapon.value : null); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
@@ -169,6 +198,8 @@
       bindClick(dom.pauseRestartBtn, function () { if (cb.onRestart) cb.onRestart(); });
       bindClick(dom.nextLevelBtn, function () { if (cb.onNextLevel) cb.onNextLevel(); });
       bindClick(dom.rerollBtn, function () { if (cb.onReroll) cb.onReroll(); });
+      bindClick(dom.endEndlessBtn, function () { if (cb.onEndEndless) cb.onEndEndless(); });
+      bindClick(dom.goMenuBtn, function () { if (cb.onMenu) cb.onMenu(); });
 
       hideAll();
       return Panels;   // 返回模块本身（而不是内部 dom 缓存）
@@ -213,13 +244,15 @@
     /* ---------------- 开始面板 ---------------- */
 
     start: function () {
-      if (cb.onStart) cb.onStart(dom && dom.startWeapon ? dom.startWeapon.value : null);
+      if (cb.onStart) cb.onStart(dom && dom.startWeapon ? dom.startWeapon.value : null,
+        dom && dom.startMode ? dom.startMode.value : 'campaign');
     },
 
     showStart: function (bestTime, levelCount) {
       if (!dom) return;
       if (dom.startBest) dom.startBest.textContent = bestTime > 0 ? U.formatTime(bestTime) : '--:--';
       if (dom.startLevels && levelCount) dom.startLevels.textContent = String(levelCount);
+      modeInfo();
       show(dom.panelStart);
     },
 
@@ -239,9 +272,10 @@
           var def = VS.Config.WEAPONS[w.id];
           if (!def) return '';
           var display = w.evolved && VS.Config.EVOLUTIONS[w.id] ? VS.Config.EVOLUTIONS[w.id] : def;
+          var branch = VS.Config.SCHOOLS && VS.Config.SCHOOLS[w.schoolId];
           return '<span class="build-chip" style="--chip-accent:' + display.color + '">' +
             display.icon + ' ' + display.name + ' <b>' + (w.evolved ? '进化' : 'Lv.' + w.level) + '</b>' +
-            (w.school ? ' · 流派 ' + w.school : '') + '</span>';
+            (branch ? ' · ' + branch.name + ' ' + w.schoolRank + '/3' : w.school ? ' · ' + def.school.name + ' ' + w.school : '') + '</span>';
         }).join('');
         var passives = VS.Config.UPGRADES.filter(function (up) { return p.upgrades[up.id] > 0; })
           .map(function (up) { return '<span class="build-chip">' + up.name + ' <b>Lv.' + p.upgrades[up.id] + '</b></span>'; });
@@ -413,9 +447,10 @@
 
     /* ---------------- 暂停面板 ---------------- */
 
-    showPause: function (info) {
+    showPause: function (info, game) {
       if (!dom) return;
       if (dom.pauseInfo) dom.pauseInfo.textContent = info || '';
+      if (dom.endEndlessBtn) dom.endEndlessBtn.hidden = !game || game.mode !== 'endless';
       show(dom.panelPause);
     },
 
@@ -426,7 +461,10 @@
 
       /* 通关 / 阵亡 / 时间到但没打死最终 Boss —— 三种结局共用一个面板 */
       if (dom.goTitle) {
-        if (r.victory) {
+        if (r.mode === 'endless') {
+          dom.goTitle.textContent = '无 尽 结 算';
+          dom.goTitle.className = 'clear';
+        } else if (r.victory) {
           dom.goTitle.textContent = '通 关 ！';
           dom.goTitle.className = 'clear';
         } else if (r.failedClear) {

@@ -19,7 +19,7 @@
   entries.sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); });
   window.VS_NOTES = {
     title: '共创留言板',
-    intro: '这个游戏是 Bobbychina 与 Alan.Liu 一起做的：主站负责托管、账号与云存档、性能调优和站点壳，Alan 负责玩法本身。'
+    intro: '这个游戏是 Bobbychina 与 Alan.Liu 一起做的：主站负责托管、站点账号、排行榜、性能调优和站点壳，Alan 负责原有玩法。'
       + '下面是我们两边在开发过程中留的话 —— 各写各的文件（js/data/notes/），游戏里能直接看到。',
     entries: entries
   };

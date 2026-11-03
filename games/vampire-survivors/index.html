@@ -5,15 +5,14 @@
 <meta charset="UTF-8">
 <script src="/mac-block.js"></script>   <!-- macOS 拦截：同步执行、紧跟 charset（见文件头注释） -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<!-- CSP：本站托管的共创作品同样不许外联 —— 游戏本体完全自包含（精灵是 data:image/png;base64、音效走 WebAudio）。
-     connect-src 放行的那几个是**云存档**要用的：api.github.com（你自己的私有 Gist）、
-     中继/云账号后端（auth-config.js 里那台 Cloudflare）。不登录就一个请求都不会发。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://bobbycn.cc https://api.github.com https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev; base-uri 'self'; form-action 'none'">
+<!-- 网络仅用于站点账号与战役排行榜；游戏纪录保存在本机。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://bobbycn.cc https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev; base-uri 'self'; form-action 'none'">
 <title>吸血鬼幸存者 · Vampire Survivors</title>
-<link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/nightfall-edition.css?v=20261009art">
-<link rel="stylesheet" href="css/art-reset.css?v=20261010">
-<link rel="stylesheet" href="css/levelup.css?v=20261103content1">
+<link rel="stylesheet" href="css/style.css?v=20261103arsenal2">
+<link rel="stylesheet" href="css/nightfall-edition.css?v=20261103arsenal2">
+<link rel="stylesheet" href="css/art-reset.css?v=20261103arsenal2">
+<link rel="stylesheet" href="css/levelup.css?v=20261103arsenal2">
+<link rel="stylesheet" href="css/expansion.css?v=20261103arsenal2">
 </head>
 <body>
 
@@ -76,8 +75,15 @@
 
     <section class="panel" id="panel-start">
       <h1>吸血鬼幸存者</h1>
-      <p class="sub">在无尽的怪物潮中活下去 · 共 <b id="startLevels">2</b> 关，第一关 <b>15 分钟</b>过关</p>
+      <p class="sub">16 把武器 · 24 条新增流派 · 战役 / 无尽</p>
+      <div class="mode-choice"><label for="startMode">狩猎模式</label><select id="startMode"><option value="campaign">战役 · 双关挑战</option><option value="endless">无尽 · 坚持到最后</option></select></div>
+      <p class="mode-desc" id="modeDesc">共 <b id="startLevels">2</b> 关，第一关生存 15 分钟，第二关击败最终首领。</p>
       <div class="best">最高存活时间：<b id="startBest">--:--</b></div>
+      <div class="site-account" id="siteAccount" aria-label="站点账号">
+        <div class="account-heading"><b id="accountName">站点账号</b><span id="accountStatus" role="status" aria-live="polite">正在检查登录状态…</span></div>
+        <div class="account-actions"><button type="button" id="accountLogin">站点账号登录</button><button type="button" id="accountPageLogin" hidden>整页登录</button><button type="button" id="accountLogout" hidden>退出本游戏账号</button><a href="/account/" target="_blank" rel="noopener">账号中心 ↗</a></div>
+        <p>登录可提交战役排行榜；无尽纪录与游戏设置只保存在当前浏览器。</p>
+      </div>
       <details class="field-guide"><summary>猎人手册 · 操作与关卡规则</summary><ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 武器<b>自动攻击</b> · <kbd>Shift</kbd> <b>闪避</b> · <kbd>E</kbd> <b>切骨刃范围</b> · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
         <li>拾取经验球升级，三张卡里选一项增益（含"缺什么补什么"的<b>流派增益</b>）；每关可重选 2 次</li>
@@ -85,6 +91,8 @@
         <li><b>5 分钟</b>的 Boss 送<b>等级 +1 + 宠物</b>；<b>10 分钟</b>柠檬猪登场（扇形 / 环形 / 酸液池三种轮换）</li>
         <li><b>15 分钟</b>过关进<b>第二关</b>：<b>从 1 级重来</b>、怪血 ×1.3、<b>没有喘息</b>、地上冒<b>柠檬酸池</b>、技能<b>小幅加强</b>，另有新武器/增益/宠物</li>
         <li>第二关 <b>12:00</b> 刷最终 Boss，<b>15:00 前必须打死</b>它，否则这一局无法通关</li>
+        <li><b>无尽模式</b>不设时间终点，保留整局构筑；每 3 分钟提高波次并补充重选次数，每 5 分钟刷新首领；10 分钟后加入深层敌人和专属武器。可在暂停菜单结束并结算。</li>
+        <li>八把扩展武器各有 <b>3 条互斥流派</b>，每条 3 级；本局选定后沿该分支升级。</li>
       </ul>
       <div class="phases">
         <div><b>0–2 分</b><span>正常</span></div>
@@ -100,7 +108,7 @@
       </div>
       <div class="starter-choice"><label for="startWeapon">初始武器</label><select id="startWeapon"></select></div>
       <p class="starter-desc" id="starterDesc"></p>
-      <details class="arsenal-guide" id="arsenalGuide"><summary>寒霜与陨星 · 2 把新武器 / 4 条进化</summary><div id="arsenalContent"></div></details>
+      <details class="arsenal-guide" id="arsenalGuide"><summary>武器图鉴 · 16 把武器 / 24 条新增流派 / 4 条进化</summary><div id="arsenalContent"></div></details>
       <button class="btn primary" id="startBtn">开始游戏</button>
       <button class="btn" id="previewL2Btn">跳到第二关（自己选宠物 + 8 张卡）</button>
       <p class="tip">手机端：拖动画面移动，使用右下角按钮闪避或切换骨刃范围 · 跳关时先选宠物，再连选 8 张升级卡</p>
@@ -142,6 +150,7 @@
       <p class="sub" id="pauseInfo"></p>
       <button class="btn primary" id="resumeBtn">继续游戏</button>
       <button class="btn" id="pauseRestartBtn">重新开始</button>
+      <button class="btn" id="endEndlessBtn" hidden>结束无尽并结算</button>
     </section>
 
     <section class="panel" id="panel-gameover" hidden>
@@ -158,6 +167,7 @@
         </div>
       </div>
       <button class="btn primary" id="retryBtn">再来一局</button>
+      <button class="btn" id="goMenuBtn">返回菜单 · 更换模式与武器</button>
     </section>
 
   </div>
@@ -170,47 +180,47 @@
   <div id="boot">正在加载脚本…（若此提示不消失，说明浏览器没有执行本页脚本，或 js 文件未被正确加载）</div>
 </div>
 
-<!-- ======== 模块加载顺序（经典 script + VS 命名空间，file:// 双击即可运行）=======
+<!-- ======== 模块加载顺序（经典 script + VS 命名空间）=======
      defer：线上 20 个文件串行下载约 15s（每请求 0.6~1.0s），defer 后并行拉取且仍保证执行顺序 -->
-<!-- 云存档：站点既有的账号库（登录 + 私有 Gist 读写都在它里面），没登录时零请求 -->
+<!-- 统一站点登录；account.js 仅作既有排行榜的身份桥接。 -->
 <script defer src="/games/auth-config.js?v=20261021res1"></script>
-<script defer src="/games/site-auth.js?v=20261021res1"></script>
-<script defer src="/games/site-saves.js?v=20261021res1"></script>
+<script defer src="/games/site-auth.js?v=20261103scope1"></script>
 <script defer src="/games/account.js?v=20261021res1"></script>
-<script defer src="js/core/namespace.js"></script>
-<script defer src="js/core/utils.js"></script>
-<script defer src="js/game/config.js?v=20261103content1"></script>
-<script defer src="js/game/phases.js"></script>
-<script defer src="js/game/levels.js"></script>
-<script defer src="js/core/save.js"></script>
-<script defer src="js/core/scores.js"></script>
-<script defer src="js/core/cloud.js?v=20261021res1"></script>
-<script defer src="js/core/leaderboard.js"></script>
+<script defer src="js/core/namespace.js?v=20261103arsenal2"></script>
+<script defer src="js/core/utils.js?v=20261103arsenal2"></script>
+<script defer src="js/game/config.js?v=20261103arsenal2"></script>
+<script defer src="js/game/arsenal-config.js?v=20261103arsenal2"></script>
+<script defer src="js/game/phases.js?v=20261103arsenal2"></script>
+<script defer src="js/game/levels.js?v=20261103arsenal2"></script>
+<script defer src="js/core/save.js?v=20261103arsenal2"></script>
+<script defer src="js/core/scores.js?v=20261103arsenal2"></script>
+<script defer src="js/core/leaderboard.js?v=20261103arsenal2"></script>
 <!-- 留言板：两边各写各的分文件，notes.js 只做聚合（谁都不用改对方那一段，git 合并不再打架） -->
-<script defer src="js/data/notes/bobbychina.js"></script>
-<script defer src="js/data/notes/alan.js"></script>
-<script defer src="js/data/notes.js"></script>
-<script defer src="js/core/audio.js"></script>
-<script defer src="js/core/input.js"></script>
-<script defer src="js/game/world.js"></script>
-<script defer src="js/game/effects.js"></script>
-<script defer src="js/game/player.js?v=20261103"></script>
-<script defer src="js/game/weapons.js?v=20261103content1"></script>
-<script defer src="js/game/enemies.js?v=20261103content1"></script>
-<script defer src="js/game/bosskit.js"></script>
-<script defer src="js/game/pickups.js"></script>
-<script defer src="js/game/pets.js"></script>
-<script defer src="js/render/sprites.js"></script>
-<script defer src="js/render/assets.js"></script>
-<script defer src="js/render/renderer.js?v=20261103content1"></script>
-<script defer src="js/ui/hud.js?v=20261103content1"></script>
-<script defer src="js/ui/panels.js?v=20261103content1"></script>
-<script defer src="js/ui/cloud-ui.js?v=20261021res1"></script>
-<script defer src="js/ui/scores-ui.js"></script>
-<script defer src="js/ui/leaderboard-ui.js"></script>
-<script defer src="js/ui/notes-ui.js"></script>
-<script defer src="js/game/game.js?v=20261103content1"></script>
-<script defer src="js/main.js?v=20261103content1"></script>
+<script defer src="js/data/notes/bobbychina.js?v=20261103arsenal2"></script>
+<script defer src="js/data/notes/alan.js?v=20261103arsenal2"></script>
+<script defer src="js/data/notes.js?v=20261103arsenal2"></script>
+<script defer src="js/core/audio.js?v=20261103arsenal2"></script>
+<script defer src="js/core/input.js?v=20261103arsenal2"></script>
+<script defer src="js/game/world.js?v=20261103arsenal2"></script>
+<script defer src="js/game/effects.js?v=20261103arsenal2"></script>
+<script defer src="js/game/player.js?v=20261103arsenal2"></script>
+<script defer src="js/game/weapons.js?v=20261103arsenal2"></script>
+<script defer src="js/game/arsenal.js?v=20261103arsenal2"></script>
+<script defer src="js/game/enemies.js?v=20261103arsenal2"></script>
+<script defer src="js/game/bosskit.js?v=20261103arsenal2"></script>
+<script defer src="js/game/pickups.js?v=20261103arsenal2"></script>
+<script defer src="js/game/pets.js?v=20261103arsenal2"></script>
+<script defer src="js/render/sprites.js?v=20261103arsenal2"></script>
+<script defer src="js/render/assets.js?v=20261103arsenal2"></script>
+<script defer src="js/render/renderer.js?v=20261103arsenal2"></script>
+<script defer src="js/ui/hud.js?v=20261103arsenal2"></script>
+<script defer src="js/ui/panels.js?v=20261103arsenal2"></script>
+<script defer src="js/ui/account-ui.js?v=20261103arsenal2"></script>
+<script defer src="js/ui/scores-ui.js?v=20261103arsenal2"></script>
+<script defer src="js/ui/leaderboard-ui.js?v=20261103arsenal2"></script>
+<script defer src="js/ui/notes-ui.js?v=20261103arsenal2"></script>
+<script defer src="js/game/game.js?v=20261103arsenal2"></script>
+<script defer src="js/main.js?v=20261103arsenal2"></script>
 
 <!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
 

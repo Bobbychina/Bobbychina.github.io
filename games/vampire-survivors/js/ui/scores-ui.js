@@ -1,11 +1,12 @@
 /* ===========================================================
    个人纪录榜界面：开始面板的「🏆 个人纪录」+ 结算面板的「本局排名」
-   数据来自 VS.Scores（本机 top5，登录后跟着云存档合并，见 core/scores.js）
+   战役与无尽各自记录本机 top5。
    =========================================================== */
 (function (VS) {
   'use strict';
 
   var dom = null;
+  var mode = 'campaign';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -14,9 +15,11 @@
     return n;
   }
 
-  function refresh() {
+  function refresh(nextMode) {
     if (!dom || !VS.Scores) return;
-    var list = VS.Scores.list();
+    if (nextMode === 'campaign' || nextMode === 'endless') mode = nextMode;
+    dom.tabs.forEach(function (tab) { tab.setAttribute('aria-pressed', String(tab.dataset.mode === mode)); });
+    var list = VS.Scores.list(mode);
     dom.list.textContent = '';
     if (!list.length) {
       dom.list.appendChild(el('p', 'rank-empty', '还没有记录 —— 玩一局就会出现在这里'));
@@ -59,20 +62,23 @@
     var root = el('div', 'ranks');
     var head = el('div', 'ranks-head');
     head.appendChild(el('b', null, '🏆 个人纪录'));
-    head.appendChild(el('span', 'ranks-sub', '前 5 · 登录后跟着云存档走'));
+    head.appendChild(el('span', 'ranks-sub', '前 5 · 仅当前浏览器'));
     var list = el('div', 'ranks-list');
+    var tabs = el('div', 'record-tabs');
+    ['campaign', 'endless'].forEach(function (id) {
+      var tab = el('button', null, id === 'endless' ? '无尽纪录' : '战役纪录');
+      tab.type = 'button'; tab.dataset.mode = id;
+      tab.addEventListener('click', function () { refresh(id); }); tabs.appendChild(tab);
+    });
     root.appendChild(head);
+    root.appendChild(tabs);
     root.appendChild(list);
-    /* 个人纪录跟在「全站榜」后面（leaderboard-ui 会插到 .ranks 之前），一起放在云存档设置之前：
-       榜单留在首屏可见，账号/存档那套设置沉到面板底部滚动查看。 */
-    panel.insertBefore(root, panel.querySelector('.cloud') || null);
-    dom = { root: root, list: list };
+    /* 全站榜插在个人纪录之前，两套纪录通过标签切换。 */
+    panel.appendChild(root);
+    dom = { root: root, list: list, tabs: Array.prototype.slice.call(tabs.children) };
 
     refresh();
 
-    if (VS.Cloud && VS.Cloud.on) {
-      VS.Cloud.on(function (type) { if (type === 'pull' || type === 'sync' || type === 'push') refresh(); });
-    }
   }
 
   var ScoresUI = { build: build, refresh: refresh, showRank: showRank };

@@ -408,16 +408,20 @@
     var dmgAll = (game && VS.Levels) ? VS.Levels.playerDmgMul(game.level) : 1;
 
     var out = src;
-    if (mul !== 1 || dmgAll !== 1 || (w && w.school)) {
+    if (mul !== 1 || dmgAll !== 1 || (w && (w.school || w.schoolId || w.evolved))) {
       out = {};
       for (var k in src) if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
     }
 
     if (w && w.evolved && C.EVOLUTIONS[id]) C.EVOLUTIONS[id].apply(out);
+    if (w && w.schoolId && C.SCHOOLS && C.SCHOOLS[w.schoolId] && C.SCHOOLS[w.schoolId].weapon === id) {
+      C.SCHOOLS[w.schoolId].apply(out, Math.min(3, w.schoolRank || 1));
+    }
 
     /* 关卡倍率：伤害（含"全技能加强"）与范围，数量不动 */
     if (mul !== 1 || dmgAll !== 1) {
       if (out.damage !== undefined) out.damage *= mul * dmgAll;
+      if (out.burnDamage !== undefined) out.burnDamage *= mul * dmgAll;
       if (out.radius !== undefined) out.radius *= mul;
       if (out.maxRadius !== undefined) out.maxRadius *= mul;
     }
@@ -628,6 +632,7 @@
         bolts: [],            // 雷击链的折线（只存点，渲染层画）
         meteors: [],
         blasts: [],
+        extra: VS.Arsenal ? VS.Arsenal.create() : null,
         orbitAngle: 0,
         orbitBlades: [],
         auraPulse: null
@@ -640,6 +645,7 @@
       state.bolts.length = 0;
       state.meteors.length = 0;
       state.blasts.length = 0;
+      state.extra = VS.Arsenal ? VS.Arsenal.create() : null;
       state.orbitBlades.length = 0;
       state.orbitAngle = 0;
       state.auraPulse = null;
@@ -679,6 +685,19 @@
 
     evolutionStatus: evolutionStatus,
 
+    chooseSchool: function (player, weaponId, schoolId) {
+      var w = getWeapon(player, weaponId);
+      var school = C.SCHOOLS && C.SCHOOLS[schoolId];
+      if (!w || !school || school.weapon !== weaponId ||
+          (w.schoolId && w.schoolId !== schoolId) || (w.schoolRank || 0) >= school.max) return false;
+      w.schoolId = schoolId;
+      w.schoolRank = (w.schoolRank || 0) + 1;
+      w.cd = 0;
+      return true;
+    },
+
+    rollDamage: rollDamage,
+
     evolve: function (player, id) {
       var status = evolutionStatus(player, id);
       if (!status || !status.ready) return false;
@@ -696,7 +715,7 @@
         for (var i = 0; i < p.weapons.length; i++) {
           var w = p.weapons[i];
           var def = C.WEAPONS[w.id];
-          if (!def) continue;
+          if (!def || def.arsenal) continue;
 
           var st = statsFor(game, w.id, w.level, w);
           if (!st) continue;
@@ -747,6 +766,10 @@
       updateProjectiles(state, dt, game);
       updateNovas(state, dt, game);
       updateMeteors(state, dt, game);
+      if (VS.Arsenal) {
+        if (!state.extra) state.extra = VS.Arsenal.create();
+        VS.Arsenal.update(state.extra, dt, game);
+      }
       for (var f = state.blasts.length - 1; f >= 0; f--) {
         state.blasts[f].life -= dt;
         if (state.blasts[f].life <= 0) U.swapRemove(state.blasts, f);
@@ -792,7 +815,10 @@
         var w = player.weapons[i];
         var def = C.WEAPONS[w.id];
         var display = w.evolved && C.EVOLUTIONS[w.id] ? C.EVOLUTIONS[w.id] : def;
-        out.push({ id: w.id, name: display.name, icon: display.icon, color: display.color, level: w.level, evolved: !!w.evolved });
+        var branch = C.SCHOOLS && C.SCHOOLS[w.schoolId];
+        out.push({ id: w.id, name: display.name, icon: display.icon, color: display.color, level: w.level,
+          evolved: !!w.evolved, school: branch ? branch.name : (def.school && w.school ? def.school.name : ''),
+          schoolRank: branch ? w.schoolRank : (w.school || 0) });
       }
       return out;
     },
