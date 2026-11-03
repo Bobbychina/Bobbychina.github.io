@@ -120,7 +120,7 @@ ok('④ 0 未捕获异常 / 0 脚本错误', errs.length === 0 && !consoleErrs.s
 const integration = await j(`(() => JSON.stringify({
   account: !!document.querySelector('#siteAccount #accountLogin'),
   modes: [...document.querySelectorAll('#startMode option')].map(o => o.value),
-  cloud: typeof VS.Cloud, cloudScripts: document.querySelectorAll('script[src*="cloud"],script[src*="site-saves"]').length,
+  cloud: typeof VS.Cloud, cloudScripts: document.querySelectorAll('script[src*="js/core/cloud.js"],script[src*="js/ui/cloud-ui.js"],script[src*="/games/site-saves.js"]').length,
   weapons: Object.keys(VS.Config.WEAPONS).length, schools: Object.keys(VS.Config.SCHOOLS).length,
   starters: document.querySelectorAll('#startWeapon option').length,
   personalTabs: document.querySelectorAll('.record-tabs button').length
