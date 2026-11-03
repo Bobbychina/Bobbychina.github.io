@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/nightfall-edition.css?v=20261009art">
 <link rel="stylesheet" href="css/art-reset.css?v=20261010">
+<link rel="stylesheet" href="css/levelup.css?v=20261103content1">
 </head>
 <body>
 
@@ -49,6 +50,10 @@
       <button class="icon-btn" id="pauseBtn" title="暂停 (Esc)">❚❚</button>
     </div>
     <div class="weapon-strip" id="weaponStrip"></div>
+    <div class="touch-actions" id="touchActions" aria-label="触屏战斗操作">
+      <button type="button" id="dashBtn" class="touch-action" aria-label="闪避"><span>闪避</span><small id="dashStatus">就绪</small></button>
+      <button type="button" id="orbitBtn" class="touch-action" hidden><span>骨刃</span><small id="orbitStatus">切换范围</small></button>
+    </div>
 
     <!-- Boss 血条：第 5 分钟 Boss 出现时显示 -->
     <div class="boss-bar" id="bossBar" hidden>
@@ -75,12 +80,12 @@
       <div class="best">最高存活时间：<b id="startBest">--:--</b></div>
       <details class="field-guide"><summary>猎人手册 · 操作与关卡规则</summary><ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 武器<b>自动攻击</b> · <kbd>Shift</kbd> <b>闪避</b> · <kbd>E</kbd> <b>切骨刃范围</b> · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
-        <li>拾取经验球升级，三张卡里选一项增益（含"缺什么补什么"的<b>流派增益</b>）</li>
+        <li>拾取经验球升级，三张卡里选一项增益（含"缺什么补什么"的<b>流派增益</b>）；每关可重选 2 次</li>
         <li>满 <b>3 分钟</b>起击杀有 <b>5%</b> 掉<b>金色经验球</b>（顶 100 颗）；打完 5 分钟的 Boss 升到 <b>20%</b></li>
         <li><b>5 分钟</b>的 Boss 送<b>等级 +1 + 宠物</b>；<b>10 分钟</b>柠檬猪登场（扇形 / 环形 / 酸液池三种轮换）</li>
         <li><b>15 分钟</b>过关进<b>第二关</b>：<b>从 1 级重来</b>、怪血 ×1.3、<b>没有喘息</b>、地上冒<b>柠檬酸池</b>、技能<b>小幅加强</b>，另有新武器/增益/宠物</li>
         <li>第二关 <b>12:00</b> 刷最终 Boss，<b>15:00 前必须打死</b>它，否则这一局无法通关</li>
-      </ul></details>
+      </ul>
       <div class="phases">
         <div><b>0–2 分</b><span>正常</span></div>
         <div class="ph-horde"><b>2–4 分</b><span>尸潮 · 僵尸暴增</span></div>
@@ -88,25 +93,30 @@
         <div class="ph-boss"><b>5 分</b><span>尸潮之王 · 送宠物</span></div>
         <div class="ph-boss"><b>10 分</b><span>柠檬猪 · 三种酸液</span></div>
       </div>
+      </details>
       <div class="skins" id="skinRow">
         <span class="skins-label">主角皮肤</span>
         <div class="skins-list" id="skinList"></div>
       </div>
+      <div class="starter-choice"><label for="startWeapon">初始武器</label><select id="startWeapon"></select></div>
+      <p class="starter-desc" id="starterDesc"></p>
+      <details class="arsenal-guide" id="arsenalGuide"><summary>寒霜与陨星 · 2 把新武器 / 4 条进化</summary><div id="arsenalContent"></div></details>
       <button class="btn primary" id="startBtn">开始游戏</button>
       <button class="btn" id="previewL2Btn">跳到第二关（自己选宠物 + 8 张卡）</button>
-      <p class="tip">手机端：在画面上拖动即可移动 · 跳关不会替你配装：先自己选宠物，再连抽 8 张升级卡</p>
+      <p class="tip">手机端：拖动画面移动，使用右下角按钮闪避或切换骨刃范围 · 跳关时先选宠物，再连选 8 张升级卡</p>
     </section>
 
     <section class="panel" id="panel-levelup" hidden>
-      <h2>升级！<span class="lv" id="luLevel"></span></h2>
-      <p class="sub">从下面三项中选择一项增益</p>
+      <div class="levelup-heading"><div><span class="levelup-eyebrow">猎人手记 / 选择强化</span><h2>升级！<span class="lv" id="luLevel"></span></h2></div><span class="levelup-queue" id="luQueue"></span></div>
+      <p class="sub">选一项，继续你的狩猎</p>
+      <div class="build-summary" id="luBuild" aria-label="当前构筑"></div>
       <div class="cards" id="luCards"></div>
-      <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
+      <div class="levelup-footer"><p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 武器数值为基础值，未计入加成</p><button type="button" class="reroll-btn" id="rerollBtn"></button></div>
     </section>
 
     <section class="panel" id="panel-petselect" hidden>
       <h2>宠物选择</h2>
-      <p class="sub">击杀尸潮之王的奖励 · <b>等级 +1</b> · 只能选一次，永久生效（第二关会多一只专属宠物）</p>
+      <p class="sub" id="petSelectSub"></p>
       <div class="cards pet-cards" id="petCards"></div>
       <p class="tip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>
     </section>
@@ -124,7 +134,7 @@
         </div>
       </div>
       <button class="btn primary" id="nextLevelBtn">进入第二关</button>
-      <p class="tip">构筑、等级、宠物都会带进下一关；血量回满，并给 3 秒无敌</p>
+      <p class="tip" id="lcTip"></p>
     </section>
 
     <section class="panel" id="panel-pause" hidden>
@@ -169,7 +179,7 @@
 <script defer src="/games/account.js?v=20261021res1"></script>
 <script defer src="js/core/namespace.js"></script>
 <script defer src="js/core/utils.js"></script>
-<script defer src="js/game/config.js"></script>
+<script defer src="js/game/config.js?v=20261103content1"></script>
 <script defer src="js/game/phases.js"></script>
 <script defer src="js/game/levels.js"></script>
 <script defer src="js/core/save.js"></script>
@@ -184,23 +194,23 @@
 <script defer src="js/core/input.js"></script>
 <script defer src="js/game/world.js"></script>
 <script defer src="js/game/effects.js"></script>
-<script defer src="js/game/player.js"></script>
-<script defer src="js/game/weapons.js"></script>
-<script defer src="js/game/enemies.js"></script>
+<script defer src="js/game/player.js?v=20261103"></script>
+<script defer src="js/game/weapons.js?v=20261103content1"></script>
+<script defer src="js/game/enemies.js?v=20261103content1"></script>
 <script defer src="js/game/bosskit.js"></script>
 <script defer src="js/game/pickups.js"></script>
 <script defer src="js/game/pets.js"></script>
 <script defer src="js/render/sprites.js"></script>
 <script defer src="js/render/assets.js"></script>
-<script defer src="js/render/renderer.js"></script>
-<script defer src="js/ui/hud.js"></script>
-<script defer src="js/ui/panels.js"></script>
+<script defer src="js/render/renderer.js?v=20261103content1"></script>
+<script defer src="js/ui/hud.js?v=20261103content1"></script>
+<script defer src="js/ui/panels.js?v=20261103content1"></script>
 <script defer src="js/ui/cloud-ui.js?v=20261021res1"></script>
 <script defer src="js/ui/scores-ui.js"></script>
 <script defer src="js/ui/leaderboard-ui.js"></script>
 <script defer src="js/ui/notes-ui.js"></script>
-<script defer src="js/game/game.js"></script>
-<script defer src="js/main.js"></script>
+<script defer src="js/game/game.js?v=20261103content1"></script>
+<script defer src="js/main.js?v=20261103content1"></script>
 
 <!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
 

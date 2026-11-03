@@ -260,11 +260,12 @@ const ttk = JSON.parse(String(await ev(`(async () => {
   b.ai.shieldAt = VS.Config.BOSS.SHIELD.AT.slice()
   g.bossShots = []
   p.weapons = []; p.upgrades = {}; p.damageMul = 1; p.attackSpeedMul = 1
-  /* 卡片的乘区会跨局残留：只重置伤害/攻速两项的话，god 模式自动选到的
-     projBonus / critChance / areaMul / luck 会一代代累加 —— 同一套"中期构筑"实测差到
-     160 vs 337 DPS（差一倍），TTK 就成了噪声。这里把 6 个乘区一次性打回初始值，
+  /* god 模式自动选到的卡片会改变伤害和闪避；测量时需重置所有相关属性。
+     只重置伤害/攻速时同一套"中期构筑"曾实测差到 160 vs 337 DPS（差一倍），
      量的才是"bolt Lv5 + 光环 Lv4"这一套本身。 */
   p.areaMul = 1; p.projBonus = 0; p.luck = 1; p.critChance = 0
+  p.lastStandBonus = 0; p.dashCooldownMul = 1
+  VS.Weapons.reset(g.weapons)       // 清除先前构筑的在途弹道与延迟落星，隔离 TTK 测量
   p.regen = VS.Config.PLAYER.REGEN
   VS.Weapons.add(p, 'bolt'); VS.Weapons.add(p, 'garlic')
   for (let i = 0; i < 4; i++) VS.Weapons.upgrade(p, 'bolt')

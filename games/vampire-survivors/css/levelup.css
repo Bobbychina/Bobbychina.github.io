@@ -1,0 +1,81 @@
+/* 升级面板与触屏操作：保留夜幕主题的深蓝、金边和技能色。 */
+#overlays { z-index: 6; }
+#panel-levelup {
+  width: min(880px, 100%);
+  padding: 24px 28px;
+}
+.levelup-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.levelup-heading h2 { margin: 3px 0 0; }
+.levelup-eyebrow { color: #c9ab79; font-size: 11px; letter-spacing: .18em; }
+.levelup-queue { color: #c5c6d3; font-size: 12px; white-space: nowrap; border-bottom: 1px solid #8b745c; padding-bottom: 5px; }
+#panel-levelup > .sub { margin: 8px 0 13px; }
+.build-summary { border-left: 3px solid #b69466; background: #0c1221; padding: 10px 13px; margin-bottom: 14px; font-size: 12px; }
+.build-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.build-label { color: #d8bd8b; font-weight: 700; margin-right: 4px; }
+.build-chip { display: inline-block; padding: 3px 7px; border: 1px solid #39445b; color: #e8e4dc; background: #171e2d; }
+.build-chip b { color: var(--chip-accent, #d7c3a1); font-weight: 600; }
+.build-stats { gap: 8px 16px; color: #b6bed0; margin-top: 8px; }
+.build-passives { color: #b6bed0; margin-top: 7px; }
+.build-passives summary { cursor: pointer; width: fit-content; color: #d0b894; }
+.build-passive-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#panel-levelup .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+#panel-levelup .card {
+  width: 100%; max-width: none; min-width: 0; min-height: 242px;
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 12px 14px 13px; border-radius: 3px; text-align: left;
+  font: inherit; color: var(--text); background: #171e31; box-shadow: none;
+}
+#panel-levelup .card:hover { transform: translateY(-2px); border-color: var(--card-accent); background: #202a3f; }
+#panel-levelup .card.school { background: linear-gradient(135deg, #302b35, #171e31 48%); }
+#panel-levelup .card.evolution { border-color: #dfbc79; background: linear-gradient(130deg, #423245, #171e31 65%); }
+#panel-levelup .card.evolution::before { height: 4px; background: #efd499; }
+#panel-levelup .card-top { display: flex; width: 100%; align-items: center; justify-content: space-between; color: #b8bfd0; }
+#panel-levelup .card-kind { font-size: 11px; letter-spacing: .12em; }
+#panel-levelup .card-number { font: 18px Georgia, serif; color: var(--card-accent); opacity: .75; }
+#panel-levelup .card .ico { width: 36px; height: 36px; margin: 8px 0; border-radius: 2px; font-size: 21px; }
+#panel-levelup .card .nm { display: block; font-size: 16px; margin: 0 0 6px; }
+#panel-levelup .card .tag { display: inline-block; margin: 0 0 8px; padding: 2px 6px; border-radius: 2px; letter-spacing: 0; }
+#panel-levelup .card .ds, #panel-levelup .card .compare-current { display: block; min-height: 0; font-size: 12px; line-height: 1.55; }
+#panel-levelup .card .compare-current { margin-bottom: 5px; color: #aeb6ca; }
+#panel-levelup .card .ds strong { color: var(--card-accent); font-weight: 600; }
+#panel-levelup .card .key { margin-top: auto; padding-top: 12px; color: #b9c3d3; }
+.levelup-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 13px; }
+#panel-levelup .levelup-footer .tip { margin: 0; }
+.reroll-btn { flex: 0 0 auto; padding: 9px 12px; color: #f3dbac; background: #30291f; border: 1px solid #a88d60; border-radius: 2px; cursor: pointer; font: inherit; font-size: 12px; }
+.reroll-btn:hover:not(:disabled) { background: #493a27; }
+.reroll-btn:disabled { opacity: .55; cursor: not-allowed; }
+.starter-choice { display: flex; align-items: center; gap: 12px; margin: 14px 0 7px; font-size: 13px; }
+.starter-choice label { color: #dfc89f; }
+.starter-choice select { color: #f0eade; background: #121b2c; border: 1px solid #68748a; border-radius: 2px; padding: 7px 12px; font: inherit; min-width: 180px; }
+.starter-desc { color: #b9c3d4; font-size: 12px; line-height: 1.6; margin: 0 0 10px; }
+.arsenal-guide { font-size: 12px; line-height: 1.65; color: #b9c3d4; margin: 10px 0 16px; border-top: 1px solid #3e455a; padding-top: 9px; }
+.arsenal-guide summary, .build-evolutions summary { cursor: pointer; color: #ddc18c; }
+.arsenal-guide li { margin-bottom: 9px; }
+.arsenal-guide b { color: #f2dfba; }
+.build-evolutions { margin-top: 8px; }
+.evolution-recipe { padding: 7px 0; border-bottom: 1px solid #303b52; color: #b6bed0; }
+.evolution-recipe b, .evolution-recipe span { display: block; line-height: 1.6; }
+.evolution-recipe.ready b { color: #f4d492; }
+
+.touch-actions { display: none; position: fixed; right: 14px; bottom: 65px; gap: 9px; pointer-events: auto; }
+.touch-action { min-width: 68px; min-height: 60px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; color: #f7e5bc; background: #151c2de8; border: 1px solid #bca071; border-radius: 4px; font: inherit; touch-action: manipulation; }
+.touch-action small { color: #bfc6d4; font-size: 11px; }
+.touch-action:disabled { opacity: .58; }
+.touch-action[hidden] { display: none; }
+@media (pointer: coarse) { .touch-actions { display: flex; } }
+@media (max-width: 680px) {
+  #panel-levelup { padding: 18px 15px; }
+  .levelup-eyebrow { font-size: 10px; }
+  .build-summary { padding: 8px 10px; }
+  #panel-levelup .cards { grid-template-columns: 1fr; gap: 8px; }
+  #panel-levelup .card { min-height: 0; display: grid; grid-template-columns: 38px minmax(0, 1fr); column-gap: 10px; padding: 10px 12px; }
+  #panel-levelup .card-top { grid-column: 1 / -1; }
+  #panel-levelup .card .ico { grid-column: 1; grid-row: 2 / span 3; margin: 5px 0 0; }
+  #panel-levelup .card .nm, #panel-levelup .card .tag, #panel-levelup .card .ds,
+  #panel-levelup .card .compare-current, #panel-levelup .card .key { grid-column: 2; }
+  #panel-levelup .card .nm { margin-top: 4px; }
+  #panel-levelup .card .tag { justify-self: start; margin-bottom: 4px; }
+  #panel-levelup .card .key { padding-top: 5px; }
+  .levelup-footer { align-items: flex-start; flex-direction: column-reverse; }
+}
+@media (prefers-reduced-motion: reduce) { #panel-levelup .card { transition: none; } }

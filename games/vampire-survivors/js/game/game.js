@@ -56,7 +56,7 @@
    * 关卡还能把关卡专属的东西挡在外面：`onlyFromLevel: 1` 的武器/增益
    * （柠檬喷射器 / 雷击链 / 酸液抗性 / 嗜血）只在第二关及以后进池子。
    */
-  function buildChoices(game) {
+  function buildChoices(game, previousChoices) {
     var p = game.player;
     var pool = [];
     var weights = [];
@@ -78,9 +78,22 @@
         icon: wdef.icon,
         color: wdef.color,
         desc: wdef.describe(w.level + 1),
-        tag: 'Lv ' + w.level + ' → ' + (w.level + 1)
+        currentDesc: wdef.describe(w.level),
+        tag: 'Lv ' + w.level + ' → ' + (w.level + 1),
+        maxLevel: wdef.maxLevel
       });
       weights.push(12);
+    }
+
+    for (i = 0; i < p.weapons.length; i++) {
+      var status = VS.Weapons.evolutionStatus(p, p.weapons[i].id);
+      if (!status || !status.ready) continue;
+      pool.push({
+        kind: 'evolution', id: p.weapons[i].id,
+        name: status.def.name, icon: status.def.icon, color: status.def.color,
+        desc: status.def.desc, tag: '武器进化 · 保留流派', isEvolution: true
+      });
+      weights.push(30);
     }
 
     /* --- 新武器 --- */
@@ -99,6 +112,7 @@
           color: ndef.color,
           desc: ndef.desc + '<br>' + ndef.describe(1),
           tag: '新武器',
+          maxLevel: ndef.maxLevel,
           isNew: true
         });
         weights.push(13);
@@ -119,7 +133,8 @@
         icon: up.icon,
         color: '#b58cff',
         desc: up.desc,
-        tag: lv > 0 ? ('Lv ' + lv + ' → ' + (lv + 1)) : '新增益'
+        tag: lv > 0 ? ('Lv ' + lv + ' → ' + (lv + 1)) : '新增益',
+        maxLevel: up.max
       });
       weights.push(up.weight);
     }
@@ -144,27 +159,49 @@
         desc: wdef2.school.short + '<br><span class="school-note">' +
               wdef2.name + ' 的流派增益</span>',
         tag: stacks > 0 ? ('流派 Lv ' + stacks + ' → ' + (stacks + 1)) : '流派增益',
+        maxLevel: wdef2.school.max,
         isSchool: true
       });
       weights.push(11);
     }
 
+    var hasAlternative = pool.length > Math.min(3, pool.length);
+    var old = {};
+    (previousChoices || []).forEach(function (choice) { old[choice.kind + ':' + choice.id] = true; });
     var out = [];
-    var guard = 0;
-    while (out.length < 3 && pool.length > 0 && guard++ < 50) {
-      var idx = U.weightedIndex(weights);
+    while (out.length < 3 && pool.length > 0) {
+      // 重选优先抽出未展示过的选项；池子不够时才补回原选项。
+      var candidates = [], candidateWeights = [];
+      var forceEvolution = out.length === 0 && pool.some(function (c) { return c.kind === 'evolution'; });
+      for (i = 0; i < pool.length; i++) {
+        if (forceEvolution && pool[i].kind !== 'evolution') continue;
+        if (!old[pool[i].kind + ':' + pool[i].id]) {
+          candidates.push(i);
+          candidateWeights.push(weights[i]);
+        }
+      }
+      if (!candidates.length) {
+        for (i = 0; i < pool.length; i++) {
+          if (forceEvolution && pool[i].kind !== 'evolution') continue;
+          candidates.push(i);
+          candidateWeights.push(weights[i]);
+        }
+      }
+      var idx = candidates[U.weightedIndex(candidateWeights)];
       out.push(pool[idx]);
       pool.splice(idx, 1);
       weights.splice(idx, 1);
     }
 
-    return out;
+    return { choices: out, hasAlternative: hasAlternative };
   }
 
   function applyChoice(game, c) {
     var p = game.player;
 
-    if (c.kind === 'weapon-up') {
+    if (c.kind === 'evolution') {
+      return VS.Weapons.evolve(p, c.id);
+    } else if (c.kind === 'weapon-up') {
       VS.Weapons.upgrade(p, c.id);
     } else if (c.kind === 'weapon-new') {
       VS.Weapons.add(p, c.id);
@@ -180,6 +217,7 @@
       var up = findUpgrade(c.id);
       if (up) VS.Player.applyUpgrade(p, up);
     }
+    return true;
   }
 
   var Game = {
@@ -203,6 +241,8 @@
         sparkBudget: 8,
         pendingLevels: 0,
         choices: [],
+        rerollsRemaining: C.LEVELUP_REROLLS,
+        choiceHasAlternative: false,
         animTime: 0,
         deps: deps,
         data: deps.data || VS.Save.load(),
@@ -213,6 +253,7 @@
         pickups: null,
         pets: null,
         player: null,
+        startWeapon: C.PLAYER.START_WEAPON,
         pendingPetSelect: false,
         petChoices: [],
         draftCards: 0,         // 跳关预览时"还要自己选几张卡"
@@ -260,7 +301,9 @@
     },
 
     /** 重置一整局（不改变 state，由调用方决定） */
-    newRun: function (game) {
+    newRun: function (game, opt) {
+      opt = opt || {};
+      if (C.START_WEAPONS.indexOf(opt.startWeapon) >= 0) game.startWeapon = opt.startWeapon;
       game.time = 0;
       game.totalTime = 0;
       game.level = 0;
@@ -269,6 +312,8 @@
       game.shake = 0;
       game.pendingLevels = 0;
       game.choices = [];
+      game.rerollsRemaining = C.LEVELUP_REROLLS;
+      game.choiceHasAlternative = false;
       game.animTime = 0;
 
       game.world = VS.World.create();
@@ -288,7 +333,7 @@
       game.playerSkin = (game.data && game.data.playerSkin) || 'witch';
       game.levelDef = VS.Levels.def(0);
 
-      VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);
+      VS.Weapons.add(game.player, game.startWeapon || C.PLAYER.START_WEAPON);
 
       VS.World.snapCamera(game.world, game.player.x, game.player.y, viewW(game), viewH(game));
 
@@ -313,6 +358,8 @@
       game.phase = VS.Phases.at(0).id;
       game.pendingLevels = 0;
       game.choices = [];
+      game.rerollsRemaining = C.LEVELUP_REROLLS;
+      game.choiceHasAlternative = false;
 
       game.enemies = VS.Enemies.create();
       game.pickups = VS.Pickups.create();
@@ -325,7 +372,7 @@
 
         game.player = VS.Player.create(game.world);
         game.player.kills = carriedKills;      // 跑图总击杀继续累计（结算面板要用）
-        VS.Weapons.add(game.player, C.PLAYER.START_WEAPON);
+        VS.Weapons.add(game.player, game.startWeapon || C.PLAYER.START_WEAPON);
 
         game.pets = VS.Pets.create();
         game.pendingPetSelect = false;
@@ -370,8 +417,8 @@
     },
 
     /** 开局 */
-    start: function (game) {
-      Game.newRun(game);
+    start: function (game, opt) {
+      Game.newRun(game, opt);
       game.state = STATE.PLAYING;
 
       if (game.deps.audio) game.deps.audio.unlock();
@@ -395,7 +442,7 @@
      */
     startAt: function (game, index, opt) {
       opt = opt || {};
-      Game.newRun(game);
+      Game.newRun(game, opt);
 
       index = Math.max(0, Math.min(Math.floor(index || 0), VS.Levels.count() - 1));
 
@@ -519,7 +566,7 @@
 
     toggleOrbitRange: function (game) {
       var p = game.player;
-      if (!p || !VS.Weapons.has(p, 'orbit')) return false;
+      if (game.state !== STATE.PLAYING || !p || !VS.Weapons.has(p, 'orbit')) return false;
 
       var list = C.ORBIT_MODES || [];
       if (list.length < 2) return false;
@@ -629,10 +676,14 @@
     /* ---------------- 升级 ---------------- */
 
     openLevelUp: function (game) {
-      game.choices = buildChoices(game);
+      var draw = buildChoices(game);
+      game.choices = draw.choices;
+      game.choiceHasAlternative = draw.hasAlternative;
 
       if (game.choices.length === 0) {
         game.pendingLevels = 0;
+        game.state = STATE.PLAYING;
+        if (game.deps.panels) game.deps.panels.hideLevelUp();
         return;
       }
 
@@ -640,7 +691,18 @@
 
       if (game.deps.audio) game.deps.audio.play('level');
       if (game.deps.hud) game.deps.hud.update(game);
-      if (game.deps.panels) game.deps.panels.showLevelUp(game.choices, game.player.level);
+      if (game.deps.panels) game.deps.panels.showLevelUp(game.choices, game.player.level, game);
+    },
+
+    reroll: function (game) {
+      if (game.state !== STATE.LEVELUP || game.rerollsRemaining <= 0 || !game.choiceHasAlternative) return false;
+      var draw = buildChoices(game, game.choices);
+      if (!draw.choices.length) return false;
+      game.choices = draw.choices;
+      game.choiceHasAlternative = draw.hasAlternative;
+      game.rerollsRemaining--;
+      if (game.deps.panels) game.deps.panels.showLevelUp(game.choices, game.player.level, game);
+      return true;
     },
 
     choose: function (game, index) {
@@ -651,7 +713,7 @@
       var c = game.choices[index];
       if (!c) return false;
 
-      applyChoice(game, c);
+      if (!applyChoice(game, c)) return false;
       game.pendingLevels = Math.max(0, game.pendingLevels - 1);
 
       if (game.deps.panels) game.deps.panels.hideLevelUp();
@@ -680,7 +742,7 @@
       if (game.deps.hud) game.deps.hud.update(game);
 
       if (game.deps.panels && game.deps.panels.showPetSelect) {
-        game.deps.panels.showPetSelect(game.petChoices);
+        game.deps.panels.showPetSelect(game.petChoices, game.level, game.draftCards);
       } else {
         /* 没有面板时兜底：直接选第一个，避免卡死 */
         Game.choosePet(game, 0);

@@ -60,6 +60,9 @@
     GEM_MAGNET_ACC: 1500     // 经验石被吸走时的加速度
   };
 
+  // 每关独立计算，重选不会消耗升级次数。
+  C.LEVELUP_REROLLS = 2;
+
   /* ---------------- 怪物类型 ----------------
      hp/speed/damage 是 1 级波次（t=0）的基准值，
      实际生成时会乘上随时间增长的倍率。
@@ -722,6 +725,61 @@
       }
     },
 
+    frost: {
+      id: 'frost', name: '寒霜飞锥', icon: '❄', color: '#97e9ff',
+      desc: '朝最近敌人的方向发射扇形冰锥。命中使普通敌人减速 45%；首领免疫减速。',
+      maxLevel: 8,
+      stats: function (lv) {
+        return {
+          cooldown: Math.max(0.75, 1.6 - 0.10 * (lv - 1)),
+          damage: 8 + 3.2 * (lv - 1),
+          count: 3 + Math.floor((lv - 1) / 3),
+          speed: 390, radius: 6, pierce: 2 + Math.floor((lv - 1) / 4),
+          slowMul: 0.55, slowTime: 1.6, life: 1.5
+        };
+      },
+      describe: function (lv) {
+        var s = this.stats(lv);
+        return '伤害 ' + VS.Utils.fixed(s.damage) + ' · 冰锥 ' + s.count + ' · 穿透 ' + s.pierce +
+          ' · 间隔 ' + s.cooldown.toFixed(2) + 's';
+      },
+      school: {
+        name: '寒潮延展', icon: '❄', color: '#97e9ff', max: 3,
+        short: '冰锥 +1 · 减速持续时间 +0.4s',
+        apply: function (p, w) {
+          w.schoolProjectiles = (w.schoolProjectiles || 0) + 1;
+          w.schoolSlowTime = (w.schoolSlowTime || 0) + 0.4;
+        }
+      }
+    },
+
+    meteor: {
+      id: 'meteor', name: '陨星术', icon: '☄', color: '#ffb277',
+      desc: '标记敌人所在的位置，短暂预警后落下陨星。敌人能移出落点，配合减速更容易命中。',
+      maxLevel: 8,
+      stats: function (lv) {
+        return {
+          cooldown: Math.max(2.1, 4.1 - 0.28 * (lv - 1)),
+          damage: 42 + 14 * (lv - 1),
+          radius: 62 + 7 * (lv - 1),
+          count: lv >= 5 ? 2 : 1, warning: 0.8, range: 560
+        };
+      },
+      describe: function (lv) {
+        var s = this.stats(lv);
+        return '伤害 ' + s.damage + ' · 落星 ' + s.count + ' · 半径 ' + s.radius +
+          ' · 间隔 ' + s.cooldown.toFixed(2) + 's';
+      },
+      school: {
+        name: '星火轰鸣', icon: '☄', color: '#ffb277', max: 3,
+        short: '陨星伤害 +15% · 爆炸半径 +10%',
+        apply: function (p, w) {
+          w.schoolDmg = (w.schoolDmg || 0) + 0.15;
+          w.schoolArea = (w.schoolArea || 0) + 0.10;
+        }
+      }
+    },
+
     chain: {
       id: 'chain', name: '雷击链', icon: '⚡', color: '#ffe066',
       desc: '周期性劈向最近的敌人，并沿着附近的敌人连锁跳跃。',
@@ -752,10 +810,49 @@
     }
   };
 
-  /** 可用于"获取新武器"的清单（开局自带 bolt） */
-  C.START_WEAPONS = ['bolt'];
-  C.NEW_WEAPON_POOL = ['garlic', 'orbit', 'nova', 'acidSpray', 'chain'];
+  /** 初始武器可选三件；未持有的初始武器也能在升级时取得。 */
+  C.START_WEAPONS = ['bolt', 'frost', 'meteor'];
+  C.NEW_WEAPON_POOL = ['bolt', 'garlic', 'orbit', 'nova', 'frost', 'meteor', 'acidSpray', 'chain'];
   C.MAX_WEAPONS = 4;
+
+  C.WEAPON_EFFECTS = { MAX_METEORS: 24, MAX_BLASTS: 48 };
+
+  // 武器升满并满足被动配方后，进化作为独立升级卡出现；保留武器栏位和流派。
+  C.EVOLUTIONS = {
+    bolt: {
+      name: '追星弹幕', icon: '✵', color: '#e1bdff',
+      passive: 'proj', passiveLevel: 2,
+      desc: '飞弹命中后转向其他敌人；弹数 +1、穿透 +3、伤害 +25%。',
+      apply: function (s) { s.count++; s.pierce += 3; s.damage *= 1.25; s.ricochet = true; s.color = '#e1bdff'; }
+    },
+    garlic: {
+      name: '噬魂领域', icon: '❦', color: '#c5a2ff',
+      passive: 'regen', passiveLevel: 2,
+      desc: '光环命中回血，每次脉冲最多回复 2 点；普通敌人减速 20%，伤害 +30%、半径 +15%。',
+      apply: function (s) {
+        s.damage *= 1.3; s.radius *= 1.15;
+        s.healPerTarget = 0.6; s.healCap = 2; s.slowMul = 0.8; s.slowTime = 0.8; s.color = '#c5a2ff';
+      }
+    },
+    frost: {
+      name: '极夜冰棺', icon: '❆', color: '#cefaff',
+      passive: 'area', passiveLevel: 2,
+      desc: '冰锥命中后碎裂，造成小范围额外伤害；普通敌人减速 75%，冰锥伤害 +15%。',
+      apply: function (s) {
+        s.damage *= 1.15; s.shatterRadius = 58; s.shatterDamageMul = 0.45;
+        s.slowMul = 0.25; s.slowTime += 0.5; s.color = '#cefaff';
+      }
+    },
+    meteor: {
+      name: '天坠星群', icon: '✹', color: '#ffe1a6',
+      passive: 'dmg', passiveLevel: 3,
+      desc: '每轮多落一颗陨星；落地后再震爆一次，追加 50% 伤害；陨星伤害 +20%。',
+      apply: function (s) {
+        s.count++; s.damage *= 1.2; s.aftershock = 0.45; s.aftershockMul = 0.5;
+        s.aftershockRadiusMul = 1.15; s.color = '#ffe1a6';
+      }
+    }
+  };
 
   /* ---------------- 环绕骨刃的"切换范围"（E 键，2026-09-23） ----------------
      拥有环绕骨刃之后按 E 在两种形态之间切换（按住不连发）：
@@ -828,6 +925,24 @@
       id: 'crit', name: '致命一击', icon: '✧', max: 5, weight: 7,
       desc: '暴击率 +8%（暴击造成 2 倍伤害）',
       apply: function (p) { p.critChance += 0.08; }
+    },
+    {
+      id: 'evasion', name: '迅影步伐', icon: '➜', max: 3, weight: 7,
+      desc: '闪避冷却缩短 15%（每层相乘）',
+      apply: function (p) { p.dashCooldownMul *= 0.85; }
+    },
+    {
+      id: 'lastStand', name: '背水之力', icon: '♜', max: 4, weight: 7,
+      desc: '生命不高于 50% 时，武器伤害每层 +18%',
+      apply: function (p) { p.lastStandBonus += 0.18; }
+    },
+    {
+      id: 'fieldDressing', name: '战地包扎', icon: '✛', max: 3, weight: 6,
+      desc: '立即回复最大生命的 25%，每秒生命回复 +0.3',
+      apply: function (p) {
+        p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.25);
+        p.regen += 0.3;
+      }
     },
 
     /* ---------------- 第二关专属增益（onlyFromLevel: 1） ---------------- */

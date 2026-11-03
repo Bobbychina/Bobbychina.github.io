@@ -264,6 +264,8 @@
       Renderer.drawPickups(ctx, r, game, view, time);
       Renderer.drawAura(ctx, game, time);
       Renderer.drawNovas(ctx, game, time);
+      Renderer.drawMeteors(ctx, game, view);
+      Renderer.drawWeaponBlasts(ctx, game, view);
       Renderer.drawBossTelegraph(ctx, game);          // Boss 前摇光环（在它身下，别盖住本体）
       Renderer.drawEnemies(ctx, game, view, time);
       Renderer.drawPlayer(ctx, r, game);
@@ -732,23 +734,24 @@
       var garlic = VS.Weapons.get(p, 'garlic');
       if (!garlic) return;
 
-      var st = C.WEAPONS.garlic.stats(garlic.level);
+      var st = VS.Weapons.statsFor(game, 'garlic', garlic.level, garlic);
       var gr = st.radius * p.areaMul;
+      var color = st.color || C.WEAPONS.garlic.color;
 
-      var grad = ctx.createRadialGradient(p.x, p.y, gr * 0.15, p.x, p.y, gr);
-      grad.addColorStop(0, 'rgba(154,230,110,.16)');
-      grad.addColorStop(0.7, 'rgba(154,230,110,.08)');
-      grad.addColorStop(1, 'rgba(154,230,110,0)');
-      ctx.fillStyle = grad;
+      ctx.save();
+      ctx.globalAlpha = 0.09;
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(p.x, p.y, gr, 0, U.TAU);
       ctx.fill();
+      ctx.restore();
 
       // 旋转的虚线环，比纯圆更有"魔法阵"感
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(time * 0.55);
-      ctx.strokeStyle = 'rgba(180,255,140,.42)';
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.45;
       ctx.lineWidth = 1.6;
       ctx.setLineDash([7, 9]);
       ctx.beginPath();
@@ -759,12 +762,78 @@
 
       var pulse = game.weapons.auraPulse;
       if (pulse) {
+        ctx.save();
         var k = pulse.life / pulse.maxLife;
         ctx.beginPath();
         ctx.arc(pulse.x, pulse.y, pulse.r * (1 + (1 - k) * 0.1), 0, U.TAU);
-        ctx.strokeStyle = 'rgba(200,255,160,' + (k * 0.55).toFixed(3) + ')';
+        ctx.strokeStyle = pulse.color || color;
+        ctx.globalAlpha = k * 0.55;
         ctx.lineWidth = 3;
         ctx.stroke();
+        ctx.restore();
+      }
+    },
+
+    drawMeteors: function (ctx, game, view) {
+      var list = game.weapons.meteors;
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i];
+        if (!VS.World.isVisible(view, m.x, m.y, m.r + 190)) continue;
+        ctx.save();
+        ctx.strokeStyle = m.color;
+        ctx.fillStyle = m.color;
+        if (!m.landed) {
+          var progress = U.clamp(1 - m.delay / m.maxDelay, 0, 1);
+          ctx.globalAlpha = 0.05 + progress * 0.07;
+          ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, U.TAU); ctx.fill();
+          ctx.globalAlpha = 0.75;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 5]);
+          ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, U.TAU); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.arc(m.x, m.y, m.r * progress, 0, U.TAU); ctx.stroke();
+          ctx.fillRect(Math.round(m.x - 3), Math.round(m.y - 3), 6, 6);
+          var height = (1 - progress) * 180;
+          var x = Math.round(m.x - height * 0.35), y = Math.round(m.y - height);
+          var size = Math.min(18, Math.max(9, m.r * 0.12));
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath(); ctx.moveTo(x - size, y); ctx.lineTo(x - 23, y - 65); ctx.lineTo(x + size, y); ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#4d2930';
+          ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x + size, y - 4); ctx.lineTo(x + size - 3, y + size); ctx.lineTo(x - size, y + size - 4); ctx.lineTo(x - size + 2, y - 6); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = '#ffe3b0'; ctx.lineWidth = 3; ctx.stroke();
+          ctx.fillStyle = '#fff0c5'; ctx.fillRect(x - 3, y - 4, 6, 6);
+        } else {
+          ctx.globalAlpha = U.clamp(m.life / m.maxLife, 0, 1) * 0.22;
+          ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 0.7, 0, U.TAU); ctx.fill();
+          ctx.globalAlpha *= 2;
+          ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(m.x, m.y, m.r * 0.86, 0, U.TAU); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    },
+
+    drawWeaponBlasts: function (ctx, game, view) {
+      var list = game.weapons.blasts;
+      for (var i = 0; i < list.length; i++) {
+        var b = list[i];
+        if (!VS.World.isVisible(view, b.x, b.y, b.r)) continue;
+        var k = U.clamp(b.life / b.maxLife, 0, 1);
+        var radius = b.r * (1 - k * 0.55);
+        ctx.save(); ctx.globalAlpha = k * 0.85; ctx.strokeStyle = b.color;
+        ctx.lineWidth = b.icy ? 2 : 5;
+        ctx.beginPath(); ctx.arc(b.x, b.y, radius, 0, U.TAU); ctx.stroke();
+        if (b.icy) {
+          ctx.beginPath();
+          for (var ray = 0; ray < 8; ray++) {
+            var a = ray * U.TAU / 8;
+            ctx.moveTo(b.x + Math.cos(a) * radius * 0.4, b.y + Math.sin(a) * radius * 0.4);
+            ctx.lineTo(b.x + Math.cos(a) * radius, b.y + Math.sin(a) * radius);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
       }
     },
 
@@ -849,6 +918,12 @@
         // 受击闪光：叠一层白色剪影
         if (e.hitFlash > 0 && name) {
           blitWhite(ctx, name, e.x, e.y, scale, Math.min(1, e.hitFlash / 0.12) * 0.9, bob);
+        }
+        if (e.slowT > 0 && !e.boss) {
+          ctx.save(); ctx.strokeStyle = '#a8efff'; ctx.globalAlpha = 0.65; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(e.x, e.y - e.radius * 1.15);
+          ctx.lineTo(e.x + e.radius, e.y); ctx.lineTo(e.x, e.y + e.radius * 1.15);
+          ctx.lineTo(e.x - e.radius, e.y); ctx.closePath(); ctx.stroke(); ctx.restore();
         }
 
         // 精英/Boss 脚下光环
@@ -1180,15 +1255,26 @@
 
         // 拖尾
         var len = 0.05;
-        ctx.strokeStyle = 'rgba(127,216,255,.30)';
+        ctx.strokeStyle = pr.color || '#7fd8ff';
+        ctx.globalAlpha = 0.3;
         ctx.lineWidth = Math.max(2, pr.r * 1.2);
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(pr.x - pr.vx * len, pr.y - pr.vy * len);
         ctx.lineTo(pr.x, pr.y);
         ctx.stroke();
+        ctx.globalAlpha = 1;
 
         var ang = pr.angle !== undefined ? pr.angle : Math.atan2(pr.vy, pr.vx);
+        if (pr.kind === 'frost' || pr.ricochet) {
+          ctx.save(); ctx.translate(Math.round(pr.x), Math.round(pr.y)); ctx.rotate(ang);
+          ctx.fillStyle = pr.color; ctx.strokeStyle = '#f0fcff'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(pr.r * 2.5, 0); ctx.lineTo(-pr.r, -pr.r * 0.75);
+          ctx.lineTo(-pr.r * 1.7, 0); ctx.lineTo(-pr.r, pr.r * 0.75); ctx.closePath(); ctx.fill(); ctx.stroke();
+          if (pr.shatterRadius) { ctx.fillRect(-3, -pr.r - 2, 3, pr.r * 2 + 4); }
+          ctx.restore();
+          continue;
+        }
         if (!blit(ctx, name, pr.x, pr.y, BOLT_SCALE, { angle: ang })) {
           fallbackCircle(ctx, pr.x, pr.y, pr.r, '#eaf9ff');
         }

@@ -108,6 +108,8 @@
       dead: false,
       hitFlash: 0,
       orbitCd: 0,
+      slowT: 0,
+      slowMul: 1,
       wobble: Math.random() * U.TAU,
       wobbleAmp: U.rand(0.7, 1.5)
     };
@@ -585,6 +587,10 @@
 
       if (e.hitFlash > 0) e.hitFlash -= dt;
       if (e.orbitCd > 0) e.orbitCd -= dt;
+      if (e.slowT > 0) {
+        e.slowT = Math.max(0, e.slowT - dt);
+        if (e.slowT === 0) e.slowMul = 1;
+      }
 
       /* --- Boss 的移动/招式交给 BossKit（弹幕、召唤、冲撞都在那边）；
              柠檬猪标了 noKit，走下面的常规追击 + 自己的酸液 --- */
@@ -612,8 +618,9 @@
           uy = sy / sl;
         }
 
-        e.x += ux * e.speed * dt;
-        e.y += uy * e.speed * dt;
+        var slow = e.slowT > 0 ? e.slowMul : 1;
+        e.x += ux * e.speed * slow * dt;
+        e.y += uy * e.speed * slow * dt;
       }
 
       /* --- 地图边界（内联，省掉每只怪 3 次函数调用） --- */
@@ -833,6 +840,16 @@
     },
 
     spawn: spawnEnemy,
+    /** 首领免疫控制；普通敌人的移动减速会在计时结束后恢复。 */
+    slow: function (e, multiplier, duration) {
+      if (!e || e.dead || e.boss || duration <= 0) return false;
+      var mul = U.clamp(multiplier, 0.1, 1);
+      // 弱减速不能延长强减速，避免光环把冰锥控制永久续上。
+      if (e.slowT > 0 && mul > e.slowMul) return false;
+      e.slowT = e.slowT > 0 && mul === e.slowMul ? Math.max(e.slowT, duration) : duration;
+      e.slowMul = mul;
+      return true;
+    },
     spawnBoss: spawnBoss,
     /* 抽怪只读入口：探针 / 平衡测量台要按关卡统计"到底会刷出什么"，
        别让它们各自复刻一遍抽取规则（复刻的那份一旦和这里不一致就会骗人）。 */

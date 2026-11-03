@@ -67,22 +67,30 @@
       VS.Save.setMuted(game.data, m);
     }
 
+    function dash() {
+      if (game.state !== VS.Game.STATE.PLAYING) return false;
+      return VS.Player.dash(game.player, VS.Input.getAxis(), game);
+    }
+
     /* ---- HUD ---- */
     var hud = VS.Hud.init({
       onMute: toggleMute,
-      onPause: function () { VS.Game.togglePause(game); }
+      onPause: function () { VS.Game.togglePause(game); },
+      onDash: dash,
+      onToggleOrbit: function () { VS.Game.toggleOrbitRange(game); }
     });
     VS.Hud.setMuted(VS.Audio.isMuted());
     game.deps.hud = hud;
 
     /* ---- 面板 ---- */
     var panels = VS.Panels.init({
-      onStart: function () { VS.Game.start(game); },
-      onPreviewLevel: function (index) { VS.Game.startAt(game, index); },
+      onStart: function (weapon) { VS.Game.start(game, { startWeapon: weapon }); },
+      onPreviewLevel: function (index, weapon) { VS.Game.startAt(game, index, { startWeapon: weapon }); },
       onRetry: function () { VS.Game.start(game); },
       onResume: function () { VS.Game.resume(game); },
       onRestart: function () { VS.Game.start(game); },
       onChoose: function (index) { VS.Game.choose(game, index); },
+      onReroll: function () { VS.Game.reroll(game); },
       onChoosePet: function (index) { VS.Game.choosePet(game, index); },
       onNextLevel: function () { VS.Game.nextLevel(game); }
     });
@@ -121,11 +129,13 @@
       onPause: function () { VS.Game.togglePause(game); },
       onMute: toggleMute,
       onChoice: function (index) { VS.Game.choose(game, index); },
-      onDash: function () { VS.Player.dash(game.player, VS.Input.getAxis(), game); },
+      onDash: dash,
       onToggleOrbit: function () { VS.Game.toggleOrbitRange(game); },
       onConfirm: function () {
         if (!assetsReady) return;
-        if (game.state === VS.Game.STATE.MENU || game.state === VS.Game.STATE.GAMEOVER) {
+        if (game.state === VS.Game.STATE.MENU) {
+          VS.Panels.start();
+        } else if (game.state === VS.Game.STATE.GAMEOVER) {
           VS.Game.start(game);
         } else if (game.state === VS.Game.STATE.PAUSED) {
           VS.Game.resume(game);

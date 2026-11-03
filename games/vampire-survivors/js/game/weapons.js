@@ -1,5 +1,5 @@
 /* ===========================================================
-   武器：飞弹 / 腐化光环 / 环绕骨刃 / 血爆新星
+   武器：弹道 / 光环 / 骨刃 / 新星 / 酸液 / 连锁 / 寒霜 / 陨星
    负责开火节奏、弹道推进、命中判定（基于世界空间网格）与伤害结算。
    玩家身上只存 [{id, level, cd}]，运行时实体（弹丸/冲击波）挂在 weapons 状态里。
    =========================================================== */
@@ -8,6 +8,10 @@
 
   var C = VS.Config;
   var U = VS.Utils;
+  var enemyRadiusPad = 0;
+  Object.keys(C.ENEMY_TYPES).forEach(function (id) {
+    enemyRadiusPad = Math.max(enemyRadiusPad, C.ENEMY_TYPES[id].radius);
+  });
 
   /* ---------------- 武器持有关系 ---------------- */
 
@@ -18,11 +22,26 @@
     return null;
   }
 
+  function evolutionStatus(player, id) {
+    var def = C.EVOLUTIONS[id];
+    if (!def) return null;
+    var w = getWeapon(player, id);
+    var passiveLevel = VS.Player.upgradeLevel(player, def.passive);
+    return {
+      def: def, weapon: w,
+      passiveLevel: passiveLevel,
+      levelReady: !!w && w.level >= C.WEAPONS[id].maxLevel,
+      ready: !!w && !w.evolved && w.level >= C.WEAPONS[id].maxLevel && passiveLevel >= def.passiveLevel,
+      evolved: !!(w && w.evolved)
+    };
+  }
+
   /* ---------------- 伤害计算（含暴击） ---------------- */
 
   function rollDamage(game, base) {
     var p = game.player;
     var dmg = base * p.damageMul;
+    if (p.hp <= p.maxHp * 0.5) dmg *= 1 + p.lastStandBonus;
     var crit = false;
     if (p.critChance > 0 && Math.random() < p.critChance) {
       dmg *= C.CRIT_MULT;
@@ -139,11 +158,26 @@
         pierce: st.pierce,
         life: BOLT_LIFE,
         hitIds: [],
+        kind: 'bolt',
+        ricochet: !!st.ricochet,
         color: st.color || C.WEAPONS.bolt.color
       });
     }
 
     return count;
+  }
+
+  function ricochetTarget(state, game, pr) {
+    var nearby = state._ricochetHits || (state._ricochetHits = []);
+    game.world.grid.queryCircle(pr.x, pr.y, 260, nearby, 64);
+    var closest = null, best = 260 * 260;
+    for (var i = 0; i < nearby.length; i++) {
+      var e = nearby[i];
+      if (e.dead || pr.hitIds.indexOf(e.uid) >= 0) continue;
+      var d = U.dist2(pr.x, pr.y, e.x, e.y);
+      if (d < best) { best = d; closest = e; }
+    }
+    return closest;
   }
 
   function fireBolt(game, w, st) {
@@ -190,7 +224,7 @@
         continue;
       }
 
-      grid.queryCircle(pr.x, pr.y, pr.r, scratch, 48);
+      grid.queryCircle(pr.x, pr.y, pr.r + enemyRadiusPad, scratch, 48);
 
       var consumed = false;
       for (var j = 0; j < scratch.length; j++) {
@@ -201,9 +235,23 @@
 
         pr.hitIds.push(e.uid);
         VS.Enemies.hurt(game, e, pr.damage, pr.crit, pr.vx * 0.12, pr.vy * 0.12);
+        if (pr.slowMul) VS.Enemies.slow(e, pr.slowMul, pr.slowTime);
+        if (pr.shatterRadius) {
+          damageArea(game, pr.x, pr.y, pr.shatterRadius, pr.damage * pr.shatterDamageMul,
+            pr.crit, pr.slowMul, pr.slowTime);
+          addBlast(state, pr.x, pr.y, pr.shatterRadius, pr.color, true);
+        }
 
         pr.pierce--;
         if (pr.pierce <= 0) { consumed = true; break; }
+        if (pr.ricochet) {
+          pr.target = ricochetTarget(state, game, pr);
+          if (pr.target) {
+            pr.angle = Math.atan2(pr.target.y - pr.y, pr.target.x - pr.x);
+            pr.vx = Math.cos(pr.angle) * pr.speed;
+            pr.vy = Math.sin(pr.angle) * pr.speed;
+          }
+        }
       }
 
       if (consumed) U.swapRemove(list, i);
@@ -228,13 +276,16 @@
       if (e.dead) continue;
       if (!U.circleHit(p.x, p.y, radius, e.x, e.y, e.radius)) continue;
 
+      var before = e.hp;
       var d = rollDamage(game, st.damage);
       VS.Enemies.hurt(game, e, d.dmg, d.crit, 0, 0);
-      hits++;
+      if (st.slowMul) VS.Enemies.slow(e, st.slowMul, st.slowTime);
+      if (e.hp < before) hits++;
     }
 
     // 让渲染层画出一次脉冲
-    state.auraPulse = { x: p.x, y: p.y, r: radius, life: 0.22, maxLife: 0.22 };
+    state.auraPulse = { x: p.x, y: p.y, r: radius, life: 0.22, maxLife: 0.22, color: st.color };
+    if (hits > 0 && st.healPerTarget) VS.Player.heal(p, Math.min(st.healCap, hits * st.healPerTarget), game);
 
     if (hits > 0) VS.Audio.play('hit');
   }
@@ -362,6 +413,8 @@
       for (var k in src) if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
     }
 
+    if (w && w.evolved && C.EVOLUTIONS[id]) C.EVOLUTIONS[id].apply(out);
+
     /* 关卡倍率：伤害（含"全技能加强"）与范围，数量不动 */
     if (mul !== 1 || dmgAll !== 1) {
       if (out.damage !== undefined) out.damage *= mul * dmgAll;
@@ -374,6 +427,8 @@
       if (w.schoolPierce && out.pierce !== undefined) out.pierce += w.schoolPierce;
       if (w.schoolBlades && out.count !== undefined) out.count += w.schoolBlades;
       if (w.schoolChains && out.chains !== undefined) out.chains += w.schoolChains;
+      if (w.schoolProjectiles && out.count !== undefined) out.count += w.schoolProjectiles;
+      if (w.schoolSlowTime && out.slowTime !== undefined) out.slowTime += w.schoolSlowTime;
       if (w.schoolArea) {
         if (out.radius !== undefined) out.radius *= 1 + w.schoolArea;
         if (out.maxRadius !== undefined) out.maxRadius *= 1 + w.schoolArea;
@@ -467,6 +522,101 @@
     return true;
   }
 
+  /* ---------------- 寒霜与陨星 ---------------- */
+
+  function addBlast(state, x, y, radius, color, icy) {
+    if (state.blasts.length >= C.WEAPON_EFFECTS.MAX_BLASTS) return;
+    state.blasts.push({ x: x, y: y, r: radius, color: color, icy: icy, life: 0.4, maxLife: 0.4 });
+  }
+
+  function damageArea(game, x, y, radius, damage, crit, slowMul, slowTime) {
+    // 独立于弹道查询的 scratch，冰锥碎裂不会覆盖外层命中列表。
+    var found = game.weapons._areaHits || (game.weapons._areaHits = []);
+    game.world.grid.queryCircle(x, y, radius + enemyRadiusPad, found);
+    for (var i = 0; i < found.length; i++) {
+      var e = found[i];
+      if (e.dead || !U.circleHit(x, y, radius, e.x, e.y, e.radius)) continue;
+      VS.Enemies.hurt(game, e, damage, crit, e.x - x, e.y - y);
+      if (slowMul) VS.Enemies.slow(e, slowMul, slowTime);
+    }
+  }
+
+  function fireFrost(game, st) {
+    var p = game.player;
+    var range = st.speed * st.life;
+    var targets = nearestEnemies(game, p.x, p.y, 1, range * range);
+    if (!targets.length) return false;
+    var angle = Math.atan2(targets[0].y - p.y, targets[0].x - p.x);
+    var count = st.count + p.projBonus;
+    var spread = Math.min(0.95, (count - 1) * 0.16);
+    for (var i = 0; i < count; i++) {
+      var a = angle + (count > 1 ? (i / (count - 1) - 0.5) * spread : 0);
+      var roll = rollDamage(game, st.damage);
+      game.weapons.projectiles.push({
+        x: p.x + Math.cos(a) * (p.radius + 8), y: p.y + Math.sin(a) * (p.radius + 8),
+        vx: Math.cos(a) * st.speed, vy: Math.sin(a) * st.speed, speed: st.speed,
+        angle: a, r: st.radius, damage: roll.dmg, crit: roll.crit,
+        pierce: st.pierce, life: st.life, hitIds: [], kind: 'frost',
+        slowMul: st.slowMul, slowTime: st.slowTime,
+        shatterRadius: (st.shatterRadius || 0) * p.areaMul,
+        shatterDamageMul: st.shatterDamageMul,
+        color: st.color || C.WEAPONS.frost.color
+      });
+    }
+    VS.Audio.play('shoot');
+    return true;
+  }
+
+  function fireMeteor(game, st) {
+    var p = game.player;
+    var count = st.count + p.projBonus;
+    var targets = nearestEnemies(game, p.x, p.y, count, st.range * st.range);
+    if (!targets.length) return false;
+    for (var i = 0; i < count && game.weapons.meteors.length < C.WEAPON_EFFECTS.MAX_METEORS; i++) {
+      var target = targets[i % targets.length];
+      var roll = rollDamage(game, st.damage);
+      var offset = i >= targets.length ? 20 : 0;
+      var delay = st.warning + i * 0.12;
+      game.weapons.meteors.push({
+        x: target.x + Math.cos(i * 2.4) * offset,
+        y: target.y + Math.sin(i * 2.4) * offset,
+        r: st.radius * p.areaMul, damage: roll.dmg, crit: roll.crit,
+        delay: delay, maxDelay: delay, landed: false,
+        life: 0.38 + (st.aftershock || 0), maxLife: 0.38 + (st.aftershock || 0),
+        aftershockT: st.aftershock || 0, aftershockMul: st.aftershockMul || 0,
+        aftershockRadiusMul: st.aftershockRadiusMul || 1,
+        color: st.color || C.WEAPONS.meteor.color
+      });
+    }
+    return true;
+  }
+
+  function updateMeteors(state, dt, game) {
+    for (var i = state.meteors.length - 1; i >= 0; i--) {
+      var m = state.meteors[i];
+      if (!m.landed) {
+        m.delay -= dt;
+        if (m.delay > 0) continue;
+        m.landed = true;
+        damageArea(game, m.x, m.y, m.r, m.damage, m.crit);
+        addBlast(state, m.x, m.y, m.r, m.color, false);
+        VS.Effects.burst(game.fx, m.x, m.y, m.color, 14, { speed: 180, life: 0.4, size: 3 });
+        VS.Audio.play('nova');
+      } else {
+        m.life -= dt;
+        if (m.aftershockT > 0) {
+          m.aftershockT -= dt;
+          if (m.aftershockT <= 0) {
+            damageArea(game, m.x, m.y, m.r * m.aftershockRadiusMul, m.damage * m.aftershockMul, m.crit);
+            addBlast(state, m.x, m.y, m.r * m.aftershockRadiusMul, '#fff1d4', false);
+            VS.Audio.play('hit');
+          }
+        }
+        if (m.life <= 0) U.swapRemove(state.meteors, i);
+      }
+    }
+  }
+
   /* ---------------- 对外接口 ---------------- */
 
   var Weapons = {
@@ -476,6 +626,8 @@
         projectiles: [],
         novas: [],
         bolts: [],            // 雷击链的折线（只存点，渲染层画）
+        meteors: [],
+        blasts: [],
         orbitAngle: 0,
         orbitBlades: [],
         auraPulse: null
@@ -486,6 +638,8 @@
       state.projectiles.length = 0;
       state.novas.length = 0;
       state.bolts.length = 0;
+      state.meteors.length = 0;
+      state.blasts.length = 0;
       state.orbitBlades.length = 0;
       state.orbitAngle = 0;
       state.auraPulse = null;
@@ -521,6 +675,16 @@
       var w = getWeapon(player, id);
       if (!w) return false;
       return w.level < C.WEAPONS[id].maxLevel;
+    },
+
+    evolutionStatus: evolutionStatus,
+
+    evolve: function (player, id) {
+      var status = evolutionStatus(player, id);
+      if (!status || !status.ready) return false;
+      status.weapon.evolved = true;
+      status.weapon.cd = 0;
+      return true;
     },
 
     /** 每帧推进：开火节奏 + 各类实体 */
@@ -569,6 +733,12 @@
               w.cd = st.cooldown / p.attackSpeedMul;
               fireChain(game, w, st);
             }
+          } else if (w.id === 'frost' || w.id === 'meteor') {
+            w.cd -= dt;
+            if (w.cd <= 0) {
+              var fired = w.id === 'frost' ? fireFrost(game, st) : fireMeteor(game, st);
+              if (fired) w.cd = st.cooldown / p.attackSpeedMul;
+            }
           }
         }
       }
@@ -576,6 +746,11 @@
       /* --- 已存在的实体继续推进（玩家死后也让它们飞完） --- */
       updateProjectiles(state, dt, game);
       updateNovas(state, dt, game);
+      updateMeteors(state, dt, game);
+      for (var f = state.blasts.length - 1; f >= 0; f--) {
+        state.blasts[f].life -= dt;
+        if (state.blasts[f].life <= 0) U.swapRemove(state.blasts, f);
+      }
 
       /* 雷击折线只是视觉，寿命到了就丢 */
       for (var b = state.bolts.length - 1; b >= 0; b--) {
@@ -616,13 +791,15 @@
       for (var i = 0; i < player.weapons.length; i++) {
         var w = player.weapons[i];
         var def = C.WEAPONS[w.id];
-        out.push({ id: w.id, name: def.name, icon: def.icon, color: def.color, level: w.level });
+        var display = w.evolved && C.EVOLUTIONS[w.id] ? C.EVOLUTIONS[w.id] : def;
+        out.push({ id: w.id, name: display.name, icon: display.icon, color: display.color, level: w.level, evolved: !!w.evolved });
       }
       return out;
     },
 
     /** 关卡加成后的等级数值（测试与调试用） */
     _statsFor: statsFor,
+    statsFor: statsFor,
 
     /** 环绕骨刃当前的形态（UI 用） */
     orbitMode: orbitMode,

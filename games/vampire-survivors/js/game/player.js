@@ -58,6 +58,8 @@
         projBonus: 0,
         luck: 1,
         critChance: 0,
+        dashCooldownMul: 1,
+        lastStandBonus: 0,
 
         /* 第二关专属增益带来的属性 */
         acidResist: 0,          // 酸液伤害减免（0~1）
@@ -88,7 +90,7 @@
       p.facing.x = p.dashX;
       p.facing.y = p.dashY;
       p.dashT = C.PLAYER.DASH.TIME;
-      p.dashCd = C.PLAYER.DASH.CD;
+      p.dashCd = C.PLAYER.DASH.CD * p.dashCooldownMul;
       /* 无敌帧比位移略长：按得准就能"穿"过弹幕和冲撞 */
       p.invuln = Math.max(p.invuln, C.PLAYER.DASH.IFRAME);
       if (game) {

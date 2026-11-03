@@ -15,6 +15,49 @@
 
   function el(id) { return document.getElementById(id); }
 
+  function passiveName(id) {
+    for (var i = 0; i < VS.Config.UPGRADES.length; i++) {
+      if (VS.Config.UPGRADES[i].id === id) return VS.Config.UPGRADES[i].name;
+    }
+    return id;
+  }
+
+  function starterInfo() {
+    if (!dom || !dom.startWeapon || !dom.starterDesc) return;
+    var def = VS.Config.WEAPONS[dom.startWeapon.value];
+    if (def) dom.starterDesc.textContent = def.desc;
+  }
+
+  function renderArsenal() {
+    if (!dom || !dom.arsenalContent) return;
+    var html = '<p>两把武器在第一关即可获得，也可直接选作初始武器。进入第二关仍使用选定的初始武器。</p>';
+    ['frost', 'meteor'].forEach(function (id) {
+      var weapon = VS.Config.WEAPONS[id];
+      html += '<p><b style="color:' + weapon.color + '">' + weapon.icon + ' ' + weapon.name + '</b> · ' + weapon.desc + '</p>';
+    });
+    html += '<p>满级武器 + 对应被动 → 升级时出现进化卡。进化保留武器栏位与流派。</p><ul>';
+    Object.keys(VS.Config.EVOLUTIONS).forEach(function (id) {
+      var evo = VS.Config.EVOLUTIONS[id], base = VS.Config.WEAPONS[id];
+      html += '<li><b>' + evo.name + '</b>：' + base.name + ' Lv.' + base.maxLevel + ' + ' +
+        passiveName(evo.passive) + ' Lv.' + evo.passiveLevel + '<br>' + evo.desc + '</li>';
+    });
+    dom.arsenalContent.innerHTML = html + '</ul>';
+  }
+
+  function evolutionProgress(player) {
+    var rows = [];
+    player.weapons.forEach(function (w) {
+      var status = VS.Weapons.evolutionStatus(player, w.id);
+      if (!status) return;
+      var base = VS.Config.WEAPONS[w.id], evo = status.def;
+      var state = status.evolved ? '已进化' : status.ready ? '可进化 · 升级时出现' : '配方未齐';
+      rows.push('<div class="evolution-recipe' + (status.ready ? ' ready' : '') + '"><b>' + evo.name + ' · ' + state + '</b>' +
+        '<span>' + base.name + ' ' + w.level + '/' + base.maxLevel + ' 级 + ' +
+        passiveName(evo.passive) + ' ' + Math.min(status.passiveLevel, evo.passiveLevel) + '/' + evo.passiveLevel + ' 级</span></div>');
+    });
+    return rows.length ? '<details class="build-evolutions"><summary>武器进化 · 查看配方与进度</summary>' + rows.join('') + '</details>' : '';
+  }
+
   function syncOverlay() {
     if (!dom || !dom.overlays) return;
     var anyVisible = false;
@@ -65,11 +108,18 @@
         startLevels: el('startLevels'),
         startBtn: el('startBtn'),
         previewL2Btn: el('previewL2Btn'),
+        startWeapon: el('startWeapon'),
+        starterDesc: el('starterDesc'),
+        arsenalContent: el('arsenalContent'),
 
         luLevel: el('luLevel'),
         luCards: el('luCards'),
+        luBuild: el('luBuild'),
+        luQueue: el('luQueue'),
+        rerollBtn: el('rerollBtn'),
 
         petCards: el('petCards'),
+        petSelectSub: el('petSelectSub'),
 
         lcTitle: el('lcTitle'),
         lcSub: el('lcSub'),
@@ -78,6 +128,7 @@
         lcLevel: el('lcLevel'),
         lcPet: el('lcPet'),
         lcTotal: el('lcTotal'),
+        lcTip: el('lcTip'),
         nextLevelBtn: el('nextLevelBtn'),
 
         pauseInfo: el('pauseInfo'),
@@ -102,12 +153,22 @@
       dom.panels = [dom.panelStart, dom.panelLevelUp, dom.panelPetSelect,
                     dom.panelLevelClear, dom.panelPause, dom.panelGameOver];
 
-      bindClick(dom.startBtn, function () { if (cb.onStart) cb.onStart(); });
-      bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(1); });
+      if (dom.startWeapon) {
+        dom.startWeapon.innerHTML = VS.Config.START_WEAPONS.map(function (id) {
+          var w = VS.Config.WEAPONS[id];
+          return '<option value="' + id + '">' + w.icon + ' ' + w.name + '</option>';
+        }).join('');
+        dom.startWeapon.addEventListener('change', starterInfo);
+        starterInfo();
+      }
+      renderArsenal();
+      bindClick(dom.startBtn, function () { Panels.start(); });
+      bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(1, dom.startWeapon ? dom.startWeapon.value : null); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
       bindClick(dom.resumeBtn, function () { if (cb.onResume) cb.onResume(); });
       bindClick(dom.pauseRestartBtn, function () { if (cb.onRestart) cb.onRestart(); });
       bindClick(dom.nextLevelBtn, function () { if (cb.onNextLevel) cb.onNextLevel(); });
+      bindClick(dom.rerollBtn, function () { if (cb.onReroll) cb.onReroll(); });
 
       hideAll();
       return Panels;   // 返回模块本身（而不是内部 dom 缓存）
@@ -151,6 +212,10 @@
 
     /* ---------------- 开始面板 ---------------- */
 
+    start: function () {
+      if (cb.onStart) cb.onStart(dom && dom.startWeapon ? dom.startWeapon.value : null);
+    },
+
     showStart: function (bestTime, levelCount) {
       if (!dom) return;
       if (dom.startBest) dom.startBest.textContent = bestTime > 0 ? U.formatTime(bestTime) : '--:--';
@@ -160,11 +225,43 @@
 
     /* ---------------- 升级面板 ---------------- */
 
-    showLevelUp: function (choices, level) {
+    showLevelUp: function (choices, level, game) {
       if (!dom) return;
       currentChoices = choices || [];
 
       if (dom.luLevel) dom.luLevel.textContent = ' Lv.' + level;
+      if (dom.luQueue) dom.luQueue.textContent = game && game.pendingLevels > 1
+        ? '还需选择 ' + game.pendingLevels + ' 次' : '选择 1 项';
+
+      if (dom.luBuild && game && game.player) {
+        var p = game.player;
+        var weapons = p.weapons.map(function (w) {
+          var def = VS.Config.WEAPONS[w.id];
+          if (!def) return '';
+          var display = w.evolved && VS.Config.EVOLUTIONS[w.id] ? VS.Config.EVOLUTIONS[w.id] : def;
+          return '<span class="build-chip" style="--chip-accent:' + display.color + '">' +
+            display.icon + ' ' + display.name + ' <b>' + (w.evolved ? '进化' : 'Lv.' + w.level) + '</b>' +
+            (w.school ? ' · 流派 ' + w.school : '') + '</span>';
+        }).join('');
+        var passives = VS.Config.UPGRADES.filter(function (up) { return p.upgrades[up.id] > 0; })
+          .map(function (up) { return '<span class="build-chip">' + up.name + ' <b>Lv.' + p.upgrades[up.id] + '</b></span>'; });
+        var pet = VS.Pets && VS.Pets.statusText ? VS.Pets.statusText(game.pets) : '';
+        var lastStand = p.lastStandBonus > 0 && p.hp <= p.maxHp * 0.5
+          ? '<span>背水生效 +' + Math.round(p.lastStandBonus * 100) + '%</span>' : '';
+        dom.luBuild.innerHTML = '<div class="build-line"><span class="build-label">武器 ' + p.weapons.length + '/' + VS.Config.MAX_WEAPONS + '</span>' + weapons + '</div>' +
+          '<div class="build-line build-stats"><span>生命 ' + Math.ceil(p.hp) + '/' + Math.round(p.maxHp) + '</span>' +
+          '<span>伤害加成 ×' + p.damageMul.toFixed(2) + '</span>' + lastStand + '<span>护甲 ' + p.armor + '</span>' +
+          '<span>闪避冷却 ' + (VS.Config.PLAYER.DASH.CD * p.dashCooldownMul).toFixed(2) + ' 秒</span>' +
+          (pet ? '<span>宠物 ' + pet + '</span>' : '') + '</div>' +
+          '<details class="build-passives"><summary>被动增益 ' + passives.length + ' 项</summary>' +
+          '<div class="build-passive-list">' + (passives.join('') || '<span>尚无被动增益</span>') + '</div></details>' + evolutionProgress(p);
+      }
+      if (dom.rerollBtn && game) {
+        dom.rerollBtn.textContent = !game.choiceHasAlternative ? '没有其他可重选技能' :
+          (game.rerollsRemaining > 0 ? '重选技能 · 剩余 ' + game.rerollsRemaining + ' 次' : '重选次数已用完');
+        dom.rerollBtn.disabled = game.rerollsRemaining <= 0 || !game.choiceHasAlternative;
+        dom.rerollBtn.title = !game.choiceHasAlternative ? '没有其他可选技能' : '优先抽取本次未展示的技能';
+      }
 
       var html = '';
       for (var i = 0; i < currentChoices.length; i++) {
@@ -172,15 +269,18 @@
         // 卡片主色：新武器=青，武器升级=金，增益=紫，流派=跟着武器自身配色
         var accent = c.color || (c.kind === 'buff' ? '#b58cff' : '#7ee0ff');
 
-        html += '<div class="card' + (c.isSchool ? ' school' : '') + '" data-index="' + i +
+        var kind = c.kind === 'evolution' ? '武器进化' : c.kind === 'weapon-new' ? '新武器' : c.kind === 'weapon-up' ? '武器升级' : c.kind === 'school' ? '流派' : '被动';
+        html += '<button type="button" class="card' + (c.isSchool ? ' school' : '') + (c.isEvolution ? ' evolution' : '') + '" data-index="' + i +
                   '" style="--card-accent:' + accent + '">' +
-                  '<div class="ico">' + c.icon + '</div>' +
-                  '<div class="nm">' + c.name + '</div>' +
-                  '<div class="ds">' + c.desc + '</div>' +
-                  (c.tag ? '<div class="tag' + (c.isNew ? ' new' : (c.isSchool ? ' school' : '')) + '">' +
-                           c.tag + '</div>' : '') +
-                  '<div class="key">按 ' + (i + 1) + ' 选择</div>' +
-                '</div>';
+                  '<span class="card-top"><span class="card-kind">' + kind + '</span><span class="card-number">0' + (i + 1) + '</span></span>' +
+                  '<span class="ico" aria-hidden="true">' + c.icon + '</span>' +
+                  '<span class="nm">' + c.name + '</span>' +
+                  (c.tag ? '<span class="tag' + (c.isNew ? ' new' : (c.isSchool ? ' school' : '')) + '">' +
+                           c.tag + (c.maxLevel ? (c.tag.indexOf('→') >= 0 ? ' / ' + c.maxLevel : ' · 上限 ' + c.maxLevel + ' 级') : '') + '</span>' : '') +
+                  (c.currentDesc ? '<span class="compare-current">当前 · ' + c.currentDesc + '</span>' : '') +
+                  '<span class="ds">' + (c.currentDesc ? '<strong>升级后 · </strong>' : '') + c.desc + '</span>' +
+                  '<span class="key">按 ' + (i + 1) + ' 选择 ↗</span>' +
+                '</button>';
       }
 
       if (dom.luCards) {
@@ -199,6 +299,7 @@
       }
 
       show(dom.panelLevelUp);
+      dom.panelLevelUp.scrollTop = 0;
     },
 
     /** 玩家点了某张卡（或被键盘 1/2/3 触发） */
@@ -217,22 +318,26 @@
     /* ---------------- 宠物三选一面板 ----------------
        打完第一只 Boss 才出现，三选一，选完永久生效。 */
 
-    showPetSelect: function (pets) {
+    showPetSelect: function (pets, levelIndex, draftCards) {
       if (!dom) return;
       currentPets = pets || [];
+      if (dom.petSelectSub) dom.petSelectSub.textContent = draftCards > 0
+        ? '第二关预览 · 先选择宠物，再选择 ' + draftCards + ' 项强化'
+        : '击杀尸潮之王的奖励 · 等级 +1 · 宠物本关生效' +
+          (levelIndex > 0 ? ' · 第二关可选专属宠物' : ' · 进入第二关后宠物会重置');
 
       var html = '';
       for (var i = 0; i < currentPets.length; i++) {
         var p = currentPets[i];
         var accent = p.color || '#ffd166';
 
-        html += '<div class="card pet" data-index="' + i + '" style="--card-accent:' + accent + '">' +
+        html += '<button type="button" class="card pet" data-index="' + i + '" style="--card-accent:' + accent + '">' +
                   '<div class="ico">' + p.icon + '</div>' +
                   '<div class="nm">' + p.name + '</div>' +
                   '<div class="ds">' + p.desc + '</div>' +
                   '<div class="tag">' + (p.detail || '永久生效') + '</div>' +
                   '<div class="key">按 ' + (i + 1) + ' 选择</div>' +
-                '</div>';
+                '</button>';
       }
 
       if (dom.petCards) {
@@ -282,9 +387,12 @@
         dom.lcSub.textContent = info.last
           ? '所有关卡都打完了 · 看看这一局的成绩'
           : ('下一关：' + (info.nextLabel || '') +
-             (info.nextFresh ? ' · 从 1 级重新开始，怪是这一关的 1.5 倍强度'
+             (info.nextFresh ? ' · 从 1 级重新开始，怪物生命提高'
                              : ' · 构筑 / 等级 / 宠物都带过去'));
       }
+      if (dom.lcTip) dom.lcTip.textContent = info.last ? '查看本局结算。' : (info.nextFresh
+        ? '下一关从 1 级开始，武器、被动与宠物会重置；保留本局累计时间和击杀。'
+        : '构筑、等级、宠物会带进下一关；血量回满并获得短暂无敌。');
       if (dom.lcTime) dom.lcTime.textContent = U.formatTime(info.time || 0);
       if (dom.lcKills) dom.lcKills.textContent = U.group(info.kills || 0);
       if (dom.lcLevel) dom.lcLevel.textContent = String(info.playerLevel || 1);

@@ -46,6 +46,10 @@
         weaponStrip: el('weaponStrip'),
         muteBtn: el('muteBtn'),
         pauseBtn: el('pauseBtn'),
+        dashBtn: el('dashBtn'),
+        dashStatus: el('dashStatus'),
+        orbitBtn: el('orbitBtn'),
+        orbitStatus: el('orbitStatus'),
 
         bossBar: el('bossBar'),
         bossName: el('bossName'),
@@ -68,6 +72,12 @@
           e.stopPropagation();
           opts.onPause();
         });
+      }
+      if (dom.dashBtn && opts.onDash) {
+        dom.dashBtn.addEventListener('click', function (e) { e.stopPropagation(); opts.onDash(); });
+      }
+      if (dom.orbitBtn && opts.onToggleOrbit) {
+        dom.orbitBtn.addEventListener('click', function (e) { e.stopPropagation(); opts.onToggleOrbit(); });
       }
 
       lastWeaponSig = '';
@@ -96,6 +106,10 @@
       if (!dom || !dom.root) return;
 
       var p = game.player;
+      var dashDisabled = game.state !== VS.Game.STATE.PLAYING || p.dashCd > 0;
+      var dashText = p.dashCd > 0 ? (Math.ceil(p.dashCd * 10) / 10).toFixed(1) + 's' : '就绪';
+      if (dom.dashBtn && dom.dashBtn.disabled !== dashDisabled) dom.dashBtn.disabled = dashDisabled;
+      if (dom.dashStatus && dom.dashStatus.textContent !== dashText) dom.dashStatus.textContent = dashText;
 
       /* --- 血条 --- */
       var hpPct = VS.Player.hpProgress(p) * 100;
@@ -164,12 +178,14 @@
       /* --- 武器栏（内容变了才重建 DOM） --- */
       var list = VS.Weapons.listForUI(p);
       var sig = '';
-      for (var i = 0; i < list.length; i++) sig += list[i].id + list[i].level + '|';
+      for (var i = 0; i < list.length; i++) sig += list[i].id + list[i].level + ':' + list[i].evolved + '|';
 
       /* 环绕骨刃那一格要显示当前形态（E 键切换），所以形态也进签名 */
       var orbitName = (VS.Weapons.has(p, 'orbit') && VS.Weapons.orbitMode)
         ? VS.Weapons.orbitMode(game.orbitMode).name
         : '';
+      if (dom.orbitBtn && dom.orbitBtn.hidden !== !orbitName) dom.orbitBtn.hidden = !orbitName;
+      if (dom.orbitStatus && orbitName && dom.orbitStatus.textContent !== orbitName + ' · 切换') dom.orbitStatus.textContent = orbitName + ' · 切换';
       sig += '#' + orbitName;
 
       /* 宠物那一格也跟着走：猪神的复活次数会变，所以一起进签名 */
@@ -187,7 +203,7 @@
           /* 骨刃那格把等级换成"形态 + E"，玩家一眼知道能按 E 切 */
           var tail = (w.id === 'orbit' && orbitName)
             ? '<span class="lv orbit-mode">' + orbitName + ' <b>E</b></span>'
-            : '<span class="lv">Lv' + w.level + '</span>';
+            : '<span class="lv">' + (w.evolved ? '进化' : 'Lv' + w.level) + '</span>';
 
           html += '<span class="wslot' + (w.id === 'orbit' ? ' orbit' : '') + '">' +
                     '<span style="color:' + w.color + '">' + w.icon + '</span>' +
