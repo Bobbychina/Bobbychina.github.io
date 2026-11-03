@@ -12,7 +12,7 @@ vm.createContext(sandbox);
 [
   'core/namespace', 'core/utils', 'game/config', 'game/arsenal-config', 'core/save', 'core/scores',
   'game/phases', 'game/levels', 'game/world', 'game/effects', 'game/player', 'game/weapons', 'game/arsenal',
-  'game/enemies', 'game/pickups', 'game/pets', 'game/game'
+  'game/enemies', 'game/pickups', 'game/pets', 'game/game', 'core/cheats'
 ].forEach(file => vm.runInContext(fs.readFileSync(path.join(root, 'js', file + '.js'), 'utf8'), sandbox, { filename: file }));
 const VS = sandbox.window.VS, C = VS.Config;
 VS.Audio = { play() {}, unlock() {} };
@@ -210,4 +210,31 @@ test('战役与无尽分别记录，重复结算无副作用，无尽不提交�
   assert.equal(data.runs, 1); assert.equal(data.bestTime, 87); assert.equal(data.endless.bestTime, 1801); assert.equal(submits, 1);
   VS.Save.setSkin(g.data, 'witch'); assert.equal(VS.Save.load().endless.runs, 1);
 });
-console.log('PASS: 扩展武器 / 分支 / 无尽 / 本机存档，共 ' + passes + ' 组');
+test('控制台练习码验证字符串与游戏状态，补齐 99 级选卡且不重复发卡', () => {
+  const code = '314159265358979367679178', g = game('sickle');
+  assert.equal(sandbox.window.bobbychina32747('wrong').ok, false); assert.equal(g.player.level, 1);
+  assert.equal(sandbox.window.bobbychina32747(Number(code)).ok, false);
+  g.state = VS.Game.STATE.MENU; assert.equal(sandbox.window.bobbychina32747(code).ok, false);
+  VS.Game.start(g); VS.Game.pause(g);
+  const granted = sandbox.window.bobbychina32747(code);
+  assert.equal(granted.level, 99); assert.equal(granted.granted, 98); assert.equal(g.pendingLevels, 98);
+  assert.equal(g.state, VS.Game.STATE.LEVELUP); const cards = g.choices;
+  const repeated = sandbox.window.bobbychina32747(code);
+  assert.equal(repeated.granted, 0); assert.equal(g.pendingLevels, 98); assert.equal(g.choices, cards);
+  assert.equal(VS.Game.choose(g, 0), true); assert.equal(g.pendingLevels, 97);
+  VS.Game.start(g, { mode: 'endless' }); g.player.level = 105;
+  assert.equal(sandbox.window.bobbychina32747(code).granted, 0); assert.equal(g.player.level, 105);
+});
+test('宠物面板保留，作弊练习局不提交全站榜，重开恢复普通结算', () => {
+  const code = '314159265358979367679178', g = game('bolt'); let submits = 0;
+  VS.Leaderboard = { canSubmit: () => true }; VS.LeaderboardUI = { submitRun: () => submits++ };
+  g.deps.panels = { showPetSelect() {}, hidePetSelect() {}, showLevelUp() {} };
+  VS.Game.openPetSelect(g); const pets = g.petChoices;
+  sandbox.window.bobbychina32747(code); assert.equal(g.state, VS.Game.STATE.PETSELECT); assert.equal(g.petChoices, pets);
+  assert.equal(VS.Game.choosePet(g, 0), true); assert.equal(g.state, VS.Game.STATE.LEVELUP);
+  g.deps.panels = null;
+  g.time = 100; VS.Game.endRun(g); assert.equal(submits, 0); assert.match(g.failReason, /作弊练习局/);
+  assert.equal(sandbox.window.bobbychina32747(code).ok, false);
+  VS.Game.start(g); assert.equal(g.cheated, false); g.time = 20; VS.Game.endRun(g); assert.equal(submits, 1);
+});
+console.log('PASS: 扩展武器 / 分支 / 无尽 / 本机存档 / 控制台练习码，共 ' + passes + ' 组');

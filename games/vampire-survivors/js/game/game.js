@@ -337,6 +337,7 @@
     newRun: function (game, opt) {
       opt = opt || {};
       game.runSerial = (game.runSerial || 0) + 1;
+      game.cheated = false;
       if (opt.mode === 'campaign' || opt.mode === 'endless') game.mode = opt.mode;
       if (C.START_WEAPONS.indexOf(opt.startWeapon) >= 0) game.startWeapon = opt.startWeapon;
       game.time = 0;
@@ -869,6 +870,7 @@
       game.victory = !!opt.victory;
       game.failedClear = !!opt.failedClear;      // 时间到但没打死最终 Boss
       game.failReason = opt.reason || '';
+      if (game.cheated) game.failReason += (game.failReason ? ' · ' : '') + '作弊练习局 · 不提交全站排行榜';
 
       /* 一局的总时长：打完的关卡 + 本关已经过的时间。
          第一关就死了的话就等于第一关的时间，和以前的口径一致。 */
@@ -919,7 +921,7 @@
       if (VS.ScoresUI) VS.ScoresUI.showRank(rankInfo);   // 本局排名（没进前 5 就自己藏起来）
 
       if (VS.LeaderboardUI && VS.LeaderboardUI.showRank) VS.LeaderboardUI.showRank(null);
-      if (game.mode !== 'endless' && VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
+      if (!game.cheated && game.mode !== 'endless' && VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
         VS.LeaderboardUI.submitRun({ time: total, kills: p.kills, level: p.level, wave: wave, mode: game.mode });
       }
     },

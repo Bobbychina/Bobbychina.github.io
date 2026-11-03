@@ -63,8 +63,14 @@
 
 数值和技能定义在 `js/game/config.js`；抽卡与关卡重置在 `js/game/game.js`；界面在 `js/ui/panels.js` 和 `css/levelup.css`。运行 `node tools/vs-levelup-check.cjs` 可检查重选、连续升级、技能效果、关卡重置和空卡池恢复。浏览器布局与触屏交互仍需实际打开页面验证。
 
+## 控制台练习码
+
+先开始一局，然后在浏览器 Console 输入 `bobbychina32747("314159265358979367679178")`。当前角色直接升到 99 级，并补齐实际提升等级对应的选卡次数。暂停或升级期间也可使用；正在选择宠物时会保留宠物面板，选完宠物后再处理升级。重复调用不额外发卡，无尽模式已经超过 99 级时不会降级。新开一局会清除练习标记，第二关仍按战役规则重置等级。
+
+这类练习局保存本机成绩，但不会自动提交全站排行榜，结算页会标明。原写法 `bobbychina32747.314159265358979367679178` 不是合法 JavaScript；点号后不能直接跟数字，长数字也不能用 Number 精确表示，因此入口使用函数和字符串暗号。
+
 ## 验证
 
-从游戏目录运行 `node tools/vs-content-check.cjs`、`node tools/vs-levelup-check.cjs` 和 `node tools/vs-expansion-check.cjs`。第三项覆盖 24 组扩展武器、互斥分支、实体上限、无尽首领轮换、超过 99 级、满构筑补给和两种模式独立存档。站点仓库根目录还需运行 `node tools/i18n-check.mjs`。
+从游戏目录运行 `node tools/vs-content-check.cjs`、`node tools/vs-levelup-check.cjs` 和 `node tools/vs-expansion-check.cjs`。第三项覆盖 26 组扩展武器、互斥分支、实体上限、无尽首领轮换、超过 99 级、满构筑补给、两种模式独立存档和控制台练习码。站点仓库根目录还需运行 `node tools/i18n-check.mjs`。
 
 `tools/vs-probe.mjs` 使用自有测试浏览器的 CDP 端口检查页面、开局、站点账号入口、云存档移除与本机纪录。真实账号授权不应使用桩结果替代验收；隔离浏览器可检查弹窗路由和授权范围，身份切换、失败和退出行为使用桩测试，不读取真人凭证。
