@@ -7,13 +7,15 @@ const scope = { window: { innerWidth: 1280, innerHeight: 720, localStorage: {
 vm.createContext(scope);
 ['core/namespace','core/utils','game/config','game/chapters-config','game/arsenal-config','core/save','core/scores',
   'game/phases','game/levels','game/world','game/effects','game/player','game/weapons','game/arsenal',
-  'game/enemies','game/bosskit','game/encounters','game/stages','game/pickups','game/pets','game/game','core/cheats']
+  'game/enemies','game/bosskit','game/encounters','game/stages','game/pickups','game/pets','game/shop','game/game','core/cheats']
   .forEach(p => vm.runInContext(fs.readFileSync(path.join(root, 'js', p + '.js'), 'utf8'), scope, { filename: p }));
 const V = scope.window.VS, C = V.Config; V.Audio = { play() {}, unlock() {} }; let passes = 0;
 function test(name, fn) { fn(); passes++; console.log('PASS: ' + name); }
 function game(index = 2) {
   const g = V.Game.create({ data: V.Save.load(), input: { getAxis: () => ({ x: 0, y: 0 }) } }); V.Game.current = g;
-  V.Game.startAt(g, index, { draft: 0, pet: false }); g.textBudget = 0; g.sparkBudget = 0;
+  V.Game.start(g);
+  if (index !== 0) V.Game.startLevel(g, index);
+  g.textBudget = 0; g.sparkBudget = 0;
   g.player.invuln = 0; g.player.regen = 0; return g;
 }
 function spawn(g, id, dx, dy, hp = 100000) {
@@ -33,7 +35,7 @@ test('四关配置、八种新常规敌人、三位新首领与六件遗物完�
   assert.equal(defs.filter(e => e.behavior && !e.spawnOnly).length, 8);
   assert.equal(defs.filter(e => e.encounter).length, 3);
   for (const i of [2, 3]) { assert.equal(V.Levels.def(i).duration, 720); assert.equal(V.Levels.isFresh(i), false); assert.ok(V.Levels.requiredBosses(i).length); }
-  assert.equal(V.Levels.isLast(1), false); assert.equal(V.Levels.isLast(3), true);
+  assert.equal(V.Levels.isFresh(1), false); assert.equal(V.Levels.isLast(1), false); assert.equal(V.Levels.isLast(3), true);
   for (const r of C.RELICS) assert.equal(new Set(C.RELICS.map(e => e.id)).size, 6);
 });
 test('新敌人按章节解锁，裂变幼体和首领不进入常规抽取池', () => {
@@ -43,12 +45,25 @@ test('新敌人按章节解锁，裂变幼体和首领不进入常规抽取池',
     const ember = V.Enemies.pickType(600, 3); assert.ok(!ember.boss && !ember.spawnOnly);
   }
 });
-test('第三关与第四关保留等级、武器分支、宠物和遗物，环境状态清空', () => {
+test('第二关起保留等级、武器分支、宠物、遗物与金币，第三/四关同样继承且环境状态清空', () => {
+  const first = game(0), fp = first.player;
+  V.Stages.applyRelic(first, 'pilgrim');
+  fp.level = 28; fp.stageSpeedMul = 0.76;
+  V.Weapons.add(fp, 'sickle'); V.Weapons.chooseSchool(fp, 'sickle', 'sickle_hook');
+  V.Pets.choose(first.pets, V.Pets.list(0)[0].id, first);
+  first.shop.coins = 456;
+  const pet = first.pets.id, fw = V.Weapons.get(fp, 'sickle');
+  V.Game.startLevel(first, 1);
+  assert.equal(first.player, fp); assert.equal(fp.level, 28); assert.equal(V.Weapons.get(fp, 'sickle'), fw);
+  assert.equal(fw.schoolId, 'sickle_hook'); assert.equal(first.pets.id, pet); assert.ok(first.relics.includes('pilgrim'));
+  assert.equal(first.shop.coins, 456, '第二关应继承金币');
+
   const g = game(), p = g.player; V.Stages.applyRelic(g, 'pilgrim'); p.level = 28; p.stageSpeedMul = 0.76;
   V.Weapons.add(p, 'sickle'); V.Weapons.chooseSchool(p, 'sickle', 'sickle_hook'); V.Pets.choose(g.pets, V.Pets.list(2)[0].id, g);
-  const pet = g.pets.id, w = V.Weapons.get(p, 'sickle'); g.stage.cold = 100;
+  const petId = g.pets.id, w = V.Weapons.get(p, 'sickle'); g.stage.cold = 100; g.shop.coins = 789;
   V.Game.startLevel(g, 3); assert.equal(g.player, p); assert.equal(p.level, 28); assert.equal(V.Weapons.get(p, 'sickle'), w);
-  assert.equal(w.schoolId, 'sickle_hook'); assert.equal(g.pets.id, pet); assert.ok(g.relics.includes('pilgrim'));
+  assert.equal(w.schoolId, 'sickle_hook'); assert.equal(g.pets.id, petId); assert.ok(g.relics.includes('pilgrim'));
+  assert.equal(g.shop.coins, 789, '第三关应继承金币');
   assert.equal(p.stageSpeedMul, 1); assert.equal(g.stage.cold, 0); assert.equal(g.stage.mechanic, 'forge');
 });
 test('新关卡必须击杀章节首领，未击杀不能靠计时通关；第三关后能进入第四关', () => {
@@ -154,13 +169,18 @@ test('六件遗物逐一改变真实属性且不会重复获取', () => {
     assert.equal(g.relics.length, 1); for (const v of Object.values(p)) if (typeof v === 'number') assert.ok(Number.isFinite(v));
   }
 });
-test('遗物祭坛不消耗升级次数，选择期间暂停，可与 99 级练习码衔接', () => {
+test('遗物祭坛免费三选一、选择期间暂停，99 级练习码只发金币', () => {
   const g = game(); g.time = 91; V.Stages.update(g, 0.02); assert.equal(g.stage.shrines.length, 1);
   const altar = g.stage.shrines[0]; g.player.x = altar.x; g.player.y = altar.y; V.Stages.update(g, 0.02);
   assert.equal(V.Stages.openRelic(g), true); assert.equal(g.state, V.Game.STATE.RELICSELECT); assert.equal(g.relicChoices.length, 3);
-  const time = g.time; V.Game.step(g, 10); assert.equal(g.time, time);
-  scope.window.bobbychina32747('314159265358979367679178'); assert.equal(g.state, V.Game.STATE.RELICSELECT); assert.equal(g.pendingLevels, 98);
-  assert.equal(V.Game.choose(g, 0), true); assert.equal(g.relics.length, 1); assert.equal(g.pendingLevels, 98); assert.equal(g.state, V.Game.STATE.LEVELUP);
+  const time = g.time, coins = g.shop.coins; V.Game.step(g, 10); assert.equal(g.time, time);
+  const granted = scope.window.bobbychina32747('314159265358979367679178');
+  assert.equal(granted.ok, true); assert.equal(granted.granted, 98); assert.equal(granted.coins, 1176);
+  assert.equal(g.state, V.Game.STATE.RELICSELECT, '练习码不应关闭遗物面板');
+  assert.equal(g.player.level, 99); assert.equal(g.shop.coins, coins + 1176);
+  assert.equal(g.pendingLevels, undefined, '练习码不再补选卡队列');
+  assert.equal(V.Game.choose(g, 0), true); assert.equal(g.relics.length, 1);
+  assert.equal(g.shop.coins, coins + 1176, '免费遗物不占金币'); assert.equal(g.state, V.Game.STATE.PLAYING);
   assert.equal(altar.used, true);
 });
 test('无尽在 20/30 分钟进入新场景，保留构筑；新首领优先加入轮换', () => {

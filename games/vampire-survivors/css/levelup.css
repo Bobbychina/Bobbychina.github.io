@@ -41,9 +41,6 @@
 #panel-levelup .card .key { margin-top: auto; padding-top: 12px; color: #b9c3d3; }
 .levelup-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 13px; }
 #panel-levelup .levelup-footer .tip { margin: 0; }
-.reroll-btn { flex: 0 0 auto; padding: 9px 12px; color: #f3dbac; background: #30291f; border: 1px solid #a88d60; border-radius: 2px; cursor: pointer; font: inherit; font-size: 12px; }
-.reroll-btn:hover:not(:disabled) { background: #493a27; }
-.reroll-btn:disabled { opacity: .55; cursor: not-allowed; }
 .starter-choice { display: flex; align-items: center; gap: 12px; margin: 14px 0 7px; font-size: 13px; }
 .starter-choice label { color: #dfc89f; }
 .starter-choice select { color: #f0eade; background: #121b2c; border: 1px solid #68748a; border-radius: 2px; padding: 7px 12px; font: inherit; min-width: 180px; }

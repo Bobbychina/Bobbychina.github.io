@@ -1,5 +1,5 @@
 /* ===========================================================
-   面板：开始 / 升级选卡 / 暂停 / 游戏结束
+   面板：开始 / 金币商店 / 遗物 / 暂停 / 游戏结束
    这一层是唯一直接操作覆盖层 DOM 的地方。
    =========================================================== */
 (function (VS) {
@@ -33,9 +33,7 @@
     var endless = dom.startMode && dom.startMode.value === 'endless';
     if (dom.modeDesc) dom.modeDesc.textContent = endless
       ? '无时间上限 · 每 3 分钟提升波次 · 每 10 分钟推进场景，随后轮换寒潮与熔炉'
-      : '四关远征 · 第二关从 1 级重来 · 第三、四关各 12 分钟，保留构筑与宠物';
-    if (dom.previewL2Btn) dom.previewL2Btn.hidden = endless;
-    if (dom.chapterPreview) dom.chapterPreview.hidden = endless;
+      : '四关远征 · 全程继承构筑与金币 · 随时按 B 购买强化';
     var game = VS.Game && VS.Game.current;
     var data = game ? game.data : VS.Save.load();
     var best = VS.Save.profile(data, endless ? 'endless' : 'campaign').bestTime || 0;
@@ -46,7 +44,7 @@
 
   function renderChapters() {
     if (!dom || !dom.chapterGuide) return;
-    var html = '<p>第三、四关保留上一关的构筑与遗物。章节练习可直接进入，自选宠物与强化；练习成绩只记本机。</p>';
+    var html = '<p>四关依次推进，全程保留等级、构筑、宠物、遗物和金币。按 B 暂停战斗并购买强化。</p>';
     VS.Levels.list().slice(2).forEach(function (level) {
       html += '<div class="arsenal-entry"><p><b>' + level.name + ' · ' + level.subtitle + '</b> · 12 分钟</p><p>' +
         (level.mechanic === 'frost' ? '寒潮会累积寒意，高寒意使普通移动变慢；满值会持续受伤。靠近金色暖灯回温，闪避速度不受影响。' :
@@ -66,7 +64,7 @@
       var e = VS.Config.ENEMY_TYPES[id];
       if (e.behavior && !e.spawnOnly) html += '<p>' + e.name + '：' + roles[e.behavior] + '</p>';
     });
-    html += '</div><p><b>遗物祭坛 · 靠近金色祭坛，额外三选一</b></p><p>新关卡在 01:30 与 05:30 出现祭坛，不消耗升级次数。每件遗物本局只可获得一次。</p>';
+    html += '</div><p><b>遗物祭坛 · 靠近金色祭坛，额外三选一</b></p><p>新关卡在 01:30 与 05:30 出现祭坛，不消耗金币。每件遗物本局只可获得一次。</p>';
     VS.Config.RELICS.forEach(function (r) { html += '<p><b>' + r.icon + ' ' + r.name + '</b> · ' + r.desc + '</p>'; });
     dom.chapterGuide.innerHTML = html;
   }
@@ -87,7 +85,7 @@
       } else if (weapon.school) html += '<p>原有流派 · ' + weapon.school.name + '：' + weapon.school.short + '</p>';
       html += '</div>';
     });
-    html += '<p>满级武器 + 对应被动 → 升级时出现进化卡。进化保留武器栏位与流派。</p><ul>';
+    html += '<p>满级武器 + 对应被动 → 商店中出现进化商品。进化保留武器栏位与流派。</p><ul>';
     Object.keys(VS.Config.EVOLUTIONS).forEach(function (id) {
       var evo = VS.Config.EVOLUTIONS[id], base = VS.Config.WEAPONS[id];
       html += '<li><b>' + evo.name + '</b>：' + base.name + ' Lv.' + base.maxLevel + ' + ' +
@@ -102,12 +100,43 @@
       var status = VS.Weapons.evolutionStatus(player, w.id);
       if (!status) return;
       var base = VS.Config.WEAPONS[w.id], evo = status.def;
-      var state = status.evolved ? '已进化' : status.ready ? '可进化 · 升级时出现' : '配方未齐';
+      var state = status.evolved ? '已进化' : status.ready ? '可在商店购买' : '配方未齐';
       rows.push('<div class="evolution-recipe' + (status.ready ? ' ready' : '') + '"><b>' + evo.name + ' · ' + state + '</b>' +
         '<span>' + base.name + ' ' + w.level + '/' + base.maxLevel + ' 级 + ' +
         passiveName(evo.passive) + ' ' + Math.min(status.passiveLevel, evo.passiveLevel) + '/' + evo.passiveLevel + ' 级</span></div>');
     });
     return rows.length ? '<details class="build-evolutions"><summary>武器进化 · 查看配方与进度</summary>' + rows.join('') + '</details>' : '';
+  }
+
+  function buildSummary(game) {
+    if (!game || !game.player) return "";
+    var p = game.player;
+    var weapons = p.weapons.map(function (w) {
+      var def = VS.Config.WEAPONS[w.id];
+      if (!def) return '';
+      var display = w.evolved && VS.Config.EVOLUTIONS[w.id] ? VS.Config.EVOLUTIONS[w.id] : def;
+      var branch = VS.Config.SCHOOLS && VS.Config.SCHOOLS[w.schoolId];
+      return '<span class="build-chip" style="--chip-accent:' + display.color + '">' +
+        display.icon + ' ' + display.name + ' <b>' + (w.evolved ? '进化' : 'Lv.' + w.level) + '</b>' +
+        (branch ? ' · ' + branch.name + ' ' + w.schoolRank + '/3' : w.school ? ' · ' + def.school.name + ' ' + w.school : '') + '</span>';
+    }).join('');
+    var passives = VS.Config.UPGRADES.filter(function (up) { return p.upgrades[up.id] > 0; })
+      .map(function (up) { return '<span class="build-chip">' + up.name + ' <b>Lv.' + p.upgrades[up.id] + '</b></span>'; });
+    var pet = VS.Pets && VS.Pets.statusText ? VS.Pets.statusText(game.pets) : '';
+    var relics = (game.relics || []).map(function (id) {
+      var r = VS.Config.RELICS.filter(function (item) { return item.id === id; })[0];
+      return r ? '<span class="build-chip">' + r.icon + ' ' + r.name + '</span>' : '';
+    }).join('');
+    var lastStand = p.lastStandBonus > 0 && p.hp <= p.maxHp * 0.5
+      ? '<span>背水生效 +' + Math.round(p.lastStandBonus * 100) + '%</span>' : '';
+    return '<div class="build-line"><span class="build-label">武器 ' + p.weapons.length + '/' + VS.Config.MAX_WEAPONS + '</span>' + weapons + '</div>' +
+      '<div class="build-line build-stats"><span>生命 ' + Math.ceil(p.hp) + '/' + Math.round(p.maxHp) + '</span>' +
+      '<span>伤害加成 ×' + p.damageMul.toFixed(2) + '</span>' + lastStand + '<span>护甲 ' + p.armor + '</span>' +
+      '<span>闪避冷却 ' + (VS.Config.PLAYER.DASH.CD * p.dashCooldownMul).toFixed(2) + ' 秒</span>' +
+      (pet ? '<span>宠物 ' + pet + '</span>' : '') + '</div>' +
+      '<details class="build-passives"><summary>被动增益 ' + passives.length + ' 项</summary>' +
+      '<div class="build-passive-list">' + (passives.join('') || '<span>尚无被动增益</span>') + '</div></details>' +
+      (relics ? '<div class="build-line"><span class="build-label">遗物</span>' + relics + '</div>' : '') + evolutionProgress(p);
   }
 
   function syncOverlay() {
@@ -150,6 +179,16 @@
       dom = {
         overlays: el('overlays'),
         panelStart: el('panel-start'),
+        panelShop: el('panel-shop'),
+        shopCoins: el('shopCoins'),
+        shopIncome: el('shopIncome'),
+        shopRestock: el('shopRestock'),
+        shopCards: el('shopCards'),
+        shopStatus: el('shopStatus'),
+        shopBuild: el('shopBuild'),
+        shopCloseBtn: el('shopCloseBtn'),
+        shopRefreshBtn: el('shopRefreshBtn'),
+        pauseShopBtn: el('pauseShopBtn'),
         panelLevelUp: el('panel-levelup'),
         panelPetSelect: el('panel-petselect'),
         panelLevelClear: el('panel-levelclear'),
@@ -161,12 +200,9 @@
         startBtn: el('startBtn'),
         startMode: el('startMode'),
         modeDesc: el('modeDesc'),
-        previewL2Btn: el('previewL2Btn'),
         startWeapon: el('startWeapon'),
         starterDesc: el('starterDesc'),
         arsenalContent: el('arsenalContent'),
-        chapterPreview: el('chapterPreview'),
-        chapterSelect: el('chapterSelect'),
         chapterGuide: el('chapterGuide'),
 
         luLevel: el('luLevel'),
@@ -176,7 +212,6 @@
         luCards: el('luCards'),
         luBuild: el('luBuild'),
         luQueue: el('luQueue'),
-        rerollBtn: el('rerollBtn'),
 
         petCards: el('petCards'),
         petSelectSub: el('petSelectSub'),
@@ -212,7 +247,7 @@
         bannerSub: el('bannerSub')
       };
 
-      dom.panels = [dom.panelStart, dom.panelLevelUp, dom.panelPetSelect,
+      dom.panels = [dom.panelStart, dom.panelShop, dom.panelLevelUp, dom.panelPetSelect,
                     dom.panelLevelClear, dom.panelPause, dom.panelGameOver];
 
       if (dom.startWeapon) {
@@ -225,20 +260,26 @@
       }
       renderArsenal();
       renderChapters();
-      if (dom.chapterSelect) dom.chapterSelect.innerHTML = VS.Levels.list().slice(1).map(function (level, i) {
-        return '<option value="' + (i + 1) + '">' + level.name + ' · ' + level.subtitle + ' · 自选 ' + (i >= 2 ? 30 : i >= 1 ? 24 : 8) + ' 次强化</option>';
-      }).join('');
       if (dom.startMode) dom.startMode.addEventListener('change', modeInfo);
       bindClick(dom.startBtn, function () { Panels.start(); });
-      bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(dom.chapterSelect ? Number(dom.chapterSelect.value) : 1, dom.startWeapon ? dom.startWeapon.value : null); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
       bindClick(dom.resumeBtn, function () { if (cb.onResume) cb.onResume(); });
       bindClick(dom.pauseRestartBtn, function () { if (cb.onRestart) cb.onRestart(); });
       bindClick(dom.nextLevelBtn, function () { if (cb.onNextLevel) cb.onNextLevel(); });
-      bindClick(dom.rerollBtn, function () { if (cb.onReroll) cb.onReroll(); });
       bindClick(dom.endEndlessBtn, function () { if (cb.onEndEndless) cb.onEndEndless(); });
       bindClick(dom.goMenuBtn, function () { if (cb.onMenu) cb.onMenu(); });
 
+      bindClick(dom.pauseShopBtn, function () { if (cb.onShop) cb.onShop(); });
+      bindClick(dom.shopCloseBtn, function () { if (cb.onShopClose) cb.onShopClose(); });
+      bindClick(dom.shopRefreshBtn, function () { if (cb.onShopRefresh) cb.onShopRefresh(); });
+      if (dom.shopCards) dom.shopCards.addEventListener('click', function (e) {
+        var button = e.target.closest('button[data-shop-action]');
+        if (!button || button.disabled) return;
+        e.stopPropagation();
+        var i = Number(button.dataset.index), token = button.dataset.token;
+        if (button.dataset.shopAction === 'buy' && cb.onShopBuy) cb.onShopBuy(i, token);
+        if (button.dataset.shopAction === 'lock' && cb.onShopLock) cb.onShopLock(i, token);
+      });
       hideAll();
       return Panels;   // 返回模块本身（而不是内部 dom 缓存）
     },
@@ -294,57 +335,53 @@
       show(dom.panelStart);
     },
 
-    /* ---------------- 升级面板 ---------------- */
+    /* ---------------- 金币商店 ---------------- */
 
-    showLevelUp: function (choices, level, game, opt) {
+    showShop: function (game, message) {
+      if (!dom || !game.shop) return;
+      var stock = game.shop, wasHidden = dom.panelShop.hidden, scroll = dom.panelShop.scrollTop;
+      dom.shopCoins.textContent = U.group(stock.coins);
+      dom.shopIncome.textContent = '本局获得 ' + U.group(stock.earned) + ' · 已消费 ' + U.group(stock.spent);
+      dom.shopRestock.textContent = '下次免费补货：' + Math.max(0, Math.ceil(stock.nextRefreshAt - VS.Game._runTime(game))) + ' 秒战斗时间';
+      dom.shopStatus.textContent = message || '可多次购买；金币不足时继续狩猎，锁定想留到下一次的商品。';
+      dom.shopCloseBtn.textContent = game.shopReturnState === VS.Game.STATE.PAUSED ? '返回暂停菜单 · B / Esc' : '继续狩猎 · B / Esc';
+      var cost = VS.Shop.refreshCost(game);
+      dom.shopRefreshBtn.textContent = '刷新货架 · ' + cost + ' 金币';
+      dom.shopRefreshBtn.disabled = stock.coins < cost || !VS.Game.upgradePool(game).length || stock.offers.every(function (o) { return o && o.locked; });
+      dom.shopBuild.innerHTML = buildSummary(game);
+      dom.shopCards.innerHTML = Array.from({ length: 4 }, function (_, i) {
+        var offer = stock.offers[i];
+        if (!offer) return '<article class="shop-offer empty"><span class="shop-slot">0' + (i + 1) + '</span><h3>暂时无货</h3><p>当前没有可购买的强化。</p></article>';
+        var c = offer.choice, inactive = offer.sold || offer.unavailable, short = Math.max(0, offer.price - stock.coins);
+        var kind = c.kind === 'weapon-new' ? '新武器' : c.kind === 'weapon-up' ? '武器升级' : c.kind === 'school' ? '流派' : c.kind === 'evolution' ? '武器进化' : c.kind === 'supply' ? '补给' : '被动增益';
+        var status = offer.sold ? '已购买' : offer.unavailable ? '当前构筑不可购买' : short > 0 ? '还差 ' + short + ' 金币' : '购买 · ' + offer.price + ' 金币';
+        var attrs = ' data-index="' + i + '" data-token="' + offer.token + '"';
+        return '<article class="shop-offer' + (offer.locked ? ' locked' : '') + (inactive ? ' inactive' : '') + '" style="--offer-accent:' + (c.color || '#d7bd81') + '">' +
+          '<div class="shop-offer-top"><span>' + kind + ' / 0' + (i + 1) + '</span><button type="button" class="shop-lock" data-shop-action="lock"' + attrs +
+          ' aria-pressed="' + !!offer.locked + '" aria-label="' + (offer.locked ? '解锁' : '锁定') + c.name + '"' + (inactive ? ' disabled' : '') + '>' + (offer.locked ? '已锁定' : '锁定') + '</button></div>' +
+          '<div class="shop-item-name"><span aria-hidden="true">' + c.icon + '</span><h3>' + c.name + '</h3></div>' +
+          '<p class="shop-tag">' + c.tag + '</p>' + (c.currentDesc ? '<p class="shop-current">当前 · ' + c.currentDesc + '</p>' : '') +
+          '<p class="shop-desc">' + (c.currentDesc ? '购买后 · ' : '') + c.desc + '</p>' +
+          '<div class="shop-price">' + offer.price + '<small>金币' + (offer.locked ? ' · 已保价' : '') + '</small></div>' +
+          '<button type="button" class="shop-buy" data-shop-action="buy"' + attrs + (inactive || short > 0 ? ' disabled' : '') + '>' + status + '</button></article>';
+      }).join('');
+      show(dom.panelShop);
+      dom.panelShop.scrollTop = wasHidden ? 0 : scroll;
+      if (wasHidden) dom.shopCloseBtn.focus({ preventScroll: true });
+    },
+
+    /* ---------------- 遗物祭坛 ---------------- */
+
+    showRelic: function (choices, game) {
       if (!dom) return;
-      opt = opt || {};
       currentChoices = choices || [];
+      if (dom.luTitle) dom.luTitle.textContent = '遗物祭坛';
+      if (dom.luSub) dom.luSub.textContent = '选择一件遗物，本局只可获得一次；留意它的代价';
+      if (dom.luLevel) dom.luLevel.textContent = '';
+      if (dom.luQueue) dom.luQueue.textContent = '额外选择 · 不消耗金币';
+      if (dom.luTip) dom.luTip.innerHTML = '点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 遗物保留到本局结束';
 
-      if (dom.luTitle) dom.luTitle.textContent = opt.relic ? '遗物祭坛' : '升级！';
-      if (dom.luSub) dom.luSub.textContent = opt.relic ? '选择一件遗物，本局只可获得一次；留意它的代价' : '选一项，继续你的狩猎';
-      if (dom.luLevel) dom.luLevel.textContent = opt.relic ? '' : ' Lv.' + level;
-      if (dom.luQueue) dom.luQueue.textContent = opt.relic ? '额外选择 · 不消耗升级' : game && game.pendingLevels > 1
-        ? '还需选择 ' + game.pendingLevels + ' 次' : '选择 1 项';
-      if (dom.rerollBtn) dom.rerollBtn.hidden = !!opt.relic;
-      if (dom.luTip) dom.luTip.innerHTML = opt.relic ? '点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 遗物保留到本局结束' :
-        '点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 武器数值为基础值，未计入加成';
-
-      if (dom.luBuild && game && game.player) {
-        var p = game.player;
-        var weapons = p.weapons.map(function (w) {
-          var def = VS.Config.WEAPONS[w.id];
-          if (!def) return '';
-          var display = w.evolved && VS.Config.EVOLUTIONS[w.id] ? VS.Config.EVOLUTIONS[w.id] : def;
-          var branch = VS.Config.SCHOOLS && VS.Config.SCHOOLS[w.schoolId];
-          return '<span class="build-chip" style="--chip-accent:' + display.color + '">' +
-            display.icon + ' ' + display.name + ' <b>' + (w.evolved ? '进化' : 'Lv.' + w.level) + '</b>' +
-            (branch ? ' · ' + branch.name + ' ' + w.schoolRank + '/3' : w.school ? ' · ' + def.school.name + ' ' + w.school : '') + '</span>';
-        }).join('');
-        var passives = VS.Config.UPGRADES.filter(function (up) { return p.upgrades[up.id] > 0; })
-          .map(function (up) { return '<span class="build-chip">' + up.name + ' <b>Lv.' + p.upgrades[up.id] + '</b></span>'; });
-        var pet = VS.Pets && VS.Pets.statusText ? VS.Pets.statusText(game.pets) : '';
-        var relics = (game.relics || []).map(function (id) {
-          var r = VS.Config.RELICS.filter(function (item) { return item.id === id; })[0];
-          return r ? '<span class="build-chip">' + r.icon + ' ' + r.name + '</span>' : '';
-        }).join('');
-        var lastStand = p.lastStandBonus > 0 && p.hp <= p.maxHp * 0.5
-          ? '<span>背水生效 +' + Math.round(p.lastStandBonus * 100) + '%</span>' : '';
-        dom.luBuild.innerHTML = '<div class="build-line"><span class="build-label">武器 ' + p.weapons.length + '/' + VS.Config.MAX_WEAPONS + '</span>' + weapons + '</div>' +
-          '<div class="build-line build-stats"><span>生命 ' + Math.ceil(p.hp) + '/' + Math.round(p.maxHp) + '</span>' +
-          '<span>伤害加成 ×' + p.damageMul.toFixed(2) + '</span>' + lastStand + '<span>护甲 ' + p.armor + '</span>' +
-          '<span>闪避冷却 ' + (VS.Config.PLAYER.DASH.CD * p.dashCooldownMul).toFixed(2) + ' 秒</span>' +
-          (pet ? '<span>宠物 ' + pet + '</span>' : '') + '</div>' +
-          '<details class="build-passives"><summary>被动增益 ' + passives.length + ' 项</summary>' +
-          '<div class="build-passive-list">' + (passives.join('') || '<span>尚无被动增益</span>') + '</div></details>' +
-          (relics ? '<div class="build-line"><span class="build-label">遗物</span>' + relics + '</div>' : '') + evolutionProgress(p);
-      }
-      if (dom.rerollBtn && game) {
-        dom.rerollBtn.textContent = !game.choiceHasAlternative ? '没有其他可重选技能' :
-          (game.rerollsRemaining > 0 ? '重选技能 · 剩余 ' + game.rerollsRemaining + ' 次' : '重选次数已用完');
-        dom.rerollBtn.disabled = game.rerollsRemaining <= 0 || !game.choiceHasAlternative;
-        dom.rerollBtn.title = !game.choiceHasAlternative ? '没有其他可选技能' : '优先抽取本次未展示的技能';
-      }
+      if (dom.luBuild) dom.luBuild.innerHTML = buildSummary(game);
 
       var html = '';
       for (var i = 0; i < currentChoices.length; i++) {
@@ -391,7 +428,7 @@
       if (cb.onChoose) cb.onChoose(index, currentChoices[index]);
     },
 
-    hideLevelUp: function () {
+    hideRelic: function () {
       if (!dom) return;
       dom.panelLevelUp.hidden = true;
       currentChoices = [];
@@ -401,13 +438,10 @@
     /* ---------------- 宠物三选一面板 ----------------
        打完第一只 Boss 才出现，三选一，选完永久生效。 */
 
-    showPetSelect: function (pets, levelIndex, draftCards) {
+    showPetSelect: function (pets, levelIndex) {
       if (!dom) return;
       currentPets = pets || [];
-      if (dom.petSelectSub) dom.petSelectSub.textContent = draftCards > 0
-        ? VS.Levels.label(levelIndex) + '练习 · 先选择宠物，再选择 ' + draftCards + ' 项强化'
-        : '击杀尸潮之王的奖励 · 等级 +1 · 宠物本关生效' +
-          (levelIndex > 0 ? ' · 第二关可选专属宠物' : ' · 进入第二关后宠物会重置');
+      if (dom.petSelectSub) dom.petSelectSub.textContent = '击杀首领的奖励 · 等级 +1 与金币 · 宠物随本局跨关保留';
 
       var html = '';
       for (var i = 0; i < currentPets.length; i++) {

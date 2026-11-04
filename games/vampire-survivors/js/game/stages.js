@@ -124,7 +124,7 @@
       }
       if (!out.length) { shrine.used = true; game.stage.pendingShrine = null; return false; }
       game.relicChoices = out; game.state = VS.Game.STATE.RELICSELECT;
-      if (game.deps.panels) game.deps.panels.showLevelUp(out, game.player.level, game, { relic: true });
+      if (game.deps.panels) game.deps.panels.showRelic(out, game);
       return true;
     },
     chooseRelic: function (game, index) {
@@ -132,9 +132,8 @@
       var choice = game.relicChoices[index];
       if (!choice || !Stages.applyRelic(game, choice.id)) return false;
       game.stage.pendingShrine.used = true; game.stage.pendingShrine = null; game.relicChoices = [];
-      if (game.deps.panels) game.deps.panels.hideLevelUp();
+      if (game.deps.panels) game.deps.panels.hideRelic();
       game.state = VS.Game.STATE.PLAYING;
-      if (game.pendingLevels > 0) VS.Game.openLevelUp(game);
       return true;
     },
     status: function (game) {

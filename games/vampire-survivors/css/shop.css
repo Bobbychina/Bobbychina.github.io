@@ -1,0 +1,63 @@
+/* 金币补给站：余额账页与四格货架，沿用猎人手册配色。 */
+.shop-hud { display: flex; align-items: center; gap: 13px; padding: 8px 12px; border: 1px solid #a58b56; border-radius: 3px; background: #29271eea; color: #f1d49b; font: inherit; font-size: 12px; cursor: pointer; pointer-events: auto; }
+.shop-hud b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.shop-hud kbd { margin-left: 4px; }
+.shop-hud:disabled { opacity: .55; cursor: default; }
+#panel-shop { width: min(1060px, 100%); padding: 24px 28px; text-align: left; }
+.shop-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 8px 0 16px; border-bottom: 1px solid #67705a; position: sticky; top: 0; z-index: 2; background: #111a22; }
+.shop-heading h2 { margin: 4px 0 0; color: #efd7a0; }
+.shop-close, .shop-refresh, .shop-buy, .shop-lock { font: inherit; cursor: pointer; border: 1px solid #9a885f; border-radius: 2px; color: #f2dfb3; background: #2d3027; }
+.shop-close { padding: 10px 12px; font-size: 12px; white-space: nowrap; }
+.shop-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px; margin: 20px 0; }
+.shop-ledger { border-left: 3px solid #d9ba73; padding: 8px 0 8px 15px; color: #bfccb9; font-size: 12px; line-height: 1.8; }
+.shop-ledger > span { color: #d6c492; }
+#shopCoins { display: block; color: #f5d78e; font: 600 48px/1.2 Georgia, serif; overflow-wrap: anywhere; }
+.shop-ledger p { margin: 12px 0; }
+.shop-ledger small { display: block; margin-top: 12px; font-size: 11px; color: #a1b3a6; }
+.shop-refresh { padding: 10px; width: 100%; font-size: 12px; }
+.shop-status { min-height: 32px; margin-bottom: 10px; color: #c7cfbf; font-size: 12px; line-height: 1.7; }
+.shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.shop-offer { display: flex; flex-direction: column; min-width: 0; padding: 13px 15px; border: 1px solid #485847; border-top: 3px solid var(--offer-accent, #bca36c); background: #121e1c; }
+.shop-offer-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: #b3c2b4; }
+.shop-lock { padding: 5px 8px; font-size: 11px; background: transparent; border-color: #617263; }
+.shop-offer.locked { border-color: #6cb9b4; }
+.shop-lock[aria-pressed=true] { background: #173a39; color: #a6e9de; border-color: #6cb9b4; }
+.shop-item-name { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.shop-item-name > span { font-size: 26px; color: var(--offer-accent); }
+.shop-item-name h3 { font-size: 16px; color: #eee6cd; line-height: 1.4; margin: 0; }
+.shop-tag { font-size: 11px; color: var(--offer-accent, #d6c492); margin: 7px 0; }
+.shop-desc, .shop-current { font-size: 12px; line-height: 1.65; color: #c0ccbe; margin: 5px 0 8px; }
+.shop-current { color: #93a79b; }
+.shop-price { margin-top: auto; padding-top: 10px; font: 24px/1.3 Georgia, serif; color: #f2d49b; }
+.shop-price small { margin-left: 6px; font: 11px/1.4 system-ui, sans-serif; color: #c1ba9c; }
+.shop-buy { width: 100%; padding: 10px 8px; margin-top: 10px; background: #d4bc7e; border-color: #d4bc7e; color: #17271f; font-weight: 700; font-size: 12px; }
+.shop-buy:hover:not(:disabled) { background: #eed59b; }
+.shop-refresh:hover:not(:disabled), .shop-close:hover { background: #424333; }
+.shop-buy:disabled, .shop-refresh:disabled, .shop-lock:disabled { opacity: .55; cursor: not-allowed; }
+.shop-buy:disabled { background: #26352c; border-color: #4d5c4a; color: #c1c9b5; }
+.shop-offer.inactive .shop-item-name, .shop-offer.inactive .shop-desc { opacity: .6; }
+.shop-offer.empty { min-height: 180px; color: #a5b2a1; font-size: 12px; }
+.shop-slot { color: #dbc18a; font: 24px Georgia, serif; }
+.shop-build { margin-top: 14px; color: #c7d0bf; font-size: 12px; }
+.shop-build > summary { cursor: pointer; padding: 8px 0; color: #e0c78e; }
+.shop-build .build-summary { margin-top: 8px; background: #101b19; }
+@media (max-width: 700px) {
+  #panel-shop { padding: 18px 15px; }
+  .shop-layout { grid-template-columns: 1fr; gap: 15px; margin-top: 15px; }
+  .shop-heading { align-items: flex-start; }
+  .shop-heading h2 { font-size: 25px; }
+  .shop-close { max-width: 145px; white-space: normal; line-height: 1.5; }
+  .shop-ledger { display: grid; grid-template-columns: minmax(0, 1fr) 150px; column-gap: 16px; align-items: center; }
+  .shop-ledger > span, #shopCoins { grid-column: 1; }
+  #shopCoins { font-size: 36px; }
+  #shopIncome { grid-column: 1 / -1; font-size: 11px; margin: 6px 0; }
+  .shop-ledger p:not([id]) { display: none; }
+  #shopRestock { grid-column: 1 / -1; margin: 3px 0 8px; }
+  .shop-refresh { grid-column: 2; grid-row: 1 / span 2; }
+  .shop-ledger small { grid-column: 1 / -1; margin-top: 4px; }
+  .shop-grid { grid-template-columns: 1fr; gap: 10px; }
+  .shop-offer { padding: 11px 13px; }
+  .shop-buy { min-height: 44px; }
+  .shop-lock { min-height: 32px; }
+  .shop-hud { gap: 7px; padding: 7px 9px; }
+}

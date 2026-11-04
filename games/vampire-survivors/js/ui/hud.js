@@ -43,6 +43,8 @@
         phase: el('phase'),
         kills: el('kills'),
         level: el('level'),
+        coins: el('coins'),
+        shopBtn: el('shopBtn'),
         weaponStrip: el('weaponStrip'),
         chapterMechanic: el('chapterMechanic'),
         muteBtn: el('muteBtn'),
@@ -73,6 +75,9 @@
           e.stopPropagation();
           opts.onPause();
         });
+      }
+      if (dom.shopBtn && opts.onShop) {
+        dom.shopBtn.addEventListener('click', function (e) { e.stopPropagation(); opts.onShop(); });
       }
       if (dom.dashBtn && opts.onDash) {
         dom.dashBtn.addEventListener('click', function (e) { e.stopPropagation(); opts.onDash(); });
@@ -107,6 +112,8 @@
       if (!dom || !dom.root) return;
 
       var p = game.player;
+      if (dom.coins && game.shop) dom.coins.textContent = U.group(game.shop.coins);
+      if (dom.shopBtn) dom.shopBtn.disabled = [VS.Game.STATE.PLAYING, VS.Game.STATE.PAUSED, VS.Game.STATE.SHOP].indexOf(game.state) < 0;
       var mechanic = dom.chapterMechanic;
       if (mechanic && VS.Stages) {
         var text = VS.Stages.status(game);

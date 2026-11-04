@@ -1,5 +1,5 @@
 /* ===========================================================
-   输入：WASD / 方向键移动，Esc 暂停，M 静音，1/2/3 选卡
+   输入：WASD / 方向键移动，B 商店，Esc 暂停，M 静音，1–4 购买
    另外提供触摸虚拟摇杆（手机端在画面上拖动）
    =========================================================== */
 (function (VS) {
@@ -77,7 +77,15 @@
       if (handlers.onMute) handlers.onMute();
       return;
     }
-    if (k === '1' || k === '2' || k === '3') {
+    if (k === 'b' || k === 'B') {
+      if (handlers.onShop) handlers.onShop();
+      return;
+    }
+    if (k === 'r' || k === 'R') {
+      if (handlers.onShopRefresh) handlers.onShopRefresh();
+      return;
+    }
+    if (k === '1' || k === '2' || k === '3' || k === '4') {
       if (handlers.onChoice) handlers.onChoice(parseInt(k, 10) - 1);
       return;
     }
@@ -98,6 +106,7 @@
       return;
     }
     if (k === ' ' || k === 'Enter' || k === 'Spacebar') {
+      if (target && (target.tagName === 'BUTTON' || target.tagName === 'A')) return;
       if (handlers.onConfirm) handlers.onConfirm();
       return;
     }
@@ -199,6 +208,8 @@
         onPause: opts.onPause,
         onMute: opts.onMute,
         onChoice: opts.onChoice,
+        onShop: opts.onShop,
+        onShopRefresh: opts.onShopRefresh,
         onConfirm: opts.onConfirm,
         onAnyKey: opts.onAnyKey,
         onTouchStart: opts.onTouchStart,

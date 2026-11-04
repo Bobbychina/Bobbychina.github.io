@@ -76,6 +76,7 @@
     var hud = VS.Hud.init({
       onMute: toggleMute,
       onPause: function () { VS.Game.togglePause(game); },
+      onShop: function () { VS.Game.toggleShop(game); },
       onDash: dash,
       onToggleOrbit: function () { VS.Game.toggleOrbitRange(game); }
     });
@@ -85,12 +86,15 @@
     /* ---- 面板 ---- */
     var panels = VS.Panels.init({
       onStart: function (weapon, mode) { VS.Game.start(game, { startWeapon: weapon, mode: mode }); },
-      onPreviewLevel: function (index, weapon) { VS.Game.startAt(game, index, { startWeapon: weapon, draft: index >= 3 ? 30 : index >= 2 ? 24 : 8 }); },
       onRetry: function () { VS.Game.start(game); },
       onResume: function () { VS.Game.resume(game); },
       onRestart: function () { VS.Game.start(game); },
       onChoose: function (index) { VS.Game.choose(game, index); },
-      onReroll: function () { VS.Game.reroll(game); },
+      onShop: function () { VS.Game.openShop(game); },
+      onShopBuy: function (index, token) { VS.Game.buyShop(game, index, token); },
+      onShopLock: function (index, token) { VS.Game.lockShop(game, index, token); },
+      onShopRefresh: function () { VS.Game.refreshShop(game); },
+      onShopClose: function () { VS.Game.closeShop(game); },
       onChoosePet: function (index) { VS.Game.choosePet(game, index); },
       onNextLevel: function () { VS.Game.nextLevel(game); },
       onEndEndless: function () {
@@ -131,6 +135,8 @@
       onPause: function () { VS.Game.togglePause(game); },
       onMute: toggleMute,
       onChoice: function (index) { VS.Game.choose(game, index); },
+      onShop: function () { VS.Game.toggleShop(game); },
+      onShopRefresh: function () { VS.Game.refreshShop(game); },
       onDash: dash,
       onToggleOrbit: function () { VS.Game.toggleOrbitRange(game); },
       onConfirm: function () {
@@ -240,7 +246,7 @@
       }
 
       if (game.state === VS.Game.STATE.PLAYING ||
-          game.state === VS.Game.STATE.LEVELUP ||
+          game.state === VS.Game.STATE.SHOP ||
           game.state === VS.Game.STATE.RELICSELECT ||
           game.state === VS.Game.STATE.PETSELECT ||
           game.state === VS.Game.STATE.LEVELCLEAR) {
@@ -263,6 +269,7 @@
       if (!VS.Config || !VS.Game || !VS.Renderer || !VS.Panels) {
         throw new Error('模块没有全部加载（检查 js 文件路径与加载顺序）');
       }
+      if (!VS.Shop) throw new Error('商店模块没有完整加载，请刷新页面后重试');
       if (!VS.Config.CHAPTER_RULES || !VS.Encounters || !VS.Stages || !VS.ChapterArt) {
         throw new Error('章节内容没有完整加载，请刷新页面后重试');
       }

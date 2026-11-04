@@ -12,7 +12,7 @@ vm.createContext(sandbox);
 [
   'core/namespace', 'core/utils', 'game/config', 'game/arsenal-config', 'core/save', 'core/scores',
   'game/phases', 'game/levels', 'game/world', 'game/effects', 'game/player', 'game/weapons', 'game/arsenal',
-  'game/enemies', 'game/pickups', 'game/pets', 'game/game', 'core/cheats'
+  'game/enemies', 'game/pickups', 'game/pets', 'game/shop', 'game/game', 'core/cheats'
 ].forEach(file => vm.runInContext(fs.readFileSync(path.join(root, 'js', file + '.js'), 'utf8'), sandbox, { filename: file }));
 const VS = sandbox.window.VS, C = VS.Config;
 VS.Audio = { play() {}, unlock() {} };
@@ -54,11 +54,11 @@ test('16 把基础武器、24 个独立分支、11 个可直接开局的武器',
     for (const value of Object.values(a)) if (typeof value === 'number') assert.ok(Number.isFinite(value));
   }
 });
-test('选定分支后，抽卡池只产生该分支的后续等级', () => {
+test('选定分支后，合法池只产生该分支的后续等级', () => {
   const g = game('sickle', 'hook'), w = g.player.weapons[0];
   g.player.weapons = [w, { id: 'bolt', level: 8, evolved: true, school: 3 }, { id: 'garlic', level: 8, evolved: true, school: 3 }, { id: 'orbit', level: 8, school: 3 }];
   w.level = 8; C.UPGRADES.forEach(up => { g.player.upgrades[up.id] = up.max; });
-  const cards = VS.Game._buildChoices(g).choices;
+  const cards = VS.Game.upgradePool(g);
   assert.equal(cards.length, 1); assert.equal(cards[0].schoolId, 'sickle_hook');
   assert.equal(VS.Game._applyChoice(g, cards[0]), true); assert.equal(w.schoolRank, 2);
 });
@@ -174,19 +174,24 @@ test('高攻速四武器持续作战不突破实体容量；重开清空实体�
   VS.Game.start(g); assert.ok(g.player.weapons.every(w => !w.schoolId));
   for (const key of Object.keys(Limits())) assert.equal(extra(g)[key].length, 0);
 });
-test('无尽跨过 10 与 15 分钟保持构筑和等级、刷新重选且不进入过关面板', () => {
+test('无尽跨过 10 与 15 分钟保持构筑、金币与等级，商店换货且不进入过关面板', () => {
   const g = game('gravity', 'well', 'endless'), w = g.player.weapons[0]; w.level = 7; g.player.level = 105;
-  g.player.invuln = 9999; g.onXp = () => {}; g.time = 599.99; g.rerollsRemaining = 0;
+  g.player.invuln = 9999; g.onXp = () => {}; g.time = 599.99;
+  g.shop.coins = 321; g.shop.purchases = 2;
   VS.Game.step(g, 0.02); assert.equal(g.level, 1); assert.equal(g.player.weapons[0], w); assert.equal(g.player.level, 105);
+  assert.equal(g.shop.coins, 321, '跨场景不应丢失金币'); assert.equal(g.shop.purchases, 2, '跨场景不应重置购买计数');
   g.time = 899.99; VS.Game.step(g, 0.02); assert.equal(g.state, VS.Game.STATE.PLAYING); assert.equal(g.endlessWave, 6);
-  assert.equal(g.rerollsRemaining, C.LEVELUP_REROLLS); assert.equal(VS.Game.clearLevel(g), false);
+  assert.equal(g.shop.coins, 321, '免费补货不能扣金币');
+  assert.ok(Array.isArray(g.shop.offers) && g.shop.offers.length > 0, '无尽换场景后商店应重新供货');
+  assert.ok(g.shop.offers.every(offer => offer && !offer.sold && !offer.locked), '换场景应重铺非锁定货架');
+  assert.equal(VS.Game.clearLevel(g), false);
   assert.equal(VS.Player.grantLevel(g.player), true); assert.equal(g.player.level, 106); assert.ok(Number.isFinite(g.player.xpNeeded));
 });
 test('无尽首领持续轮换，单只存活时不重复生成，击败后仍可刷新', () => {
   const g = game('bolt', null, 'endless'); g.player.invuln = 9999; g.onXp = () => {};
   g.time = 300; VS.Enemies.update(g.enemies, 0, g); const first = g.enemies.boss;
   assert.ok(first); g.time = 601; VS.Enemies.update(g.enemies, 0, g); assert.equal(g.enemies.boss, first);
-  VS.Enemies.kill(g, first); g.pendingLevels = 0; g.pendingPetSelect = false; VS.Enemies.update(g.enemies, 0, g);
+  VS.Enemies.kill(g, first); g.pendingPetSelect = false; VS.Enemies.update(g.enemies, 0, g);
   assert.equal(g.enemies.boss.type, 'lemonPig'); const second = g.enemies.boss;
   VS.Enemies.kill(g, second); g.time = 902; VS.Enemies.update(g.enemies, 0, g); assert.equal(g.enemies.boss.type, 'boss');
   assert.equal(g.enemies.bossCount, 3);
@@ -197,7 +202,10 @@ test('无尽后期倍率有限，满构筑仍有补给卡，战役等级仍封�
   const w = g.player.weapons[0]; w.level = 8; w.schoolRank = 3;
   ['bolt', 'garlic', 'frost'].forEach(id => { VS.Weapons.add(g.player, id); const v = VS.Weapons.get(g.player, id); v.level = 8; v.school = 999; v.evolved = true; });
   C.UPGRADES.forEach(up => { g.player.upgrades[up.id] = up.max; });
-  const choices = VS.Game._buildChoices(g).choices; assert.equal(choices.length, 3); assert.ok(choices.every(c => c.kind === 'supply'));
+  const choices = VS.Game.upgradePool(g);
+  assert.equal(choices.length, 2, '满构筑且满血时只应剩两项无尽补给');
+  assert.ok(choices.every(c => c.kind === 'supply'), '满构筑仍应提供无尽补给');
+  assert.equal(choices.map(c => c.id).sort().join(','), 'guard,power');
   const campaign = game('bolt'); campaign.player.level = 99; assert.equal(VS.Player.grantLevel(campaign.player), false);
 });
 test('战役与无尽分别记录，重复结算无副作用，无尽不提交战役排行榜', () => {
@@ -210,28 +218,37 @@ test('战役与无尽分别记录，重复结算无副作用，无尽不提交�
   assert.equal(data.runs, 1); assert.equal(data.bestTime, 87); assert.equal(data.endless.bestTime, 1801); assert.equal(submits, 1);
   VS.Save.setSkin(g.data, 'witch'); assert.equal(VS.Save.load().endless.runs, 1);
 });
-test('控制台练习码验证字符串与游戏状态，补齐 99 级选卡且不重复发卡', () => {
+test('控制台练习码只升级并发金币，不补选卡也不改当前状态', () => {
   const code = '314159265358979367679178', g = game('sickle');
   assert.equal(sandbox.window.bobbychina32747('wrong').ok, false); assert.equal(g.player.level, 1);
   assert.equal(sandbox.window.bobbychina32747(Number(code)).ok, false);
   g.state = VS.Game.STATE.MENU; assert.equal(sandbox.window.bobbychina32747(code).ok, false);
   VS.Game.start(g); VS.Game.pause(g);
+  const before = g.shop.coins;
   const granted = sandbox.window.bobbychina32747(code);
-  assert.equal(granted.level, 99); assert.equal(granted.granted, 98); assert.equal(g.pendingLevels, 98);
-  assert.equal(g.state, VS.Game.STATE.LEVELUP); const cards = g.choices;
+  assert.equal(granted.ok, true); assert.equal(granted.level, 99); assert.equal(granted.granted, 98);
+  assert.equal(granted.coins, 98 * 12); assert.equal(g.player.level, 99);
+  assert.equal(g.shop.coins, before + 98 * 12, '练习码应按每级 12 金币补发');
+  assert.equal(g.state, VS.Game.STATE.PAUSED, '练习码不应改变暂停状态');
+  assert.equal(g.pendingLevels, undefined); assert.equal(g.choices, undefined);
+  assert.equal(g.cheated, true);
   const repeated = sandbox.window.bobbychina32747(code);
-  assert.equal(repeated.granted, 0); assert.equal(g.pendingLevels, 98); assert.equal(g.choices, cards);
-  assert.equal(VS.Game.choose(g, 0), true); assert.equal(g.pendingLevels, 97);
+  assert.equal(repeated.granted, 0);
+  assert.equal(g.shop.coins, before + 98 * 12, '重复调用不重复发金币');
   VS.Game.start(g, { mode: 'endless' }); g.player.level = 105;
+  const coins = g.shop.coins;
   assert.equal(sandbox.window.bobbychina32747(code).granted, 0); assert.equal(g.player.level, 105);
+  assert.equal(g.shop.coins, coins, '超过 99 级不降级也不发金币');
 });
 test('宠物面板保留，作弊练习局不提交全站榜，重开恢复普通结算', () => {
   const code = '314159265358979367679178', g = game('bolt'); let submits = 0;
   VS.Leaderboard = { canSubmit: () => true }; VS.LeaderboardUI = { submitRun: () => submits++ };
-  g.deps.panels = { showPetSelect() {}, hidePetSelect() {}, showLevelUp() {} };
+  g.deps.panels = { showPetSelect() {}, hidePetSelect() {}, showShop() {} };
   VS.Game.openPetSelect(g); const pets = g.petChoices;
+  const before = g.shop.coins;
   sandbox.window.bobbychina32747(code); assert.equal(g.state, VS.Game.STATE.PETSELECT); assert.equal(g.petChoices, pets);
-  assert.equal(VS.Game.choosePet(g, 0), true); assert.equal(g.state, VS.Game.STATE.LEVELUP);
+  assert.equal(g.shop.coins, before + 98 * 12, '宠物面板期间练习码仍只发金币');
+  assert.equal(VS.Game.choosePet(g, 0), true); assert.equal(g.state, VS.Game.STATE.PLAYING);
   g.deps.panels = null;
   g.time = 100; VS.Game.endRun(g); assert.equal(submits, 0); assert.match(g.failReason, /作弊练习局/);
   assert.equal(sandbox.window.bobbychina32747(code).ok, false);

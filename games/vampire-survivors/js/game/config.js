@@ -60,8 +60,6 @@
     GEM_MAGNET_ACC: 1500     // 经验石被吸走时的加速度
   };
 
-  // 每关独立计算，重选不会消耗升级次数。
-  C.LEVELUP_REROLLS = 2;
   C.ENDLESS = {
     WAVE_SECONDS: 180, BOSS_INTERVAL: 300, BIOME_AT: 600,
     HP_GROWTH: 1.16, DAMAGE_GROWTH: 1.08, SPEED_GROWTH: 1.025,
@@ -417,9 +415,7 @@
       name: '第二关',
       subtitle: '柠檬深渊',
       duration: 900,                     // 15:00 结算：最终 Boss 死了才算通关
-      /* 和第二关的**第一关没有任何关系**：进去以后从 1 级重新开始，
-         不带第一关的等级/武器/增益/宠物（见 Game.startLevel 的 def.fresh 分支）。 */
-      fresh: true,
+      fresh: false,                     // 四关都继承已购买的构筑和金币
       /* 没有喘息时间：4:00–5:00 的休整阶段照常刷怪 */
       noRest: true,
       /* 通关条件：12:00 的最终 Boss 必须被打死 */
@@ -428,7 +424,7 @@
         {
           at: 300, type: 'boss', name: '尸潮之王',
           tip: '尸 潮 之 王 降 临', sub: '和第一关同一个节拍 · 单挑时间',
-          reward: 'firstBoss'          // 重新开始 → 宠物重新三选一
+          reward: 'firstBoss'          // 已有宠物则保留，只领取等级与金币
         },
         {
           /* 最终形态的血量（口径写死在这儿，改数字前先看这段）：
@@ -517,7 +513,7 @@
     },
     {
       id: 'lemonPig', name: '柠檬猪', icon: '🍋', color: '#e3d84a',
-      onlyFromLevel: 1,                     // 只有第二关能选
+      onlyFromLevel: 0,                     // 宠物全程继承，首个首领奖励即可选择
       desc: '免疫所有柠檬酸液伤害（Boss 的酸液弹、地上的酸池都不怕），并且最大生命直接变成 250',
       detail: '酸液免疫 · 血量 250'
     }

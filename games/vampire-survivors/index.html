@@ -8,11 +8,12 @@
 <!-- 网络仅用于站点账号与战役排行榜；游戏纪录保存在本机。 -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https://bobbycn.cc https://bobbychina-games.pages.dev https://dsh-oauth-relay.bobby-minecraft.workers.dev; base-uri 'self'; form-action 'none'">
 <title>吸血鬼幸存者 · Vampire Survivors</title>
-<link rel="stylesheet" href="css/style.css?v=20261104chapters1">
-<link rel="stylesheet" href="css/nightfall-edition.css?v=20261104chapters1">
-<link rel="stylesheet" href="css/art-reset.css?v=20261104chapters1">
-<link rel="stylesheet" href="css/levelup.css?v=20261104chapters1">
-<link rel="stylesheet" href="css/expansion.css?v=20261104chapters1">
+<link rel="stylesheet" href="css/style.css?v=20261104shop1">
+<link rel="stylesheet" href="css/nightfall-edition.css?v=20261104shop1">
+<link rel="stylesheet" href="css/art-reset.css?v=20261104shop1">
+<link rel="stylesheet" href="css/levelup.css?v=20261104shop1">
+<link rel="stylesheet" href="css/expansion.css?v=20261104shop1">
+<link rel="stylesheet" href="css/shop.css?v=20261104shop1">
 </head>
 <body>
 
@@ -45,6 +46,7 @@
       <div class="stat gold"><span class="k">波次</span><span class="v" id="wave">1</span></div>
       <div class="stat"><span class="k">击杀</span><span class="v" id="kills">0</span></div>
       <div class="stat cyan"><span class="k">等级</span><span class="v" id="level">1</span></div>
+      <button type="button" class="shop-hud" id="shopBtn" title="打开强化商店 (B)"><span>金币 <b id="coins">30</b></span><span>商店 <kbd>B</kbd></span></button>
       <button class="icon-btn" id="muteBtn" title="静音 (M)">♪</button>
       <button class="icon-btn" id="pauseBtn" title="暂停 (Esc)">❚❚</button>
     </div>
@@ -76,7 +78,7 @@
 
     <section class="panel" id="panel-start">
       <h1>吸血鬼幸存者</h1>
-      <p class="sub">四关远征 · 寒潮与熔炉 · 遗物与新首领</p>
+      <p class="sub">拾取金币 · 购买强化 · 四关远征</p>
       <div class="mode-choice"><label for="startMode">狩猎模式</label><select id="startMode"><option value="campaign">战役 · 四关远征</option><option value="endless">无尽 · 坚持到最后</option></select></div>
       <p class="mode-desc" id="modeDesc">共 <b id="startLevels">4</b> 关，征服荒野、深渊、霜钟回廊与余烬熔庭。</p>
       <div class="best">最高存活时间：<b id="startBest">--:--</b></div>
@@ -86,14 +88,15 @@
         <p>登录可提交战役排行榜；无尽纪录与游戏设置只保存在当前浏览器。</p>
       </div>
       <details class="field-guide"><summary>猎人手册 · 操作与关卡规则</summary><ul class="keys">
-        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 武器<b>自动攻击</b> · <kbd>Shift</kbd> <b>闪避</b> · <kbd>E</kbd> <b>切骨刃范围</b> · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 选卡 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
-        <li>拾取经验球升级，三张卡里选一项增益（含"缺什么补什么"的<b>流派增益</b>）；每关可重选 2 次</li>
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 武器<b>自动攻击</b> · <kbd>Shift</kbd> <b>闪避</b> · <kbd>E</kbd> <b>切骨刃范围</b> · <kbd>B</kbd> 商店 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
+        <li>拾取经验球同时获得金币，每升一级额外获得 <b>12 金币</b>，不再弹出升级选卡。开局有 <b>30 金币</b>，随时按 <kbd>B</kbd> 或点击金币按钮，暂停战斗并购买武器、被动、流派和进化。</li>
+        <li>商店每存活 <b>60 秒</b>免费补货，也可付费刷新。锁定的商品与价格保留，购买后的空位要等补货；关闭商店不会免费刷新。</li>
         <li>满 <b>3 分钟</b>起击杀有 <b>5%</b> 掉<b>金色经验球</b>（顶 100 颗）；打完 5 分钟的 Boss 升到 <b>20%</b></li>
-        <li><b>5 分钟</b>的 Boss 送<b>等级 +1 + 宠物</b>；<b>10 分钟</b>柠檬猪登场（扇形 / 环形 / 酸液池三种轮换）</li>
-        <li><b>15 分钟</b>过关进<b>第二关</b>：<b>从 1 级重来</b>、怪血 ×1.3、<b>没有喘息</b>、地上冒<b>柠檬酸池</b>、技能<b>小幅加强</b>，另有新武器/增益/宠物</li>
-        <li>第二关 <b>12:00</b> 刷章节首领，<b>15:00 前必须打死</b>它；随后进入第三关，第三、四关会保留构筑和宠物。</li>
+        <li><b>5 分钟</b>的 Boss 送<b>等级 +1、金币和宠物</b>；<b>10 分钟</b>柠檬猪登场（扇形 / 环形 / 酸液池三种轮换）</li>
+        <li><b>15 分钟</b>过关进<b>第二关</b>：继承构筑、等级、宠物与金币，怪血 ×1.3、<b>没有喘息</b>、地上冒<b>柠檬酸池</b>，另有新武器与增益。</li>
+        <li>第二关 <b>12:00</b> 刷章节首领，<b>15:00 前必须打死</b>它；四关都保留构筑、等级、宠物、遗物和金币。</li>
         <li>第三、四关各 <b>12 分钟</b>；10 分钟刷新必须击杀的章节首领。暖灯能驱散寒意，卸压阀能取消地火并打断熔心巨像。</li>
-        <li><b>无尽模式</b>保留整局构筑；每 3 分钟提升波次并补充重选次数，每 5 分钟安排首领；10 分钟进入深渊、20 分钟进入霜钟回廊、30 分钟进入余烬熔庭，此后交替新场景。可在暂停菜单结束并结算。</li>
+        <li><b>无尽模式</b>保留整局构筑与金币；每 3 分钟提升波次，每 5 分钟安排首领；10 分钟进入深渊、20 分钟进入霜钟回廊、30 分钟进入余烬熔庭，此后交替新场景。可在暂停菜单结束并结算。</li>
         <li>八把扩展武器各有 <b>3 条互斥流派</b>，每条 3 级；本局选定后沿该分支升级。</li>
       </ul>
       <div class="phases">
@@ -113,17 +116,25 @@
       <details class="arsenal-guide" id="arsenalGuide"><summary>武器图鉴 · 16 把武器 / 24 条新增流派 / 4 条进化</summary><div id="arsenalContent"></div></details>
       <details class="arsenal-guide chapter-guide"><summary>远征手册 · 新关卡、敌人与 6 件遗物</summary><div id="chapterGuide"></div></details>
       <button class="btn primary" id="startBtn">开始游戏</button>
-      <div class="chapter-preview" id="chapterPreview"><label for="chapterSelect">章节练习</label><select id="chapterSelect"></select></div>
-      <button class="btn" id="previewL2Btn">练习所选关卡</button>
-      <p class="tip">手机端：拖动画面移动，右下角可闪避或切换骨刃范围。章节练习先选宠物，再自选强化；新关卡的遗物祭坛靠近即可使用。</p>
+      <p class="tip">手机端：拖动画面移动，点击顶部金币按钮购买强化，右下角可闪避。战役从第一关依次推进；新关卡的遗物祭坛靠近即可使用。</p>
     </section>
 
     <section class="panel" id="panel-levelup" hidden>
-      <div class="levelup-heading"><div><span class="levelup-eyebrow">猎人手记 / 选择强化</span><h2><span id="luTitle">升级！</span><span class="lv" id="luLevel"></span></h2></div><span class="levelup-queue" id="luQueue"></span></div>
-      <p class="sub" id="luSub">选一项，继续你的狩猎</p>
+      <div class="levelup-heading"><div><span class="levelup-eyebrow">猎人手记 / 遗物</span><h2><span id="luTitle">遗物祭坛</span><span class="lv" id="luLevel"></span></h2></div><span class="levelup-queue" id="luQueue"></span></div>
+      <p class="sub" id="luSub">选择一件遗物，本局只可获得一次</p>
       <div class="build-summary" id="luBuild" aria-label="当前构筑"></div>
       <div class="cards" id="luCards"></div>
-      <div class="levelup-footer"><p class="tip" id="luTip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 武器数值为基础值，未计入加成</p><button type="button" class="reroll-btn" id="rerollBtn"></button></div>
+      <div class="levelup-footer"><p class="tip" id="luTip">点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 遗物保留到本局结束</p></div>
+    </section>
+
+    <section class="panel" id="panel-shop" hidden aria-labelledby="shopTitle">
+      <div class="shop-heading"><div><span class="levelup-eyebrow">猎人补给站 / 强化交易</span><h2 id="shopTitle">夜行商店</h2></div><button type="button" class="shop-close" id="shopCloseBtn">继续狩猎 · B / Esc</button></div>
+      <div class="shop-layout">
+        <aside class="shop-ledger"><span>可用金币</span><b id="shopCoins">30</b><p id="shopIncome"></p><p>拾取经验球赚金币<br>升级额外 +12 金币<br>击败首领获得赏金</p><p id="shopRestock"></p><button type="button" id="shopRefreshBtn" class="shop-refresh"></button><small>R 刷新 · 锁定商品保留原价<br>1–4 购买 · 战斗已暂停</small></aside>
+        <div class="shop-catalog"><div id="shopStatus" class="shop-status" role="status" aria-live="polite">选择商品购买，或攒钱等下一次补货。</div><div id="shopCards" class="shop-grid"></div></div>
+      </div>
+      <details class="shop-build"><summary>查看当前构筑与进化配方</summary><div class="build-summary" id="shopBuild"></div></details>
+      <p class="tip">价格随购买次数提高。货架不会因关闭商店而改变；流派分支仍互斥，满足配方后可购买武器进化。</p>
     </section>
 
     <section class="panel" id="panel-petselect" hidden>
@@ -153,6 +164,7 @@
       <h2>已暂停</h2>
       <p class="sub" id="pauseInfo"></p>
       <button class="btn primary" id="resumeBtn">继续游戏</button>
+      <button class="btn" id="pauseShopBtn">购买强化 · 商店</button>
       <button class="btn" id="pauseRestartBtn">重新开始</button>
       <button class="btn" id="endEndlessBtn" hidden>结束无尽并结算</button>
     </section>
@@ -190,46 +202,47 @@
 <script defer src="/games/auth-config.js?v=20261021res1"></script>
 <script defer src="/games/site-auth.js?v=20261103scope1"></script>
 <script defer src="/games/account.js?v=20261021res1"></script>
-<script defer src="js/core/namespace.js?v=20261104chapters1"></script>
-<script defer src="js/core/utils.js?v=20261104chapters1"></script>
-<script defer src="js/game/config.js?v=20261104chapters1"></script>
-<script defer src="js/game/chapters-config.js?v=20261104chapters1"></script>
-<script defer src="js/game/arsenal-config.js?v=20261104chapters1"></script>
-<script defer src="js/game/phases.js?v=20261104chapters1"></script>
-<script defer src="js/game/levels.js?v=20261104chapters1"></script>
-<script defer src="js/core/save.js?v=20261104chapters1"></script>
-<script defer src="js/core/scores.js?v=20261104chapters1"></script>
-<script defer src="js/core/leaderboard.js?v=20261104chapters1"></script>
+<script defer src="js/core/namespace.js?v=20261104shop1"></script>
+<script defer src="js/core/utils.js?v=20261104shop1"></script>
+<script defer src="js/game/config.js?v=20261104shop1"></script>
+<script defer src="js/game/chapters-config.js?v=20261104shop1"></script>
+<script defer src="js/game/arsenal-config.js?v=20261104shop1"></script>
+<script defer src="js/game/phases.js?v=20261104shop1"></script>
+<script defer src="js/game/levels.js?v=20261104shop1"></script>
+<script defer src="js/core/save.js?v=20261104shop1"></script>
+<script defer src="js/core/scores.js?v=20261104shop1"></script>
+<script defer src="js/core/leaderboard.js?v=20261104shop1"></script>
 <!-- 留言板：两边各写各的分文件，notes.js 只做聚合（谁都不用改对方那一段，git 合并不再打架） -->
-<script defer src="js/data/notes/bobbychina.js?v=20261104chapters1"></script>
-<script defer src="js/data/notes/alan.js?v=20261104chapters1"></script>
-<script defer src="js/data/notes.js?v=20261104chapters1"></script>
-<script defer src="js/core/audio.js?v=20261104chapters1"></script>
-<script defer src="js/core/input.js?v=20261104chapters1"></script>
-<script defer src="js/game/world.js?v=20261104chapters1"></script>
-<script defer src="js/game/effects.js?v=20261104chapters1"></script>
-<script defer src="js/game/player.js?v=20261104chapters1"></script>
-<script defer src="js/game/weapons.js?v=20261104chapters1"></script>
-<script defer src="js/game/arsenal.js?v=20261104chapters1"></script>
-<script defer src="js/game/enemies.js?v=20261104chapters1"></script>
-<script defer src="js/game/bosskit.js?v=20261104chapters1"></script>
-<script defer src="js/game/encounters.js?v=20261104chapters1"></script>
-<script defer src="js/game/stages.js?v=20261104chapters1"></script>
-<script defer src="js/game/pickups.js?v=20261104chapters1"></script>
-<script defer src="js/game/pets.js?v=20261104chapters1"></script>
-<script defer src="js/render/sprites.js?v=20261104chapters1"></script>
-<script defer src="js/render/assets.js?v=20261104chapters1"></script>
-<script defer src="js/render/renderer.js?v=20261104chapters1"></script>
-<script defer src="js/render/chapter-art.js?v=20261104chapters1"></script>
-<script defer src="js/ui/hud.js?v=20261104chapters1"></script>
-<script defer src="js/ui/panels.js?v=20261104chapters1"></script>
-<script defer src="js/ui/account-ui.js?v=20261104chapters1"></script>
-<script defer src="js/ui/scores-ui.js?v=20261104chapters1"></script>
-<script defer src="js/ui/leaderboard-ui.js?v=20261104chapters1"></script>
-<script defer src="js/ui/notes-ui.js?v=20261104chapters1"></script>
-<script defer src="js/game/game.js?v=20261104chapters1"></script>
-<script defer src="js/core/cheats.js?v=20261104chapters1"></script>
-<script defer src="js/main.js?v=20261104chapters1"></script>
+<script defer src="js/data/notes/bobbychina.js?v=20261104shop1"></script>
+<script defer src="js/data/notes/alan.js?v=20261104shop1"></script>
+<script defer src="js/data/notes.js?v=20261104shop1"></script>
+<script defer src="js/core/audio.js?v=20261104shop1"></script>
+<script defer src="js/core/input.js?v=20261104shop1"></script>
+<script defer src="js/game/world.js?v=20261104shop1"></script>
+<script defer src="js/game/effects.js?v=20261104shop1"></script>
+<script defer src="js/game/player.js?v=20261104shop1"></script>
+<script defer src="js/game/weapons.js?v=20261104shop1"></script>
+<script defer src="js/game/arsenal.js?v=20261104shop1"></script>
+<script defer src="js/game/enemies.js?v=20261104shop1"></script>
+<script defer src="js/game/bosskit.js?v=20261104shop1"></script>
+<script defer src="js/game/encounters.js?v=20261104shop1"></script>
+<script defer src="js/game/stages.js?v=20261104shop1"></script>
+<script defer src="js/game/pickups.js?v=20261104shop1"></script>
+<script defer src="js/game/pets.js?v=20261104shop1"></script>
+<script defer src="js/game/shop.js?v=20261104shop1"></script>
+<script defer src="js/render/sprites.js?v=20261104shop1"></script>
+<script defer src="js/render/assets.js?v=20261104shop1"></script>
+<script defer src="js/render/renderer.js?v=20261104shop1"></script>
+<script defer src="js/render/chapter-art.js?v=20261104shop1"></script>
+<script defer src="js/ui/hud.js?v=20261104shop1"></script>
+<script defer src="js/ui/panels.js?v=20261104shop1"></script>
+<script defer src="js/ui/account-ui.js?v=20261104shop1"></script>
+<script defer src="js/ui/scores-ui.js?v=20261104shop1"></script>
+<script defer src="js/ui/leaderboard-ui.js?v=20261104shop1"></script>
+<script defer src="js/ui/notes-ui.js?v=20261104shop1"></script>
+<script defer src="js/game/game.js?v=20261104shop1"></script>
+<script defer src="js/core/cheats.js?v=20261104shop1"></script>
+<script defer src="js/main.js?v=20261104shop1"></script>
 
 <!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
 

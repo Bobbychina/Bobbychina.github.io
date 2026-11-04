@@ -19,7 +19,7 @@
   var MAX_GEMS = 520;
 
   /** 到上限时给新经验找一个已有的球并进去；优先合并同类 */
-  function mergeInto(state, value, gold) {
+  function mergeInto(state, value, gold, coins) {
     var gems = state.gems;
     var n = gems.length;
     if (n === 0) return false;
@@ -27,12 +27,16 @@
     /* 金色经验优先并进金色球，避免显示上的价值错乱 */
     if (gold) {
       for (var i = 0; i < n; i++) {
-        if (gems[i].gold) { gems[i].value += value; return true; }
+        if (gems[i].gold && !gems[i].super) { gems[i].value += value; gems[i].coins += coins; return true; }
       }
     }
 
-    var g = gems[(Math.random() * n) | 0];
-    if (g) { g.value += value; return true; }
+    var start = (Math.random() * n) | 0;
+    for (var j = 0; j < n; j++) {
+      var g = gems[(start + j) % n];
+      if (g.super) continue;
+      g.value += value; g.coins += coins; return true;
+    }
     return false;
   }
 
@@ -67,10 +71,8 @@
     spawnXp: function (state, x, y, value) {
       state.stats.normalSpawned++;
 
-      if (state.gems.length >= MAX_GEMS) {
-        mergeInto(state, value, false);
-        return;
-      }
+      var coins = VS.Shop.pickupValue(value, 'normal');
+      if (state.gems.length >= MAX_GEMS && mergeInto(state, value, false, coins)) return;
 
       var a = Math.random() * U.TAU;
       var sp = U.rand(30, 90);
@@ -80,6 +82,7 @@
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
         value: value,
+        coins: coins,
         radius: C.DROP.GEM_RADIUS,
         magnet: false,
         gold: false,
@@ -93,10 +96,8 @@
     spawnGold: function (state, x, y, value) {
       state.stats.goldSpawned++;
 
-      if (state.gems.length >= MAX_GEMS) {
-        mergeInto(state, value, true);
-        return;
-      }
+      var coins = VS.Shop.pickupValue(value, 'gold');
+      if (state.gems.length >= MAX_GEMS && mergeInto(state, value, true, coins)) return;
 
       var a = Math.random() * U.TAU;
       var sp = U.rand(20, 60);
@@ -106,6 +107,7 @@
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
         value: value,
+        coins: coins,
         radius: C.DROP.GOLD_ORB_RADIUS,
         magnet: false,
         gold: true,
@@ -134,6 +136,7 @@
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
         value: 0,
+        coins: VS.Shop.pickupValue(0, 'super'),
         radius: C.DROP.SUPER_ORB_RADIUS,
         magnet: false,
         gold: true,          // 复用金球的吸附逻辑（范围 ×2）
@@ -247,6 +250,7 @@
 
         /* 吃掉 */
         if (p.alive && U.circleHit(p.x, p.y, baseR * 0.28 + p.radius, g.x, g.y, g.radius)) {
+          VS.Shop.earn(game, g.coins);
           if (g.super) {
             /* 超级经验球：不加经验，直接升一级 */
             state.stats.superCollected++;

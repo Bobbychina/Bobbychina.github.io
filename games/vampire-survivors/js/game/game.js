@@ -1,6 +1,6 @@
 /* ===========================================================
-   游戏主控：状态机 + 每帧调度 + 升级选卡 + 关卡推进 + 结算
-   状态：menu / playing / levelup / petselect / levelclear / paused / gameover
+   游戏主控：状态机 + 每帧调度 + 金币商店 + 关卡推进 + 结算
+   状态：menu / playing / shop / petselect / levelclear / paused / gameover
    调度顺序：玩家 → 宠物 → 怪物 → 武器 → 拾取 → 特效 → 摄像机 → 判定
 
    关卡：一次"跑图"由若干关组成（C.LEVELS）。本关时间到 → levelclear 面板 →
@@ -15,7 +15,7 @@
   var STATE = {
     MENU: 'menu',
     PLAYING: 'playing',
-    LEVELUP: 'levelup',
+    SHOP: 'shop',
     RELICSELECT: 'relicselect',
     PETSELECT: 'petselect',
     LEVELCLEAR: 'levelclear',
@@ -47,17 +47,8 @@
     return null;
   }
 
-  /**
-   * 生成三张升级卡：
-   *  - 已拥有且未满级的武器（可升级）
-   *  - 尚未拥有且武器栏没满的新武器
-   *  - 各类增益（未达叠加上限）
-   * 按权重不重复抽取 3 个
-   *
-   * 关卡还能把关卡专属的东西挡在外面：`onlyFromLevel: 1` 的武器/增益
-   * （柠檬喷射器 / 雷击链 / 酸液抗性 / 嗜血）只在第二关及以后进池子。
-   */
-  function buildChoices(game, previousChoices) {
+  /** 商店使用的合法强化池：武器、被动、流派和满足配方的进化。 */
+  function upgradePool(game) {
     var p = game.player;
     var pool = [];
     var weights = [];
@@ -181,49 +172,34 @@
       weights.push(11);
     }
 
-    if (game.mode === 'endless' && pool.length < 3) {
+    if (pool.length < 4) {
       [
         { id: 'heal', name: '战场补给', icon: '✚', desc: '立即回复最大生命的 30%' },
         { id: 'power', name: '无尽战意', icon: '⚔', desc: '全武器伤害 +2%（最高 ×1000000）' },
         { id: 'guard', name: '百战护甲', icon: '⛨', desc: '护甲 +0.5（最高 500）' }
       ].forEach(function (supply) {
+        if (supply.id === 'heal' && p.hp >= p.maxHp) return;
+        if (supply.id !== 'heal' && game.mode !== 'endless') return;
+        if (supply.id === 'power' && p.damageMul >= 1000000 || supply.id === 'guard' && p.armor >= 500) return;
         pool.push({ kind: 'supply', id: supply.id, name: supply.name, icon: supply.icon,
           color: '#dfc58e', desc: supply.desc, tag: '无尽补给' }); weights.push(8);
       });
     }
 
-    var hasAlternative = pool.length > Math.min(3, pool.length);
-    var old = {};
-    (previousChoices || []).forEach(function (choice) { old[choice.kind + ':' + choice.id + ':' + (choice.schoolId || '')] = true; });
-    var out = [];
-    while (out.length < 3 && pool.length > 0) {
-      // 重选优先抽出未展示过的选项；池子不够时才补回原选项。
-      var candidates = [], candidateWeights = [];
-      var forceEvolution = out.length === 0 && pool.some(function (c) { return c.kind === 'evolution'; });
-      for (i = 0; i < pool.length; i++) {
-        if (forceEvolution && pool[i].kind !== 'evolution') continue;
-        if (!old[pool[i].kind + ':' + pool[i].id + ':' + (pool[i].schoolId || '')]) {
-          candidates.push(i);
-          candidateWeights.push(weights[i]);
-        }
-      }
-      if (!candidates.length) {
-        for (i = 0; i < pool.length; i++) {
-          if (forceEvolution && pool[i].kind !== 'evolution') continue;
-          candidates.push(i);
-          candidateWeights.push(weights[i]);
-        }
-      }
-      var idx = candidates[U.weightedIndex(candidateWeights)];
-      out.push(pool[idx]);
-      pool.splice(idx, 1);
-      weights.splice(idx, 1);
-    }
+    return pool.map(function (choice, i) { choice.weight = weights[i]; return choice; });
+  }
 
-    return { choices: out, hasAlternative: hasAlternative };
+  function rewardLevels(game, count) {
+    if (count <= 0) return;
+    var coins = VS.Shop.levelReward(game, count);
+    if (game.fx) VS.Effects.text(game.fx, game.player.x, game.player.y - 28,
+      '等级 +' + count + ' · +' + coins + ' 金币', '#ffd166', { life: 1.1, size: 15 });
   }
 
   function applyChoice(game, c) {
+    if (!c || !upgradePool(game).some(function (item) {
+      return item.kind === c.kind && item.id === c.id && (item.schoolId || '') === (c.schoolId || '');
+    })) return false;
     var p = game.player;
 
     if (c.kind === 'supply') {
@@ -273,10 +249,7 @@
         shake: 0,
         textBudget: 14,
         sparkBudget: 8,
-        pendingLevels: 0,
-        choices: [],
-        rerollsRemaining: C.LEVELUP_REROLLS,
-        choiceHasAlternative: false,
+        shop: null,
         animTime: 0,
         deps: deps,
         data: deps.data || VS.Save.load(),
@@ -290,7 +263,6 @@
         startWeapon: C.PLAYER.START_WEAPON,
         pendingPetSelect: false,
         petChoices: [],
-        draftCards: 0,         // 跳关预览时"还要自己选几张卡"
         orbitMode: 0,          // 环绕骨刃的形态下标（E 键切换，见 C.ORBIT_MODES）
         failedClear: false,    // 时间到但没打死最终 Boss
         failReason: ''
@@ -299,22 +271,23 @@
       /* 吃到经验石时由拾取模块回调到这里 */
       game.onXp = function (amount) {
         var levels = VS.Player.gainXp(game.player, amount);
-        if (levels > 0) game.pendingLevels += levels;
+        rewardLevels(game, levels);
       };
 
-      /* 超级经验球：不加经验，等级直接 +1（同样要给一次选卡机会） */
+      /* 超级经验球：不加经验，等级直接 +1 并领取金币奖励。 */
       game.onInstantLevel = function () {
         if (VS.Player.grantLevel(game.player)) {
-          game.pendingLevels += 1;
+          rewardLevels(game, 1);
         }
       };
 
       /* 击杀第一只 Boss 的奖励：等级 +1 + 解锁宠物三选一 */
       game.onFirstBossReward = function () {
         if (VS.Player.grantLevel(game.player)) {
-          game.pendingLevels += 1;
+          rewardLevels(game, 1);
         }
-        game.pendingPetSelect = true;
+        VS.Shop.earn(game, 100 + game.level * 50);
+        game.pendingPetSelect = !VS.Pets.chosen(game.pets);
 
         /* 这里**故意不弹横幅**：横幅和紧接着出现的宠物面板会叠在一起（实测挡标题），
            奖励信息已经写在面板副标题里（「击杀尸潮之王的奖励 · 等级 +1」）。 */
@@ -322,10 +295,11 @@
 
       /* 第二关起的 Boss 奖励：等级 +1（宠物已经在第一关选过了） */
       game.onBossReward = function () {
+        VS.Shop.earn(game, 100 + game.level * 50);
         if (VS.Player.grantLevel(game.player)) {
-          game.pendingLevels += 1;
+          rewardLevels(game, 1);
           if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
-            game.deps.panels.showBanner('击 杀 奖 励', '等级 +1');
+            game.deps.panels.showBanner('击 杀 奖 励', '等级 +1 · 金币 +' + (112 + game.level * 50));
           }
         }
       };
@@ -339,7 +313,6 @@
       opt = opt || {};
       game.runSerial = (game.runSerial || 0) + 1;
       game.cheated = false;
-      game.practice = false;
       game.relics = [];
       game.relicChoices = [];
       if (opt.mode === 'campaign' || opt.mode === 'endless') game.mode = opt.mode;
@@ -350,12 +323,9 @@
       game.victory = false;
       game.kills = 0;
       game.shake = 0;
-      game.pendingLevels = 0;
-      game.choices = [];
-      game.rerollsRemaining = C.LEVELUP_REROLLS;
-      game.choiceHasAlternative = false;
       game.animTime = 0;
       game.endlessWave = 1;
+      game.shop = VS.Shop.create();
 
       game.world = VS.World.create();
       game.fx = VS.Effects.create();
@@ -370,7 +340,6 @@
 
       game.pendingPetSelect = false;
       game.petChoices = [];
-      game.draftCards = 0;
 
       /* 主角皮肤：从存档取（换皮肤在开始面板，走 VS.Save.setSkin）。
          取不到就给默认值，渲染层还会再兜一次底。 */
@@ -378,6 +347,7 @@
       game.levelDef = VS.Levels.def(0);
 
       VS.Weapons.add(game.player, game.startWeapon || C.PLAYER.START_WEAPON);
+      VS.Shop.enter(game);
 
       VS.World.snapCamera(game.world, game.player.x, game.player.y, viewW(game), viewH(game));
 
@@ -386,13 +356,7 @@
       return game;
     },
 
-    /**
-     * 进入/切换到某一关。
-     * · 普通换关：保留玩家等级、经验、武器、增益、宠物、总击杀
-     * · `def.fresh` 的关（第二关）：**和第一关没有任何关系** —— 等级/武器/增益/宠物
-     *   全部重来，等于从 1 级重新开一局；只有"这一局的总时长/总击杀"这类跑图统计留着。
-     * 两种情况下都重置：本关时间、怪物、掉落物、弹幕与酸液池、特效、玩家位置与血量。
-     */
+    /** 换关保留等级、构筑、宠物、遗物和金币；重置场上实体、位置与本关时间并回满血。 */
     startLevel: function (game, index, opt) {
       opt = opt || {};
 
@@ -400,10 +364,6 @@
       game.levelDef = VS.Levels.def(index);
       game.time = 0;
       game.phase = VS.Phases.at(0).id;
-      game.pendingLevels = 0;
-      game.choices = [];
-      game.rerollsRemaining = C.LEVELUP_REROLLS;
-      game.choiceHasAlternative = false;
 
       game.enemies = VS.Enemies.create();
       game.encounters = VS.Encounters ? VS.Encounters.create() : null;
@@ -411,25 +371,7 @@
       game.weapons = VS.Weapons.create();
       game.fx = VS.Effects.create();
 
-      /* 本关从零开始：换一个全新的玩家（等级 / 武器 / 增益都清空），宠物也重新选 */
-      if (VS.Levels.isFresh(index)) {
-        game.relics = [];
-        var carriedKills = game.player ? game.player.kills : 0;
-
-        game.player = VS.Player.create(game.world);
-        game.player.kills = carriedKills;      // 跑图总击杀继续累计（结算面板要用）
-        VS.Weapons.add(game.player, game.startWeapon || C.PLAYER.START_WEAPON);
-
-        game.pets = VS.Pets.create();
-        game.pendingPetSelect = false;
-
-        /* 宠物与金球档位都跟着重置：第二关的第一只 Boss 会再给一次三选一 */
-        game.enemies.firstBossDefeated = false;
-
-        if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
-          game.deps.panels.showBanner('重 新 开 始', '第二关从 1 级重来 · 只有本关的怪更凶');
-        }
-      }
+      VS.Shop.enter(game);
 
       /* 玩家：位置回地图中心，回满血，给一小段无敌（免得一进来就被贴脸） */
       var p = game.player;
@@ -477,58 +419,6 @@
       if (game.deps.audio) game.deps.audio.play('click');
     },
 
-    /**
-     * 从第 N 关直接开跑（关卡选择还没做，先给开始面板一个"预览第二关"按钮）。
-     *
-     * 跳关**不发保底构筑**，而是让玩家自己配：
-     *   ① 先弹宠物三选一（自己挑）；
-     *   ② 选完连抽 `opt.draft` 张升级卡（走现成的选卡面板，一张一张自己选）。
-     * 这样"跳关看第二关"和正式流程的差别只剩下"少了前面 15 分钟"，构筑口味仍然是玩家自己的。
-     *
-     * @param {object} [opt] { draft: 自选卡张数（默认 8）, pet: 是否让玩家自己选宠物（默认 true） }
-     */
-    startAt: function (game, index, opt) {
-      opt = opt || {};
-      opt.mode = 'campaign';
-      Game.newRun(game, opt);
-
-      index = Math.max(0, Math.min(Math.floor(index || 0), VS.Levels.count() - 1));
-      game.practice = index > 0;
-
-      game.draftCards = 0;
-
-      if (index > 0) {
-        Game.startLevel(game, index);
-
-        var draft = opt.draft === undefined ? 8 : Math.max(0, Math.floor(opt.draft));
-
-        if (opt.pet === false) {
-          /* 不选宠物就直接把卡发了（测试/调试用） */
-          Game.grantDraftCards(game, draft);
-          if (draft > 0) draft = 0;
-          game.draftCards = 0;
-        } else {
-          /* 宠物先选：选完在 choosePet 里把卡发下去，顺序就是"宠物 → 连抽 N 张" */
-          game.pendingPetSelect = true;
-          game.draftCards = draft;
-        }
-
-        game.player.hp = game.player.maxHp;
-        game.player.invuln = 5;      // 自选期间站在怪堆里也要有活路
-      }
-
-      game.state = STATE.PLAYING;
-
-      if (game.deps.audio) game.deps.audio.unlock();
-      if (game.deps.panels) game.deps.panels.hideAll();
-      if (game.deps.hud) {
-        game.deps.hud.show();
-        game.deps.hud.update(game);
-      }
-      if (game.deps.audio) game.deps.audio.play('click');
-      return game;
-    },
-
     /** 摄像机跟随（开局立即就位） */
     snapCamera: function (game) {
       VS.World.snapCamera(game.world, game.player.x, game.player.y, viewW(game), viewH(game));
@@ -547,13 +437,13 @@
         var wave = Math.floor(game.time / C.ENDLESS.WAVE_SECONDS) + 1;
         if (wave !== game.endlessWave) {
           game.endlessWave = wave;
-          game.rerollsRemaining = C.LEVELUP_REROLLS;
-          if (game.deps.panels) game.deps.panels.showBanner('无 尽 · 第 ' + wave + ' 波', '敌人继续强化 · 重选次数补满');
+          if (game.deps.panels) game.deps.panels.showBanner('无 尽 · 第 ' + wave + ' 波', '敌人继续强化 · 随时按 B 购买强化');
         }
         var biome = VS.Stages ? VS.Stages.endlessIndex(game.time) : game.time >= C.ENDLESS.BIOME_AT ? Math.min(1, VS.Levels.count() - 1) : 0;
         if (biome !== game.level) {
           game.level = biome;
           game.levelDef = VS.Levels.def(game.level);
+          VS.Shop.enter(game);
           if (VS.Stages) VS.Stages.enter(game);
           if (game.deps.panels) game.deps.panels.showBanner(game.levelDef.subtitle, '无尽场景轮换 · 保留构筑、宠物与遗物');
         }
@@ -580,6 +470,8 @@
           game.deps.panels.showBanner('超 级 经 验 球', '0.3% 概率掉落 · 拾取直接升一级');
         }
       }
+
+      VS.Shop.update(game);
 
       var input = game.deps.input || VS.Input;
       var axis = input && input.getAxis ? input.getAxis() : { x: 0, y: 0 };
@@ -618,10 +510,6 @@
         Game.clearLevel(game);
         return;
       }
-      if (game.pendingLevels > 0) {
-        Game.openLevelUp(game);
-        return;
-      }
       if (game.pendingPetSelect && !VS.Pets.chosen(game.pets)) {
         Game.openPetSelect(game);
       }
@@ -653,16 +541,12 @@
 
     /* ---------------- 关卡推进 ---------------- */
 
-    /**
-     * 跳关预览的"自选卡"：按张数给这么多次选卡机会。
-     * 等级会真的涨（和正常升级一样），卡片走现成的三选一面板。
-     */
-    grantDraftCards: function (game, count) {
-      var n = Math.max(0, Math.floor(count || 0));
-      for (var i = 0; i < n; i++) {
-        if (VS.Player.grantLevel(game.player)) game.pendingLevels += 1;
-      }
-      return n;
+    /** 练习码等明确奖励只增加等级与金币，不产生免费选卡。 */
+    grantLevels: function (game, count) {
+      var n = Number.isFinite(count) ? Math.max(0, Math.min(10000, Math.floor(count))) : 0, granted = 0;
+      for (var i = 0; i < n; i++) if (VS.Player.grantLevel(game.player)) granted++;
+      rewardLevels(game, granted);
+      return granted;
     },
 
     /** 本关时间到：符合通关条件就弹过关面板，否则判负（最后一关则是通关结算） */
@@ -742,59 +626,58 @@
       return true;
     },
 
-    /* ---------------- 升级 ---------------- */
+    /* ---------------- 随时暂停的金币商店 ---------------- */
 
-    openLevelUp: function (game) {
-      var draw = buildChoices(game);
-      game.choices = draw.choices;
-      game.choiceHasAlternative = draw.hasAlternative;
-
-      if (game.choices.length === 0) {
-        game.pendingLevels = 0;
-        game.state = STATE.PLAYING;
-        if (game.deps.panels) game.deps.panels.hideLevelUp();
-        return;
-      }
-
-      game.state = STATE.LEVELUP;
-
-      if (game.deps.audio) game.deps.audio.play('level');
+    openShop: function (game) {
+      if ([STATE.PLAYING, STATE.PAUSED].indexOf(game.state) < 0) return false;
+      game.shopReturnState = game.state;
+      game.state = STATE.SHOP;
+      if (VS.Input && VS.Input.reset) VS.Input.reset();
+      VS.Shop.sync(game);
+      if (game.deps.panels) { game.deps.panels.hideBanner(); game.deps.panels.showShop(game); }
       if (game.deps.hud) game.deps.hud.update(game);
-      if (game.deps.panels) game.deps.panels.showLevelUp(game.choices, game.player.level, game);
+      return true;
     },
 
-    reroll: function (game) {
-      if (game.state !== STATE.LEVELUP || game.rerollsRemaining <= 0 || !game.choiceHasAlternative) return false;
-      var draw = buildChoices(game, game.choices);
-      if (!draw.choices.length) return false;
-      game.choices = draw.choices;
-      game.choiceHasAlternative = draw.hasAlternative;
-      game.rerollsRemaining--;
-      if (game.deps.panels) game.deps.panels.showLevelUp(game.choices, game.player.level, game);
+    closeShop: function (game) {
+      if (game.state !== STATE.SHOP) return false;
+      if (VS.Input && VS.Input.reset) VS.Input.reset();
+      if (game.deps.panels) game.deps.panels.hideAll();
+      game.state = STATE.PLAYING;
+      if (game.shopReturnState === STATE.PAUSED) Game.pause(game);
+      return true;
+    },
+
+    toggleShop: function (game) {
+      return game.state === STATE.SHOP ? Game.closeShop(game) : Game.openShop(game);
+    },
+
+    buyShop: function (game, index, token) {
+      if (!VS.Shop.buy(game, index, token)) return false;
+      if (game.deps.panels) game.deps.panels.showShop(game, '购买成功 · 强化已生效');
+      if (game.deps.hud) game.deps.hud.update(game);
+      return true;
+    },
+
+    refreshShop: function (game) {
+      if (game.state !== STATE.SHOP || !VS.Shop.refresh(game, true)) return false;
+      if (game.deps.panels) game.deps.panels.showShop(game, '货架已刷新 · 锁定商品保留');
+      if (game.deps.hud) game.deps.hud.update(game);
+      return true;
+    },
+
+    lockShop: function (game, index, token) {
+      if (!VS.Shop.toggleLock(game, index, token)) return false;
+      if (game.deps.panels) game.deps.panels.showShop(game);
       return true;
     },
 
     choose: function (game, index) {
       if (game.state === STATE.RELICSELECT && VS.Stages) return VS.Stages.chooseRelic(game, index);
-      /* 键盘 1/2/3 与卡片点击走同一条路：宠物面板期间就当作选宠物 */
       if (game.state === STATE.PETSELECT) return Game.choosePet(game, index);
-      if (game.state !== STATE.LEVELUP) return false;
-
-      var c = game.choices[index];
-      if (!c) return false;
-
-      if (!applyChoice(game, c)) return false;
-      game.pendingLevels = Math.max(0, game.pendingLevels - 1);
-
-      if (game.deps.panels) game.deps.panels.hideLevelUp();
-
-      if (game.pendingLevels > 0) {
-        Game.openLevelUp(game);
-      } else {
-        game.state = STATE.PLAYING;
-        VS.Effects.beginFrame(game.fx);
-      }
-      return true;
+      var offer = game.shop && game.shop.offers[index];
+      if (game.state === STATE.SHOP && offer) return Game.buyShop(game, index, offer.token);
+      return false;
     },
 
     /* ---------------- 宠物三选一 ---------------- */
@@ -812,7 +695,7 @@
       if (game.deps.hud) game.deps.hud.update(game);
 
       if (game.deps.panels && game.deps.panels.showPetSelect) {
-        game.deps.panels.showPetSelect(game.petChoices, game.level, game.draftCards);
+        game.deps.panels.showPetSelect(game.petChoices, game.level);
       } else {
         /* 没有面板时兜底：直接选第一个，避免卡死 */
         Game.choosePet(game, 0);
@@ -833,19 +716,8 @@
         game.deps.panels.hidePetSelect();
       }
 
-      /* 跳关预览：宠物选完接着把"自选卡"发下去（一张一张自己选） */
-      if (game.draftCards > 0) {
-        var n = game.draftCards;
-        game.draftCards = 0;
-        Game.grantDraftCards(game, n);
-      }
-
-      if (game.pendingLevels > 0) {
-        Game.openLevelUp(game);
-      } else {
-        game.state = STATE.PLAYING;
-        VS.Effects.beginFrame(game.fx);
-      }
+      game.state = STATE.PLAYING;
+      VS.Effects.beginFrame(game.fx);
       return true;
     },
 
@@ -872,6 +744,7 @@
     },
 
     togglePause: function (game) {
+      if (game.state === STATE.SHOP) return Game.closeShop(game);
       if (game.state === STATE.PLAYING) return Game.pause(game);
       if (game.state === STATE.PAUSED) return Game.resume(game);
       return false;
@@ -887,7 +760,6 @@
       game.failedClear = !!opt.failedClear;      // 时间到但没打死最终 Boss
       game.failReason = opt.reason || '';
       if (game.cheated) game.failReason += (game.failReason ? ' · ' : '') + '作弊练习局 · 不提交全站排行榜';
-      else if (game.practice) game.failReason += (game.failReason ? ' · ' : '') + '关卡练习 · 不提交全站排行榜';
 
       /* 一局的总时长：打完的关卡 + 本关已经过的时间。
          第一关就死了的话就等于第一关的时间，和以前的口径一致。 */
@@ -938,7 +810,7 @@
       if (VS.ScoresUI) VS.ScoresUI.showRank(rankInfo);   // 本局排名（没进前 5 就自己藏起来）
 
       if (VS.LeaderboardUI && VS.LeaderboardUI.showRank) VS.LeaderboardUI.showRank(null);
-      if (!game.cheated && !game.practice && game.mode !== 'endless' && VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
+      if (!game.cheated && game.mode !== 'endless' && VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
         VS.LeaderboardUI.submitRun({ time: total, kills: p.kills, level: p.level, wave: wave, mode: game.mode });
       }
     },
@@ -952,7 +824,7 @@
     },
 
     /* 供测试/调试使用的内部函数 */
-    _buildChoices: buildChoices,
+    upgradePool: upgradePool,
     _applyChoice: applyChoice,
     _runTime: runTime
   };

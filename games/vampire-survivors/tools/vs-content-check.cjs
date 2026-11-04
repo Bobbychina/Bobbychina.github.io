@@ -1,4 +1,4 @@
-/* 内容机制校验：初始武器 / 寒霜 / 陨星 / 四条进化 / 进化卡 / 新效果上限。
+/* 内容机制校验：初始武器继承 / 寒霜 / 陨星 / 四条进化 / 商店上架与购买 / 新效果上限。
    只加载游戏逻辑模块，用固定 dt、固定敌人位置和可控随机数走真实接口；
    不依赖浏览器、存档、网络或 npm 包。 */
 const assert = require('node:assert/strict');
@@ -13,14 +13,15 @@ vm.createContext(sandbox);
   'js/core/namespace.js', 'js/core/utils.js', 'js/game/config.js',
   'js/game/phases.js', 'js/game/levels.js', 'js/game/world.js',
   'js/game/effects.js', 'js/game/player.js', 'js/game/weapons.js',
-  'js/game/enemies.js', 'js/game/pickups.js', 'js/game/pets.js', 'js/game/game.js'
+  'js/game/enemies.js', 'js/game/pickups.js', 'js/game/pets.js',
+  'js/game/shop.js', 'js/game/game.js'
 ].forEach(file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file }));
 
 const VS = sandbox.window.VS;
 const C = VS.Config;
-VS.Audio = { play() {} };
+VS.Audio = { play() {}, unlock() {} };
 
-/* 随机数只用于本文件需要的抽卡/实体生成；测试主体不依赖随机结果。 */
+/* 随机数只用于本文件需要的货架抽取/实体生成；测试主体不依赖随机结果。 */
 vm.runInContext('globalThis.__contentOriginalRandom = Math.random;', sandbox);
 function withRandom(value, fn) {
   vm.runInContext('Math.random = function () { return ' + Number(value) + '; };', sandbox);
@@ -76,55 +77,60 @@ function test(name, fn) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 1. 初始武器与 fresh 关重置 / 未拥有 bolt 仍可进入新武器池            */
+/* 1. 初始武器与第二关继承                                             */
 /* ------------------------------------------------------------------ */
 
-test('初始武器 frost/meteor：start 与 fresh 关重置都保留选择', function () {
+test('初始武器 frost：start 只带所选武器，第二关保留构筑与金币', function () {
   const g = newGame({ startWeapon: 'frost' });
   assert.equal(g.player.weapons.map(w => w.id).join(','), 'frost', 'start(startWeapon=frost) 应只带寒霜');
 
-  /* 故意塞进构筑噪声，验证 fresh 关不是“保留上一关”而是按初始武器重置。 */
   assert.equal(VS.Weapons.add(g.player, 'meteor'), true, '对照组应能临时拿到陨星');
   g.player.weapons[0].level = 5;
   g.player.upgrades.dmg = 3;
+  g.player.level = 11;
   g.pets.id = 'faerie';
+  g.shop.coins = 157;
 
+  const p = g.player;
+  const weapon = p.weapons[0];
   VS.Game.startLevel(g, 1);
-  assert.equal(VS.Levels.isFresh(1), true, '第二关应标记为 fresh');
-  assert.equal(g.player.weapons.map(w => w.id).join(','), 'frost',
-    'fresh 关应清空旧构筑，只保留选定的 frost');
-  assert.equal(g.player.level, 1, 'fresh 关等级应从 1 重新开始');
-  assert.equal(Object.keys(g.player.upgrades).length, 0, 'fresh 关应清空增益');
-  assert.equal(g.pets.id, null, 'fresh 关应清空宠物');
 
-  VS.Game.startAt(g, 1, { startWeapon: 'meteor', pet: false, draft: 0 });
-  assert.equal(g.player.weapons.map(w => w.id).join(','), 'meteor',
-    'startAt(fresh, startWeapon=meteor) 应只带陨星');
-  assert.equal(g.startWeapon, 'meteor', 'startAt 应记住选定的初始武器');
-  assert.equal(g.state, VS.Game.STATE.PLAYING, 'startAt 应直接进入游戏');
+  assert.equal(VS.Levels.isFresh(1), false, '第二关应标记 fresh:false，不再重新开局');
+  assert.equal(g.player, p, '第二关应沿用同一个玩家对象');
+  assert.equal(g.player.weapons.map(w => w.id).join(','), 'frost,meteor',
+    '第二关应保留已购买的武器');
+  assert.equal(weapon.level, 5, '第二关应保留武器等级');
+  assert.equal(p.level, 11, '第二关应保留等级');
+  assert.equal(p.upgrades.dmg, 3, '第二关应保留被动层数');
+  assert.equal(g.pets.id, 'faerie', '第二关应保留宠物');
+  assert.equal(g.shop.coins, 157, '第二关应保留金币');
 });
 
-test('未拥有 bolt 时可从新武器池取得，并真的经 Game.choose 加入', function () {
+test('未拥有 bolt 时可从商店货架购买，购买后才加入武器栏', function () {
   const g = newGame({ startWeapon: 'frost' });
   const p = g.player;
 
-  /* 压缩卡池：寒霜满级且流派满层，所有增益满层，只剩“新武器”候选。 */
+  /* 压缩卡池：寒霜满级且流派满层，所有增益满层，只剩新武器与进化候选。 */
   p.weapons[0].level = C.WEAPONS.frost.maxLevel;
   p.weapons[0].school = C.WEAPONS.frost.school.max;
   C.UPGRADES.forEach(up => { p.upgrades[up.id] = up.max; });
 
   assert.equal(VS.Weapons.has(p, 'bolt'), false, '前置条件：玩家尚未拥有 bolt');
-  g.pendingLevels = 1;
+  assert.ok(VS.Game.upgradePool(g).some(c => c.kind === 'weapon-new' && c.id === 'bolt'),
+    '未拥有 bolt 时，合法池应提供 bolt');
 
-  /* 权重抽取在 Math.random=0 时取候选列表第一个，也就是 bolt。 */
-  withRandom(0, () => VS.Game.openLevelUp(g));
-  const card = g.choices.find(c => c.kind === 'weapon-new' && c.id === 'bolt');
-  assert.ok(card, '未拥有 bolt 时，新武器池应提供 bolt 卡');
-  assert.equal(g.state, VS.Game.STATE.LEVELUP, 'openLevelUp 应进入选卡状态');
+  g.shop.offers = [];
+  g.shop.coins = 100;
+  VS.Game.openShop(g);
+  withRandom(0, () => assert.equal(VS.Shop.refresh(g, false), true));
 
-  const index = g.choices.indexOf(card);
-  withRandom(0, () => assert.equal(VS.Game.choose(g, index), true, 'choose 应接受 bolt 新武器卡'));
-  assert.equal(VS.Weapons.has(p, 'bolt'), true, 'choose 后玩家应真的拥有 bolt');
+  const index = g.shop.offers.findIndex(offer =>
+    offer && offer.choice.kind === 'weapon-new' && offer.choice.id === 'bolt');
+  assert.ok(index >= 0, '货架应上架 bolt 新武器');
+  const offer = g.shop.offers[index];
+  assert.equal(VS.Game.buyShop(g, index, offer.token), true, '金币足够时应购买成功');
+  assert.equal(g.shop.coins, 100 - offer.price, '购买后按货架价格扣钱');
+  assert.equal(VS.Weapons.has(p, 'bolt'), true, '购买后玩家应真的拥有 bolt');
   assert.equal(p.weapons.map(w => w.id).join(','), 'frost,bolt', '新武器应追加在现有武器栏之后');
 });
 
@@ -379,10 +385,10 @@ EVOLUTION_CASES.forEach(spec => {
 });
 
 /* ------------------------------------------------------------------ */
-/* 5. 进化卡经 Game.openLevelUp 出现并由 Game.choose 应用              */
+/* 5. 进化经商店上架并由购买生效                                       */
 /* ------------------------------------------------------------------ */
 
-test('进化卡经 openLevelUp 出现、choose 应用，已进化不再重复出现', function () {
+test('进化经商店上架、购买应用，已进化不再重复上架', function () {
   const g = newGame({ startWeapon: 'bolt' });
   const p = g.player;
   const w = p.weapons[0];
@@ -392,23 +398,31 @@ test('进化卡经 openLevelUp 出现、choose 应用，已进化不再重复出
     VS.Player.applyUpgrade(p, upgradeDef(def.passive));
   }
 
-  g.pendingLevels = 1;
-  VS.Game.openLevelUp(g);
-  assert.equal(g.state, VS.Game.STATE.LEVELUP, '进化卡应通过正常选卡状态出现');
-  const card = g.choices.find(c => c.kind === 'evolution' && c.id === 'bolt');
-  assert.ok(card, '满足配方时应至少保证一条 bolt 进化卡');
-  assert.equal(card.isEvolution, true, '进化卡应带 isEvolution 标记');
+  assert.ok(VS.Game.upgradePool(g).some(c => c.kind === 'evolution' && c.id === 'bolt'),
+    '满足配方时合法池应包含 bolt 进化');
 
-  assert.equal(VS.Game.choose(g, g.choices.indexOf(card)), true, 'choose 应应用进化卡');
-  assert.equal(w.evolved, true, 'choose 后武器应进入进化状态');
-  assert.equal(g.pendingLevels, 0, 'choose 应消耗一次待选卡');
+  g.shop.offers = [];
+  g.shop.coins = 200;
+  VS.Game.openShop(g);
+  withRandom(0, () => assert.equal(VS.Shop.refresh(g, false), true));
+
+  const index = g.shop.offers.findIndex(offer =>
+    offer && offer.choice.kind === 'evolution' && offer.choice.id === 'bolt');
+  assert.ok(index >= 0, '满足配方时货架应上架进化');
+  const offer = g.shop.offers[index];
+  assert.equal(offer.choice.isEvolution, true, '进化商品应带 isEvolution 标记');
+  assert.equal(offer.price, 75, '进化基础价应为 75 金币（未购买过时）');
+
+  assert.equal(VS.Game.buyShop(g, index, offer.token), true, '购买进化应成功');
+  assert.equal(w.evolved, true, '购买后武器应进入进化状态');
+  assert.equal(g.shop.coins, 125, '进化应按货架价格扣钱');
   assert.equal(VS.Weapons.evolutionStatus(p, 'bolt').evolved, true, '进化状态应可查询');
+  assert.equal(VS.Game.upgradePool(g).some(c => c.kind === 'evolution' && c.id === 'bolt'), false,
+    '已经进化的武器不应再次出现在合法池中');
 
-  g.pendingLevels = 1;
-  VS.Game.openLevelUp(g);
-  assert.ok(g.choices.length > 0, '已进化后仍应有其它可选卡');
-  assert.equal(g.choices.some(c => c.kind === 'evolution' && c.id === 'bolt'), false,
-    '已经进化的武器不应再次出现在进化卡中');
+  const coins = g.shop.coins;
+  assert.equal(VS.Game.buyShop(g, index, offer.token), false, '重复购买同一进化应失败');
+  assert.equal(g.shop.coins, coins, '失败购买不能扣钱');
 });
 
 /* ------------------------------------------------------------------ */
@@ -541,4 +555,4 @@ test('极夜冰棺的命中碎裂伤害与减速覆盖弹道旁的敌人', funct
   assert.equal(neighbor.slowMul, 0.25, '进化碎裂应施加 75% 减速');
 });
 
-console.log('PASS: 内容机制（初始武器、寒霜、陨星、四条进化、进化卡、实体上限）');
+console.log('PASS: 内容机制（初始武器与第二关继承、寒霜、陨星、四条进化、商店进化、实体上限）');
