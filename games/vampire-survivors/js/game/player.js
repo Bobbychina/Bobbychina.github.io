@@ -43,6 +43,7 @@
 
         level: 1,
         endless: false,
+        stageSpeedMul: 1,
         xp: 0,
         xpNeeded: xpForLevel(1),
 
@@ -122,8 +123,8 @@
       if (p.dashT <= 0) p.moving = (ax !== 0 || ay !== 0);
 
       if (p.dashT <= 0 && p.moving) {
-        p.x += ax * p.speed * dt;
-        p.y += ay * p.speed * dt;
+        p.x += ax * p.speed * p.stageSpeedMul * dt;
+        p.y += ay * p.speed * p.stageSpeedMul * dt;
 
         var alen = Math.sqrt(ax * ax + ay * ay);
         if (alen > 0.001) {

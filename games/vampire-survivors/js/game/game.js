@@ -16,6 +16,7 @@
     MENU: 'menu',
     PLAYING: 'playing',
     LEVELUP: 'levelup',
+    RELICSELECT: 'relicselect',
     PETSELECT: 'petselect',
     LEVELCLEAR: 'levelclear',
     PAUSED: 'paused',
@@ -338,6 +339,9 @@
       opt = opt || {};
       game.runSerial = (game.runSerial || 0) + 1;
       game.cheated = false;
+      game.practice = false;
+      game.relics = [];
+      game.relicChoices = [];
       if (opt.mode === 'campaign' || opt.mode === 'endless') game.mode = opt.mode;
       if (C.START_WEAPONS.indexOf(opt.startWeapon) >= 0) game.startWeapon = opt.startWeapon;
       game.time = 0;
@@ -357,10 +361,12 @@
       game.fx = VS.Effects.create();
       game.weapons = VS.Weapons.create();
       game.enemies = VS.Enemies.create();
+      game.encounters = VS.Encounters ? VS.Encounters.create() : null;
       game.pickups = VS.Pickups.create();
       game.pets = VS.Pets.create();
       game.player = VS.Player.create(game.world);
       game.player.endless = game.mode === 'endless';
+      if (VS.Stages) VS.Stages.enter(game);
 
       game.pendingPetSelect = false;
       game.petChoices = [];
@@ -400,12 +406,14 @@
       game.choiceHasAlternative = false;
 
       game.enemies = VS.Enemies.create();
+      game.encounters = VS.Encounters ? VS.Encounters.create() : null;
       game.pickups = VS.Pickups.create();
       game.weapons = VS.Weapons.create();
       game.fx = VS.Effects.create();
 
       /* 本关从零开始：换一个全新的玩家（等级 / 武器 / 增益都清空），宠物也重新选 */
       if (VS.Levels.isFresh(index)) {
+        game.relics = [];
         var carriedKills = game.player ? game.player.kills : 0;
 
         game.player = VS.Player.create(game.world);
@@ -432,12 +440,13 @@
       p.hp = p.maxHp;
       p.invuln = opt.invuln === undefined ? 3 : opt.invuln;
       p.alive = true;
+      if (VS.Stages) VS.Stages.enter(game);
 
       VS.World.snapCamera(game.world, p.x, p.y, viewW(game), viewH(game));
 
       if (game.deps && game.deps.panels && game.deps.panels.showBanner) {
         game.deps.panels.showBanner(VS.Levels.label(index), '本关时长 ' +
-          U.formatTime(game.levelDef.duration) + ' · 撑住');
+          U.formatTime(game.levelDef.duration) + (VS.Levels.clearRule(index) === 'killFinalBoss' ? ' · 击败章节首领' : ' · 撑住'));
       }
       if (game.deps && game.deps.audio) game.deps.audio.play('level');
 
@@ -484,6 +493,7 @@
       Game.newRun(game, opt);
 
       index = Math.max(0, Math.min(Math.floor(index || 0), VS.Levels.count() - 1));
+      game.practice = index > 0;
 
       game.draftCards = 0;
 
@@ -540,14 +550,16 @@
           game.rerollsRemaining = C.LEVELUP_REROLLS;
           if (game.deps.panels) game.deps.panels.showBanner('无 尽 · 第 ' + wave + ' 波', '敌人继续强化 · 重选次数补满');
         }
-        if (prevTime < C.ENDLESS.BIOME_AT && game.time >= C.ENDLESS.BIOME_AT) {
-          game.level = Math.min(1, VS.Levels.count() - 1);
+        var biome = VS.Stages ? VS.Stages.endlessIndex(game.time) : game.time >= C.ENDLESS.BIOME_AT ? Math.min(1, VS.Levels.count() - 1) : 0;
+        if (biome !== game.level) {
+          game.level = biome;
           game.levelDef = VS.Levels.def(game.level);
-          if (game.deps.panels) game.deps.panels.showBanner('深 渊 侵 蚀', '酸液与深渊敌人加入 · 保留全部构筑');
+          if (VS.Stages) VS.Stages.enter(game);
+          if (game.deps.panels) game.deps.panels.showBanner(game.levelDef.subtitle, '无尽场景轮换 · 保留构筑、宠物与遗物');
         }
       } else {
         var entered = VS.Phases.crossed(prevTime, game.time);
-        if (entered) {
+        if (entered && game.level < 2 && !(entered.id === 'rest' && VS.Levels.noRest(game.level))) {
           game.phase = entered.id;
           Game.announcePhase(game, entered);
         }
@@ -577,9 +589,11 @@
       game.sparkBudget = 8;
 
       /* --- 逻辑推进 --- */
+      if (VS.Stages) VS.Stages.update(game, dt);
       VS.Player.update(game.player, dt, game.world, axis);
       VS.Pets.update(game.pets, dt, game);
       VS.Enemies.update(game.enemies, dt, game);
+      if (VS.Encounters) VS.Encounters.update(game.encounters, dt, game);
       VS.Weapons.update(game.weapons, dt, game);
       VS.Pickups.update(game.pickups, dt, game);
       VS.Effects.update(game.fx, dt);
@@ -611,6 +625,7 @@
       if (game.pendingPetSelect && !VS.Pets.chosen(game.pets)) {
         Game.openPetSelect(game);
       }
+      if (VS.Stages) VS.Stages.openRelic(game);
     },
 
     /* ---------------- 环绕骨刃：E 键切换范围 ----------------
@@ -760,6 +775,7 @@
     },
 
     choose: function (game, index) {
+      if (game.state === STATE.RELICSELECT && VS.Stages) return VS.Stages.chooseRelic(game, index);
       /* 键盘 1/2/3 与卡片点击走同一条路：宠物面板期间就当作选宠物 */
       if (game.state === STATE.PETSELECT) return Game.choosePet(game, index);
       if (game.state !== STATE.LEVELUP) return false;
@@ -871,6 +887,7 @@
       game.failedClear = !!opt.failedClear;      // 时间到但没打死最终 Boss
       game.failReason = opt.reason || '';
       if (game.cheated) game.failReason += (game.failReason ? ' · ' : '') + '作弊练习局 · 不提交全站排行榜';
+      else if (game.practice) game.failReason += (game.failReason ? ' · ' : '') + '关卡练习 · 不提交全站排行榜';
 
       /* 一局的总时长：打完的关卡 + 本关已经过的时间。
          第一关就死了的话就等于第一关的时间，和以前的口径一致。 */
@@ -921,7 +938,7 @@
       if (VS.ScoresUI) VS.ScoresUI.showRank(rankInfo);   // 本局排名（没进前 5 就自己藏起来）
 
       if (VS.LeaderboardUI && VS.LeaderboardUI.showRank) VS.LeaderboardUI.showRank(null);
-      if (!game.cheated && game.mode !== 'endless' && VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
+      if (!game.cheated && !game.practice && game.mode !== 'endless' && VS.Leaderboard && VS.LeaderboardUI && VS.Leaderboard.canSubmit()) {
         VS.LeaderboardUI.submitRun({ time: total, kills: p.kills, level: p.level, wave: wave, mode: game.mode });
       }
     },

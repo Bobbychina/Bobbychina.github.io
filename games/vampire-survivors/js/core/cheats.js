@@ -6,7 +6,7 @@
   function level99(code) {
     if (code !== CODE) return { ok: false, message: '作弊码不正确，请使用完整的字符串暗号。' };
     var game = VS.Game.current, S = VS.Game.STATE;
-    if (!game || [S.PLAYING, S.PAUSED, S.LEVELUP, S.PETSELECT].indexOf(game.state) < 0) {
+    if (!game || [S.PLAYING, S.PAUSED, S.LEVELUP, S.PETSELECT, S.RELICSELECT].indexOf(game.state) < 0) {
       return { ok: false, message: '请先开始一局游戏，再输入作弊码。' };
     }
     var count = Math.max(0, 99 - game.player.level);

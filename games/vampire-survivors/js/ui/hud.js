@@ -44,6 +44,7 @@
         kills: el('kills'),
         level: el('level'),
         weaponStrip: el('weaponStrip'),
+        chapterMechanic: el('chapterMechanic'),
         muteBtn: el('muteBtn'),
         pauseBtn: el('pauseBtn'),
         dashBtn: el('dashBtn'),
@@ -106,6 +107,12 @@
       if (!dom || !dom.root) return;
 
       var p = game.player;
+      var mechanic = dom.chapterMechanic;
+      if (mechanic && VS.Stages) {
+        var text = VS.Stages.status(game);
+        mechanic.hidden = !text;
+        if (mechanic.textContent !== text) mechanic.textContent = text;
+      }
       var dashDisabled = game.state !== VS.Game.STATE.PLAYING || p.dashCd > 0;
       var dashText = p.dashCd > 0 ? (Math.ceil(p.dashCd * 10) / 10).toFixed(1) + 's' : '就绪';
       if (dom.dashBtn && dom.dashBtn.disabled !== dashDisabled) dom.dashBtn.disabled = dashDisabled;
@@ -152,7 +159,8 @@
       if (dom.phase) {
         var ph = VS.Phases.at(game.time);
         dom.phase.textContent = game.mode === 'endless'
-          ? (game.enemies.boss && !game.enemies.boss.dead ? '首领' : game.level > 0 ? '深层' : '狩猎') : ph.short || ph.name;
+          ? (game.enemies.boss && !game.enemies.boss.dead ? '首领' : game.level > 0 ? '深层' : '狩猎') :
+          game.level >= 2 ? (game.enemies.boss && !game.enemies.boss.dead ? '首领' : '远征') : ph.short || ph.name;
         dom.phase.className = 'v ph-' + ph.id;
       }
 

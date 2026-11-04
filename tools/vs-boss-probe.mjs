@@ -21,9 +21,11 @@ const send = (method, params = {}, ms = 30000) => new Promise((res) => {
 const ev = async (x, ms) => {
   const t = ms || 30000
   const r = await send('Runtime.evaluate', { expression: x, awaitPromise: true, returnByValue: true, timeout: t }, t + 8000)
+  if (r.error) throw new Error('CDP evaluate: ' + r.error.message)
+  if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text)
   return r.result?.result?.value
 }
-const j = async (x) => { try { return JSON.parse(String(await ev(x))) } catch (e) { return {} } }
+const j = async (x) => JSON.parse(String(await ev(x)))
 const shot = async (name) => { const r = await send('Page.captureScreenshot', { format: 'png' }); if (r.result?.data && outDir) await fs.writeFile(`${outDir}/${name}.png`, Buffer.from(r.result.data, 'base64')) }
 const checks = []
 const ok = (n, c, extra = '') => { checks.push([n, !!c]); console.log((c ? 'PASS ' : 'FAIL ') + n + (extra ? '  ' + extra : '')) }
@@ -56,18 +58,23 @@ await sleep(1200)
 await ev(`(() => {
   const g = VS.Game.current
   g.time = 300
+  /* 招式用例不量玩家输出，先停火，避免随机升级构筑提前击杀 Boss 并触发宠物面板。
+     TTK 用例会重新装备它要测的两把武器。 */
+  g.player.weapons = []; VS.Weapons.reset(g.weapons)
+  g.onXp = function () {}; g.onInstantLevel = function () {}
   g.player.maxHp = 1e9; g.player.hp = 1e9
   window.__god = setInterval(function () {
     const cur = VS.Game.current
     if (!cur || !cur.player) return
     cur.player.hp = 1e9; cur.player.maxHp = 1e9; cur.player.alive = true
-    if (cur.state === 'levelup') window.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true }))
+    if (['levelup', 'petselect', 'relicselect'].includes(cur.state)) VS.Game.choose(cur, 0)
   }, 500)
   return 1
 })()`)
 const setup = await j(`(() => {
   const g = VS.Game.current
-  const boss = VS.Enemies.spawnBoss(g.enemies, g)
+  const boss = g.enemies.boss || VS.Enemies.spawnBoss(g.enemies, g)
+  VS.BossKit.step(boss, 0, g)
   return JSON.stringify({ has: !!boss, hp: Math.round(boss.hp), static: VS.Config.ENEMY_TYPES.boss.hp })
 })()`)
 ok('① 投放「尸潮之王」（基础血量 4000 × 难度曲线，5:00 实到 ≈9800）', setup.has === true && setup.hp > 4000 && setup.static === 4000, JSON.stringify(setup))
@@ -89,7 +96,7 @@ const RESET = `(() => {
    每个用例开跑前先把待选卡点掉，确保真的在 playing 状态。 */
 const ensurePlaying = async () => {
   for (let i = 0; i < 25; i++) {
-    const st = String(await ev(`(() => { const g = VS.Game.current; if (g && g.state === 'levelup') window.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true })); return g ? g.state : 'none' })()`))
+    const st = String(await ev(`(() => { const g = VS.Game.current; if (g && ['levelup','petselect','relicselect'].includes(g.state)) VS.Game.choose(g,0); return g ? g.state : 'none' })()`))
     if (st === 'playing') return true
     await sleep(120)
   }
@@ -249,88 +256,43 @@ const perf = await j(`(async () => {
 ok('⑨ 520 只怪 + Boss 弹幕/落石齐发仍然 ≥ 55fps', perf.fps >= 55, JSON.stringify(perf))
 await shot('boss-horde')
 
-/* ⑩ TTK：给玩家一套"中期构筑"（bolt Lv5 + 光环 Lv4），量打死加强版 Boss 要多久、期间挨多少下。
-   机器人不会闪避，所以"每 10 秒兜一次血"用来模拟会躲的玩家；这里只看 TTK 落在合理区间。
-   注意：这个测量最长要跑 90 秒，得单独给它一个长的 evaluate 超时。 */
-const ttk = JSON.parse(String(await ev(`(async () => {
-  const g = VS.Game.current, p = g.player, b = g.enemies.boss
-  g.pendingLevels = 0; p.xp = 0
-  for (const e of g.enemies.list.slice()) if (!e.boss) VS.Enemies.kill(g, e)
-  b.hp = b.maxHp; b.ai.shield = null; b.ai.invuln = 0; b.ai.vulnBonus = 1; b.ai.enraged = false
-  b.ai.shieldAt = VS.Config.BOSS.SHIELD.AT.slice()
-  g.bossShots = []
-  p.weapons = []; p.upgrades = {}; p.damageMul = 1; p.attackSpeedMul = 1
-  /* god 模式自动选到的卡片会改变伤害和闪避；测量时需重置所有相关属性。
-     只重置伤害/攻速时同一套"中期构筑"曾实测差到 160 vs 337 DPS（差一倍），
-     量的才是"bolt Lv5 + 光环 Lv4"这一套本身。 */
-  p.areaMul = 1; p.projBonus = 0; p.luck = 1; p.critChance = 0
-  p.lastStandBonus = 0; p.dashCooldownMul = 1
-  VS.Weapons.reset(g.weapons)       // 清除先前构筑的在途弹道与延迟落星，隔离 TTK 测量
-  p.regen = VS.Config.PLAYER.REGEN
-  VS.Weapons.add(p, 'bolt'); VS.Weapons.add(p, 'garlic')
-  for (let i = 0; i < 4; i++) VS.Weapons.upgrade(p, 'bolt')
-  for (let i = 0; i < 3; i++) VS.Weapons.upgrade(p, 'garlic')
-  p.maxHp = 140; p.hp = 140; p.armor = 0; p.invuln = 0
-  let hits = 0, dmg = 0
-  const orig = VS.Player.takeDamage
-  VS.Player.takeDamage = function (pl, amount, gm, sx, sy) { const d = orig.apply(VS.Player, arguments); if (d > 0) { hits++; dmg += d } return d }
-  /* 只统计真正落到 Boss 身上的伤害（含虚弱期加成、扣掉护盾期的"免疫"），
-     这样 TTK 调参才有依据：bossDmg/secs 就是"中期构筑对 Boss 的实际 DPS"。 */
-  let bossDmg = 0, invulnTicks = 0, shieldWaves = 0, shieldSeen = false
-  const hurtOrig = VS.Enemies.hurt
-  VS.Enemies.hurt = function (gm, e, amount) {
-    const before = e && e.hp
-    const r = hurtOrig.apply(VS.Enemies, arguments)
-    if (e && e.boss && typeof before === 'number') bossDmg += Math.max(0, before - e.hp)
-    return r
-  }
-  const t0 = performance.now()
-  /* 顺手数一下这段的帧率：TTK 是"按秒"的量，帧率被节流的话 DPS 会虚低（探针自己要能看出来） */
-  window.__ttkF = 0
-  const ft = () => { window.__ttkF++; requestAnimationFrame(ft) }
-  requestAnimationFrame(ft)
-  let tick = 0, distSum = 0, aliveTicks = 0, died = false
-  const marks = []
-  while (!b.dead && (performance.now() - t0) < 120000) {
-    await new Promise((r) => setTimeout(r, 500))
-    if (b.ai.invuln > 0) { invulnTicks++; if (!shieldSeen) { shieldSeen = true; shieldWaves++ } }
-    else shieldSeen = false
-    if (b.ai.shield) { for (const e of g.enemies.list.slice()) if (!e.boss) VS.Enemies.kill(g, e) }
-    /* 机器人本体是"重心逃逸"，会一直往外跑 —— 但真打 Boss 的人不会边打边退到弹幕外，
-       否则 DPS 全看运气（实测同一套构筑两局 117 vs 203 DPS）。这里加一条"缠斗"约束：
-       离 Boss 超过 240px 就以 ≈玩家速度把它拉回来，模拟"敢贴脸打的人"。 */
-    const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy)
-    distSum += d
-    if (d > 240) { const k = Math.min(60, d - 240) / d; p.x += dx * k; p.y += dy * k }
-    /* 死掉的玩家不再输出（游戏会进结算态）—— 那之后的秒数不算进 DPS，否则"打不动"和"人先死了"
-       会混成一个数字（9600 那版第一测就是这么误判的）。 */
-    if (p.hp > 0 && g.state !== 'over') aliveTicks++; else died = true
-    if (++tick % 10 === 0) p.hp = p.maxHp;                 // 每 5 秒兜一次血：模拟"会躲会包扎"的玩家
-    /* 打 Boss 期间**冻结升级**：god 模式的自动选卡每升一级都白送一张（实测 60 秒后 DPS 从
-       120 跳到 200+），不冻住的话量的是"随机抽到什么卡"而不是这套构筑。 */
-    p.xp = 0; g.pendingLevels = 0
-    /* 每 10 秒记一笔累计伤害：DPS 在整场里到底是不是恒定的（不是就得看是谁在变） */
-    if (tick % 20 === 0) marks.push([tick / 2, Math.round(bossDmg), Math.round(b.hp / b.maxHp * 100)])
-  }
-  const secs = (performance.now() - t0) / 1000
-  const aliveSecs = Math.max(0.5, aliveTicks * 0.5)
-  VS.Player.takeDamage = orig
-  VS.Enemies.hurt = hurtOrig
-  const bossMax = Math.round(b.maxHp)
-  return JSON.stringify({ killed: !!b.dead, secs: +secs.toFixed(1), aliveSecs: +aliveSecs.toFixed(1), died,
-    hits, dmg,
-    bossDmg: Math.round(bossDmg), dps: Math.round(bossDmg / secs), dpsAlive: Math.round(bossDmg / aliveSecs),
-    bossMax, avgDist: Math.round(distSum / Math.max(1, tick)),
-    ttkFps: +(window.__ttkF / secs).toFixed(1),
-    bossHpLeftPct: Math.round(b.hp / b.maxHp * 100), shieldWaves,
-    marks,
-    invulnPct: Math.round(invulnTicks / tick * 100), hpLeftPct: Math.round(p.hp / p.maxHp * 100),
-    cfgHp: VS.Config.ENEMY_TYPES.boss.hp })
-})()`, 150000)))
-/* 判定口径：**活着打完**且在 20~95 秒内杀掉（died 单列出来 —— 人先死和 Boss 太肉是两回事）。
-   满帧前提（ttkFps ≥ 55）也是断言的一部分：被节流的帧率会直接压低 DPS，量出来的不是构筑强度。 */
-ok('⑩ 中期构筑（bolt Lv5 + 光环 Lv4）打得死：满帧下 TTK 落在 20~95 秒（既不是秒杀，也不是打不动）',
-  ttk.killed === true && ttk.secs >= 20 && ttk.secs <= 95 && ttk.died === false && ttk.ttkFps >= 55, JSON.stringify(ttk))
+/* ⑩ 固定 60Hz 逻辑步长测输出，避免跨分钟 CDP Promise 超时。
+   第⑨项单独检查实时渲染帧率；本项用受保护角色隔离输出，不测真人生存率。 */
+const ttk = await j(`(() => {
+  const g=VS.Game.current,p=g.player,b=g.enemies.boss
+  if(!b)throw new Error('TTK setup: missing boss')
+  clearInterval(window.__god)
+  g.enemies.list=[b];g.pendingLevels=0;g.pendingPetSelect=false;g.state=VS.Game.STATE.PLAYING
+  g.onXp=function(){};g.onInstantLevel=function(){}
+  b.hp=b.maxHp;b.ai=null;VS.BossKit.step(b,0,g);g.bossShots=[]
+  p.weapons=[];p.upgrades={};p.damageMul=1;p.attackSpeedMul=1;p.areaMul=1;p.projBonus=0;p.luck=1;p.critChance=0
+  p.lastStandBonus=0;p.dashCooldownMul=1;p.stageSpeedMul=1;p.speed=VS.Config.PLAYER.SPEED
+  p.kx=0;p.ky=0;p.dashT=0;p.dashCd=0;p.armor=0;p.invuln=0;p.alive=true;p.hp=p.maxHp=1e9
+  p.x=g.world.w/2;p.y=g.world.h/2;b.x=p.x+100;b.y=p.y
+  VS.Pets.reset ? VS.Pets.reset(g.pets) : (g.pets=VS.Pets.create())
+  VS.Weapons.reset(g.weapons);VS.Enemies.rebuildGrid(g.enemies,g)
+  VS.Weapons.add(p,'bolt');VS.Weapons.add(p,'garlic')
+  VS.Weapons.get(p,'bolt').level=5;VS.Weapons.get(p,'garlic').level=4
+  const originalHurt=VS.Enemies.hurt;let bossDmg=0,secs=0,ticks=0,shields=0,shieldSeen=false,distSum=0
+  const marks=[],started=performance.now()
+  VS.Enemies.hurt=function(game,e){const before=e.hp;const r=originalHurt.apply(VS.Enemies,arguments);if(e===b)bossDmg+=Math.max(0,before-e.hp);return r}
+  try {
+    while(!b.dead&&ticks<7200){
+      if(ticks%30===0&&b.ai.shield)for(const e of g.enemies.list.slice())if(e!==b)VS.Enemies.kill(g,e)
+      if(b.ai.shield&&!shieldSeen){shields++;shieldSeen=true}else if(!b.ai.shield)shieldSeen=false
+      VS.Game.step(g,1/60);ticks++;secs=ticks/60
+      const dx=b.x-p.x,dy=b.y-p.y,d=Math.hypot(dx,dy);distSum+=d
+      if(d>240){const k=Math.min(2,d-240)/d;p.x+=dx*k;p.y+=dy*k}
+      if(ticks%600===0)marks.push([secs,Math.round(bossDmg),Math.round(b.hp/b.maxHp*100)])
+      if(g.state!==VS.Game.STATE.PLAYING&&!b.dead)throw new Error('TTK stopped in '+g.state)
+    }
+  }finally{VS.Enemies.hurt=originalHurt}
+  return JSON.stringify({killed:b.dead,secs:+secs.toFixed(2),protectedPlayer:true,computationMs:Math.round(performance.now()-started),
+    bossMax:Math.round(b.maxHp),bossDmg:Math.round(bossDmg),dps:Math.round(bossDmg/Math.max(.01,secs)),
+    avgDist:Math.round(distSum/Math.max(1,ticks)),shieldWaves:shields,bossHpLeftPct:Math.round(b.hp/b.maxHp*100),marks})
+})()`)
+ok('⑩ 中期构筑（bolt Lv5 + 光环 Lv4）在固定 60Hz 下 20~95 秒内击杀首领',
+  ttk.killed===true&&ttk.secs>=20&&ttk.secs<=95&&perf.fps>=55,JSON.stringify(ttk))
 await shot('boss-ttk')
 await ev(`(() => { clearInterval(window.__god); return 1 })()`)
 

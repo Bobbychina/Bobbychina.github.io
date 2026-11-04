@@ -261,6 +261,7 @@
 
       Renderer.drawDecorations(ctx, game, view);
       Renderer.drawPools(ctx, game, view, time);      // 酸液池铺在地上（在怪下面）
+      if (VS.ChapterArt) VS.ChapterArt.ground(ctx, game, view, time);
       Renderer.drawPickups(ctx, r, game, view, time);
       Renderer.drawAura(ctx, game, time);
       Renderer.drawNovas(ctx, game, time);
@@ -269,6 +270,7 @@
       if (VS.Arsenal) VS.Arsenal.render(ctx, game, view, time, 'ground');
       Renderer.drawBossTelegraph(ctx, game);          // Boss 前摇光环（在它身下，别盖住本体）
       Renderer.drawEnemies(ctx, game, view, time);
+      if (VS.ChapterArt) VS.ChapterArt.hints(ctx, game, view);
       Renderer.drawPlayer(ctx, r, game);
       Renderer.drawPets(ctx, r, game, time);
       Renderer.drawOrbit(ctx, game, time);
@@ -276,6 +278,7 @@
       if (VS.Arsenal) VS.Arsenal.render(ctx, game, view, time, 'air');
       Renderer.drawBolts(ctx, game, view);            // 雷击链的折线
       Renderer.drawBossShots(ctx, r, game, view);     // 敌方弹幕压在玩家弹幕之上
+      if (VS.ChapterArt) VS.ChapterArt.air(ctx, game, view);
       Renderer.drawShots(ctx, game, view, time);      // 柠檬猪的酸液（enemies.shots）
       Renderer.drawParticles(ctx, game, view);
       Renderer.drawSparks(ctx, game, view);
@@ -301,19 +304,21 @@
       var tile = document.createElement('canvas');
       tile.width = tile.height = 192;
       var g = tile.getContext('2d');
-      var acid = name !== 'ground';
+      var theme = C.CHAPTER_THEMES && C.CHAPTER_THEMES[name];
+      var acid = name === 'ground_l2';
       var seed = acid ? 181 : 97;
       var rnd = function () { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-      g.fillStyle = acid ? '#182320' : '#182030';
+      g.fillStyle = theme ? theme.base : acid ? '#182320' : '#182030';
       g.fillRect(0, 0, 192, 192);
       var tones = acid ? ['#24322a', '#26382c', '#29392d'] : ['#293246', '#2c3548', '#30394b'];
+      if (theme) tones = [theme.tile, theme.base, theme.tile];
       for (var row = 0; row < 8; row++) {
         for (var col = -1; col < 5; col++) {
           var x = col * 48 + (row % 2) * 24;
           var y = row * 24;
           g.fillStyle = tones[Math.floor(rnd() * tones.length)];
           g.fillRect(x + 1, y + 1, 46, 22);
-          g.fillStyle = acid ? '#53634b33' : '#94a5bd24';
+          g.fillStyle = theme ? theme.line : acid ? '#53634b33' : '#94a5bd24';
           g.fillRect(x + 2, y + 1, 44, 1);
           g.fillStyle = '#0c142055';
           g.fillRect(x + 2, y + 22, 44, 1);
@@ -325,7 +330,7 @@
         }
       }
       for (var i = 0; i < 90; i++) {
-        g.fillStyle = acid ? '#66834644' : '#52675b38';
+        g.fillStyle = theme ? theme.accent + '55' : acid ? '#66834644' : '#52675b38';
         g.fillRect(Math.floor(rnd() * 192), Math.floor(rnd() * 192), 1 + Math.floor(rnd() * 4), 2);
       }
       var pat = r.ctx.createPattern(tile, 'repeat');
@@ -364,7 +369,7 @@
       if (x1 <= x0 || y1 <= y0) return;
 
       var groundName = VS.Levels ? VS.Levels.ground(game.level) : 'ground';
-      if (!VS.Assets.ready(groundName)) groundName = 'ground';   // 第二关底图没就绪就先用第一关的
+      if (!(C.CHAPTER_THEMES && C.CHAPTER_THEMES[groundName]) && !VS.Assets.ready(groundName)) groundName = 'ground';
 
       var pat = Renderer.ensureGroundPattern(r, groundName);
       if (!pat) {
@@ -641,7 +646,7 @@
 
           if (px < 8 || py < 8 || px > world.w - 8 || py > world.h - 8) continue;
 
-          blit(ctx, name, px, py, DECO_SCALE, { alpha: 0.85 });
+          if (!(VS.ChapterArt && VS.ChapterArt.decoration(ctx, game, px, py, pick))) blit(ctx, name, px, py, DECO_SCALE, { alpha: 0.85 });
         }
       }
     },
@@ -911,7 +916,8 @@
         // 奇数帧整体上浮 1 像素（按缩放），走路有起伏
         var bob = (fr && (fr.index % 2 === 1)) ? -1 * scale : 0;
 
-        var drawn = blit(ctx, name, e.x, e.y, scale, { dy: bob });
+        var drawn = VS.ChapterArt && VS.ChapterArt.enemy(ctx, e, time);
+        if (!drawn) drawn = blit(ctx, name, e.x, e.y, scale, { dy: bob });
 
         if (!drawn) {
           fallbackCircle(ctx, e.x, e.y, e.radius, e.color, e.edge);

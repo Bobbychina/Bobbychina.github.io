@@ -85,7 +85,7 @@
     /* ---- 面板 ---- */
     var panels = VS.Panels.init({
       onStart: function (weapon, mode) { VS.Game.start(game, { startWeapon: weapon, mode: mode }); },
-      onPreviewLevel: function (index, weapon) { VS.Game.startAt(game, index, { startWeapon: weapon }); },
+      onPreviewLevel: function (index, weapon) { VS.Game.startAt(game, index, { startWeapon: weapon, draft: index >= 3 ? 30 : index >= 2 ? 24 : 8 }); },
       onRetry: function () { VS.Game.start(game); },
       onResume: function () { VS.Game.resume(game); },
       onRestart: function () { VS.Game.start(game); },
@@ -241,6 +241,7 @@
 
       if (game.state === VS.Game.STATE.PLAYING ||
           game.state === VS.Game.STATE.LEVELUP ||
+          game.state === VS.Game.STATE.RELICSELECT ||
           game.state === VS.Game.STATE.PETSELECT ||
           game.state === VS.Game.STATE.LEVELCLEAR) {
         VS.Hud.update(game);
@@ -261,6 +262,9 @@
     try {
       if (!VS.Config || !VS.Game || !VS.Renderer || !VS.Panels) {
         throw new Error('模块没有全部加载（检查 js 文件路径与加载顺序）');
+      }
+      if (!VS.Config.CHAPTER_RULES || !VS.Encounters || !VS.Stages || !VS.ChapterArt) {
+        throw new Error('章节内容没有完整加载，请刷新页面后重试');
       }
       boot();
     } catch (err) {

@@ -49,7 +49,7 @@
     for (var id in C.ENEMY_TYPES) {
       if (!Object.prototype.hasOwnProperty.call(C.ENEMY_TYPES, id)) continue;
       var def = C.ENEMY_TYPES[id];
-      if (def.boss) continue;            // Boss 单独投放，不进常规池
+      if (def.boss || def.spawnOnly) continue; // 首领与裂变幼体由专用机制生成
       if (VS.Levels && !VS.Levels.allows(lv, def)) continue;   // 关卡专属怪：第一关抽不到
       if (t < def.minTime * unlock) continue;
 
@@ -116,6 +116,7 @@
     };
 
     state.list.push(e);
+    if (VS.Encounters) VS.Encounters.attach(e, game);
     return e;
   }
 
@@ -197,9 +198,12 @@
     if (game.mode === 'endless') {
       var nextAt = state.endlessBossAt || C.ENDLESS.BOSS_INTERVAL;
       if (game.time < nextAt) return;
-      var lemon = state.bossCount % 2 === 1;
-      spawnBoss(state, game, { at: nextAt, type: lemon ? 'lemonPig' : 'boss', kit: !lemon,
-        name: (lemon ? '柠檬猪' : '尸潮之王') + ' · 无尽 ' + (state.bossCount + 1),
+      var pool = (C.ENDLESS.BOSS_POOL || ['boss', 'lemonPig']).filter(function (id) { return VS.Levels.allows(game.level, C.ENEMY_TYPES[id]); });
+      var bossId = pool[state.bossCount % pool.length];
+      if (VS.Stages) bossId = VS.Stages.nextEndlessBoss(game, bossId);
+      var bossDef = C.ENEMY_TYPES[bossId];
+      spawnBoss(state, game, { at: nextAt, type: bossId, kit: bossId === 'boss',
+        name: bossDef.name + ' · 无尽 ' + (state.bossCount + 1),
         reward: state.firstBossDefeated ? 'levelUp' : 'firstBoss',
         tip: '无 尽 首 领', sub: '击败后继续生存 · 下一个首领仍会到来' });
       state.endlessBossAt = game.time + C.ENDLESS.BOSS_INTERVAL;
@@ -607,8 +611,9 @@
 
       /* --- Boss 的移动/招式交给 BossKit（弹幕、召唤、冲撞都在那边）；
              柠檬猪标了 noKit，走下面的常规追击 + 自己的酸液 --- */
-      var driven = !!(e.boss && VS.BossKit && !e.noKit);
-      if (driven) VS.BossKit.step(e, dt, game);
+      var driven = VS.Encounters ? VS.Encounters.move(e, dt, game) : false;
+      if (!driven && e.boss && VS.BossKit && !e.noKit) { driven = true; VS.BossKit.step(e, dt, game); }
+      if (e.dead) continue;
 
       /* --- 朝玩家移动 --- */
       var dx = p.x - e.x;
@@ -659,6 +664,7 @@
   function kill(game, e) {
     if (e.dead) return;
     e.dead = true;
+    if (VS.Encounters && game.encounters) VS.Encounters.onKill(game, e);
 
     game.player.kills++;
     game.kills++;
@@ -796,6 +802,7 @@
      */
     hurt: function (game, e, amount, crit, kx, ky) {
       if (e.dead) return;
+      if (VS.Encounters) amount *= VS.Encounters.damageMul(e);
 
       /* Boss 的护盾阶段：无敌（必须清掉它召唤的那一波才破盾）—— 这就是"配队思路"的落点：
          纯单体构筑会在这一阶段干瞪眼，纯 AoE 构筑又清得慢、Boss 打得久。

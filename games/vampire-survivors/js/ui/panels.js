@@ -32,15 +32,43 @@
     if (!dom) return;
     var endless = dom.startMode && dom.startMode.value === 'endless';
     if (dom.modeDesc) dom.modeDesc.textContent = endless
-      ? '无时间上限 · 构筑持续保留 · 每 3 分钟提升波次 · 每 5 分钟刷新首领'
-      : '双关战役 · 第一关生存 15 分钟 · 第二关从 1 级重来，并在 15 分钟内击败最终首领';
+      ? '无时间上限 · 每 3 分钟提升波次 · 每 10 分钟推进场景，随后轮换寒潮与熔炉'
+      : '四关远征 · 第二关从 1 级重来 · 第三、四关各 12 分钟，保留构筑与宠物';
     if (dom.previewL2Btn) dom.previewL2Btn.hidden = endless;
+    if (dom.chapterPreview) dom.chapterPreview.hidden = endless;
     var game = VS.Game && VS.Game.current;
     var data = game ? game.data : VS.Save.load();
     var best = VS.Save.profile(data, endless ? 'endless' : 'campaign').bestTime || 0;
     if (dom.startBest) dom.startBest.textContent = best > 0 ? U.formatTime(best) : '--:--';
     if (dom.startBtn && !dom.startBtn.disabled) dom.startBtn.textContent = endless ? '开始无尽狩猎' : '开始战役';
     if (VS.ScoresUI) VS.ScoresUI.refresh(endless ? 'endless' : 'campaign');
+  }
+
+  function renderChapters() {
+    if (!dom || !dom.chapterGuide) return;
+    var html = '<p>第三、四关保留上一关的构筑与遗物。章节练习可直接进入，自选宠物与强化；练习成绩只记本机。</p>';
+    VS.Levels.list().slice(2).forEach(function (level) {
+      html += '<div class="arsenal-entry"><p><b>' + level.name + ' · ' + level.subtitle + '</b> · 12 分钟</p><p>' +
+        (level.mechanic === 'frost' ? '寒潮会累积寒意，高寒意使普通移动变慢；满值会持续受伤。靠近金色暖灯回温，闪避速度不受影响。' :
+          '地火交替沿横向、纵向喷发，先预警再造成伤害。靠近青色卸压阀 1.2 秒能取消下轮喷发；熔心巨像在场时，还能打断招式并制造 2 秒增伤窗口。') + '</p>';
+      level.bosses.forEach(function (boss) {
+        var def = VS.Config.ENEMY_TYPES[boss.type];
+        html += '<p><b>' + U.formatTime(boss.at) + ' · ' + def.name + '</b> · ' + (def.encounter === 'bell' ? '有缺口的钟环、扇形冰针与冰裂落点。' :
+          def.encounter === 'queen' ? '冰晶交叉射线、交替钟环与延迟冰牢；半血后加快施法。' : '熔心扫射、延迟喷发与交错弹幕；利用卸压阀争取输出窗口。') +
+          (boss.requireKill ? ' 本关结束前必须击败。' : '') + '</p>';
+      });
+      html += '</div>';
+    });
+    var roles = { warder: '交替举盾，闪避贴近可破盾', archer: '保持距离，瞄准后射出冰针', charger: '前摇后突进，重骑会连续冲锋',
+      healer: '为附近普通敌人治疗，优先处理', bomber: '贴近后自爆，预警时击杀可阻止', caster: '预判走位并延迟轰击', splitter: '死亡后裂变为两只幼体' };
+    html += '<div class="arsenal-entry"><p><b>新敌人 · 8 种常规敌人与裂变幼体</b></p>';
+    Object.keys(VS.Config.ENEMY_TYPES).forEach(function (id) {
+      var e = VS.Config.ENEMY_TYPES[id];
+      if (e.behavior && !e.spawnOnly) html += '<p>' + e.name + '：' + roles[e.behavior] + '</p>';
+    });
+    html += '</div><p><b>遗物祭坛 · 靠近金色祭坛，额外三选一</b></p><p>新关卡在 01:30 与 05:30 出现祭坛，不消耗升级次数。每件遗物本局只可获得一次。</p>';
+    VS.Config.RELICS.forEach(function (r) { html += '<p><b>' + r.icon + ' ' + r.name + '</b> · ' + r.desc + '</p>'; });
+    dom.chapterGuide.innerHTML = html;
   }
 
   function renderArsenal() {
@@ -137,8 +165,14 @@
         startWeapon: el('startWeapon'),
         starterDesc: el('starterDesc'),
         arsenalContent: el('arsenalContent'),
+        chapterPreview: el('chapterPreview'),
+        chapterSelect: el('chapterSelect'),
+        chapterGuide: el('chapterGuide'),
 
         luLevel: el('luLevel'),
+        luTitle: el('luTitle'),
+        luSub: el('luSub'),
+        luTip: el('luTip'),
         luCards: el('luCards'),
         luBuild: el('luBuild'),
         luQueue: el('luQueue'),
@@ -190,9 +224,13 @@
         starterInfo();
       }
       renderArsenal();
+      renderChapters();
+      if (dom.chapterSelect) dom.chapterSelect.innerHTML = VS.Levels.list().slice(1).map(function (level, i) {
+        return '<option value="' + (i + 1) + '">' + level.name + ' · ' + level.subtitle + ' · 自选 ' + (i >= 2 ? 30 : i >= 1 ? 24 : 8) + ' 次强化</option>';
+      }).join('');
       if (dom.startMode) dom.startMode.addEventListener('change', modeInfo);
       bindClick(dom.startBtn, function () { Panels.start(); });
-      bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(1, dom.startWeapon ? dom.startWeapon.value : null); });
+      bindClick(dom.previewL2Btn, function () { if (cb.onPreviewLevel) cb.onPreviewLevel(dom.chapterSelect ? Number(dom.chapterSelect.value) : 1, dom.startWeapon ? dom.startWeapon.value : null); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
       bindClick(dom.resumeBtn, function () { if (cb.onResume) cb.onResume(); });
       bindClick(dom.pauseRestartBtn, function () { if (cb.onRestart) cb.onRestart(); });
@@ -258,13 +296,19 @@
 
     /* ---------------- 升级面板 ---------------- */
 
-    showLevelUp: function (choices, level, game) {
+    showLevelUp: function (choices, level, game, opt) {
       if (!dom) return;
+      opt = opt || {};
       currentChoices = choices || [];
 
-      if (dom.luLevel) dom.luLevel.textContent = ' Lv.' + level;
-      if (dom.luQueue) dom.luQueue.textContent = game && game.pendingLevels > 1
+      if (dom.luTitle) dom.luTitle.textContent = opt.relic ? '遗物祭坛' : '升级！';
+      if (dom.luSub) dom.luSub.textContent = opt.relic ? '选择一件遗物，本局只可获得一次；留意它的代价' : '选一项，继续你的狩猎';
+      if (dom.luLevel) dom.luLevel.textContent = opt.relic ? '' : ' Lv.' + level;
+      if (dom.luQueue) dom.luQueue.textContent = opt.relic ? '额外选择 · 不消耗升级' : game && game.pendingLevels > 1
         ? '还需选择 ' + game.pendingLevels + ' 次' : '选择 1 项';
+      if (dom.rerollBtn) dom.rerollBtn.hidden = !!opt.relic;
+      if (dom.luTip) dom.luTip.innerHTML = opt.relic ? '点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 遗物保留到本局结束' :
+        '点击卡片，或按 <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> · 武器数值为基础值，未计入加成';
 
       if (dom.luBuild && game && game.player) {
         var p = game.player;
@@ -280,6 +324,10 @@
         var passives = VS.Config.UPGRADES.filter(function (up) { return p.upgrades[up.id] > 0; })
           .map(function (up) { return '<span class="build-chip">' + up.name + ' <b>Lv.' + p.upgrades[up.id] + '</b></span>'; });
         var pet = VS.Pets && VS.Pets.statusText ? VS.Pets.statusText(game.pets) : '';
+        var relics = (game.relics || []).map(function (id) {
+          var r = VS.Config.RELICS.filter(function (item) { return item.id === id; })[0];
+          return r ? '<span class="build-chip">' + r.icon + ' ' + r.name + '</span>' : '';
+        }).join('');
         var lastStand = p.lastStandBonus > 0 && p.hp <= p.maxHp * 0.5
           ? '<span>背水生效 +' + Math.round(p.lastStandBonus * 100) + '%</span>' : '';
         dom.luBuild.innerHTML = '<div class="build-line"><span class="build-label">武器 ' + p.weapons.length + '/' + VS.Config.MAX_WEAPONS + '</span>' + weapons + '</div>' +
@@ -288,7 +336,8 @@
           '<span>闪避冷却 ' + (VS.Config.PLAYER.DASH.CD * p.dashCooldownMul).toFixed(2) + ' 秒</span>' +
           (pet ? '<span>宠物 ' + pet + '</span>' : '') + '</div>' +
           '<details class="build-passives"><summary>被动增益 ' + passives.length + ' 项</summary>' +
-          '<div class="build-passive-list">' + (passives.join('') || '<span>尚无被动增益</span>') + '</div></details>' + evolutionProgress(p);
+          '<div class="build-passive-list">' + (passives.join('') || '<span>尚无被动增益</span>') + '</div></details>' +
+          (relics ? '<div class="build-line"><span class="build-label">遗物</span>' + relics + '</div>' : '') + evolutionProgress(p);
       }
       if (dom.rerollBtn && game) {
         dom.rerollBtn.textContent = !game.choiceHasAlternative ? '没有其他可重选技能' :
@@ -303,7 +352,7 @@
         // 卡片主色：新武器=青，武器升级=金，增益=紫，流派=跟着武器自身配色
         var accent = c.color || (c.kind === 'buff' ? '#b58cff' : '#7ee0ff');
 
-        var kind = c.kind === 'evolution' ? '武器进化' : c.kind === 'weapon-new' ? '新武器' : c.kind === 'weapon-up' ? '武器升级' : c.kind === 'school' ? '流派' : '被动';
+        var kind = c.kind === 'relic' ? '遗物' : c.kind === 'evolution' ? '武器进化' : c.kind === 'weapon-new' ? '新武器' : c.kind === 'weapon-up' ? '武器升级' : c.kind === 'school' ? '流派' : '被动';
         html += '<button type="button" class="card' + (c.isSchool ? ' school' : '') + (c.isEvolution ? ' evolution' : '') + '" data-index="' + i +
                   '" style="--card-accent:' + accent + '">' +
                   '<span class="card-top"><span class="card-kind">' + kind + '</span><span class="card-number">0' + (i + 1) + '</span></span>' +
@@ -356,7 +405,7 @@
       if (!dom) return;
       currentPets = pets || [];
       if (dom.petSelectSub) dom.petSelectSub.textContent = draftCards > 0
-        ? '第二关预览 · 先选择宠物，再选择 ' + draftCards + ' 项强化'
+        ? VS.Levels.label(levelIndex) + '练习 · 先选择宠物，再选择 ' + draftCards + ' 项强化'
         : '击杀尸潮之王的奖励 · 等级 +1 · 宠物本关生效' +
           (levelIndex > 0 ? ' · 第二关可选专属宠物' : ' · 进入第二关后宠物会重置');
 
