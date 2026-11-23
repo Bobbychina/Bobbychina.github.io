@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#11171b" />
+    <title>Blockline · 命令方块工作台</title>
+    <link rel="icon" href="assets/impulse.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="branding">
+        <span class="brand-icon" data-icon="logo"></span><strong>Blockline</strong
+        ><span class="brand-div"></span><span class="brand-desc">命令方块工作台</span>
+      </div>
+      <div class="top-actions">
+        <div id="edition" class="segmented" aria-label="游戏版本">
+          <button data-ed="JE">Java 版</button><button data-ed="BE">基岩版</button>
+        </div>
+        <button id="guide" class="quiet"><i data-icon="book"></i><span>指令手册</span></button
+        ><button id="run" class="primary"><i data-icon="play"></i><span>运行模拟</span></button>
+      </div>
+    </header>
+    <main class="layout">
+      <aside class="library">
+        <div class="side-head">
+          <i data-icon="layers"></i>
+          <h2>方块库</h2>
+        </div>
+        <p class="small-hint">选择方块，再点击画布放置</p>
+        <div id="palette"></div>
+        <div class="side-head quick-head">
+          <i data-icon="terminal"></i>
+          <h2>快捷指令</h2>
+        </div>
+        <div id="quick"></div>
+        <button class="all-cmd" id="allCmd">浏览全部指令 <i data-icon="arrowRight"></i></button>
+        <div class="library-foot"><span class="led"></span><span id="saveState">已保存到本机</span></div>
+      </aside>
+      <section class="center">
+        <div class="board-top">
+          <div class="project">
+            <i data-icon="workflow"></i
+            ><select id="project" title="切换示例或新建画布" aria-label="画布项目">
+              <option value="intro">入门命令链</option>
+              <option value="clock">循环计分器</option>
+              <option value="empty">空白画布</option>
+            </select>
+          </div>
+          <div class="board-actions">
+            <button id="step" title="前进一步，执行一个游戏刻">
+              <i data-icon="step"></i><span>单步</span></button
+            ><button id="reset" title="清空模拟状态，将运行位置回到第 0 刻">
+              <i data-icon="reset"></i><span>重置</span>
+            </button>
+          </div>
+        </div>
+        <div id="board" tabindex="0" aria-label="XZ 命令方块编排画布">
+          <div class="canvas-caption">
+            <span class="toolset" id="tools"
+              ><button data-tool="select" title="选择或移动方块 (V)" aria-label="选择">
+                <i data-icon="cursor"></i></button
+              ><button data-tool="pan" title="平移画布 (H)" aria-label="平移"><i data-icon="hand"></i></button
+              ><button data-tool="erase" title="移除方块 (X)" aria-label="移除">
+                <i data-icon="erase"></i></button
+            ></span>
+          </div>
+          <div id="boardHint" hidden></div>
+          <svg id="wires" aria-hidden="true"></svg>
+          <div id="nodes"></div>
+          <div id="ghost" hidden></div>
+          <div class="canvas-foot">
+            <span class="board-axis"><i data-icon="axis"></i> XZ 平面 <b>·</b> Y 64</span>
+            <div class="zoom">
+              <button id="zoomOut" title="缩小">−</button
+              ><button id="zoomLabel" title="恢复 100% 缩放">100%</button
+              ><button id="zoomIn" title="放大">+</button><span></span
+              ><button id="fit" title="居中显示全部方块" aria-label="适应画布">
+                <i data-icon="fit"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <section class="output">
+          <div class="output-head">
+            <div id="tabs" role="tablist"></div>
+            <select id="viewer" aria-label="预览玩家" title="预览玩家"></select>
+          </div>
+          <div id="out"></div>
+        </section>
+      </section>
+      <aside class="inspector">
+        <div class="inspect-header">
+          <div class="side-head">
+            <i data-icon="sliders"></i>
+            <h2>方块属性</h2>
+          </div>
+          <button id="delete" class="iconbtn" title="删除选中方块" aria-label="删除选中方块">
+            <i data-icon="trash"></i>
+          </button>
+        </div>
+        <div id="properties"></div>
+      </aside>
+    </main>
+    <footer class="status">
+      <span><i class="led" id="runLight"></i><b id="simState">就绪</b></span
+      ><span id="baseline"></span><span id="blockCount"></span><span class="right" id="tickState"></span>
+    </footer>
+    <dialog id="manual">
+      <div class="dialog-head">
+        <div>
+          <h2>指令手册</h2>
+          <p id="manualInfo"></p>
+        </div>
+        <button class="iconbtn" id="closeManual" aria-label="关闭手册"><i data-icon="close"></i></button>
+      </div>
+      <div class="manual-search">
+        <i data-icon="search"></i
+        ><input id="search" placeholder="搜索指令或用途，例如 give、计分板" autocomplete="off" />
+      </div>
+      <p class="manual-note">
+        选择示例可填入当前方块。目录按指令入口统计，支持范围限于已实现的子命令与参数。声音和音乐以事件记录展示。
+      </p>
+      <div id="commandList"></div>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script src="assets/registry.js"></script>
+    <script src="assets/icons.js"></script>
+    <script src="core.js"></script>
+    <script src="inventory.js"></script>
+    <script src="logic.js"></script>
+    <script src="commands.js"></script>
+    <script src="advanced.js"></script>
+    <script src="simulation.js"></script>
+    <script src="catalog.js"></script>
+    <script src="ui-kit.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
