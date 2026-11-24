@@ -962,6 +962,16 @@
 
   C.CRIT_MULT = 2.0;
 
+  C.HUNTERS = {
+    wanderer: { name: '游猎者', desc: '均衡开局。带 30 金币出发，可自由搭配武器与装备。' },
+    gunner: { name: '双铳手', desc: '额外弹数 +1，生命上限 −20%。适合魔法飞弹、寒霜飞锥和机械蜂群等受弹数影响的武器。',
+      start: function (p) { p.projBonus++; p.hp = p.maxHp = Math.round(p.maxHp * 0.8); } },
+    warden: { name: '守灯人', desc: '生命上限 +35，每升一级回复 6 点生命；移速 −12%。',
+      start: function (p) { p.maxHp += 35; p.hp = p.maxHp; p.speed *= 0.88; } },
+    broker: { name: '行商', desc: '多带 18 金币。每存活 60 秒按余额收取 10% 利息，取整且最多 18 金币；全武器伤害 −15%。',
+      start: function (p, shop) { shop.coins += 18; p.damageMul *= 0.85; } }
+  };
+
   /* ---------------- 视觉 / 特效 ---------------- */
 
   C.FX = {

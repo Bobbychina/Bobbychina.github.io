@@ -959,6 +959,17 @@
           ctx.fillStyle = e.elite ? '#ffd166' : '#ff6b6b';
           ctx.fillRect(bx, by, w * U.clamp(e.hp / e.maxHp, 0, 1), h);
         }
+        if (e.bountyTarget) {
+          ctx.save();
+          ctx.font = 'bold 14px system-ui';
+          ctx.textAlign = 'center';
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#2b1b0c';
+          ctx.fillStyle = '#ffdc7c';
+          ctx.strokeText('赏', e.x, e.y - e.radius - 17);
+          ctx.fillText('赏', e.x, e.y - e.radius - 17);
+          ctx.restore();
+        }
       }
     },
 

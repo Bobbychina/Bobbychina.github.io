@@ -85,7 +85,7 @@
 
     /* ---- 面板 ---- */
     var panels = VS.Panels.init({
-      onStart: function (weapon, mode) { VS.Game.start(game, { startWeapon: weapon, mode: mode }); },
+      onStart: function (weapon, mode, hunter) { VS.Game.start(game, { startWeapon: weapon, mode: mode, hunter: hunter }); },
       onRetry: function () { VS.Game.start(game); },
       onResume: function () { VS.Game.resume(game); },
       onRestart: function () { VS.Game.start(game); },
@@ -270,6 +270,7 @@
         throw new Error('模块没有全部加载（检查 js 文件路径与加载顺序）');
       }
       if (!VS.Shop) throw new Error('商店模块没有完整加载，请刷新页面后重试');
+      if (!VS.Gear || !VS.EndlessForge || !VS.Workshop) throw new Error('装备或无尽锻炉没有完整加载，请刷新页面后重试');
       if (!VS.Config.CHAPTER_RULES || !VS.Encounters || !VS.Stages || !VS.ChapterArt) {
         throw new Error('章节内容没有完整加载，请刷新页面后重试');
       }

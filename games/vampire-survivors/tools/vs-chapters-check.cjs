@@ -7,7 +7,7 @@ const scope = { window: { innerWidth: 1280, innerHeight: 720, localStorage: {
 vm.createContext(scope);
 ['core/namespace','core/utils','game/config','game/chapters-config','game/arsenal-config','core/save','core/scores',
   'game/phases','game/levels','game/world','game/effects','game/player','game/weapons','game/arsenal',
-  'game/enemies','game/bosskit','game/encounters','game/stages','game/pickups','game/pets','game/shop','game/game','core/cheats']
+  'game/enemies','game/bosskit','game/encounters','game/stages','game/pickups','game/pets','game/gear','game/endless-forge','game/shop','game/game','core/cheats']
   .forEach(p => vm.runInContext(fs.readFileSync(path.join(root, 'js', p + '.js'), 'utf8'), scope, { filename: p }));
 const V = scope.window.VS, C = V.Config; V.Audio = { play() {}, unlock() {} }; let passes = 0;
 function test(name, fn) { fn(); passes++; console.log('PASS: ' + name); }

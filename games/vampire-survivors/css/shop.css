@@ -41,6 +41,27 @@
 .shop-build { margin-top: 14px; color: #c7d0bf; font-size: 12px; }
 .shop-build > summary { cursor: pointer; padding: 8px 0; color: #e0c78e; }
 .shop-build .build-summary { margin-top: 8px; background: #101b19; }
+#shopViews { display: flex; gap: 5px; flex-wrap: wrap; border-bottom: 1px solid #526251; margin-bottom: 10px; }
+#shopViews button, .gear-row button { color: #becbbf; background: #172421; border: 1px solid #4b5e51; padding: 9px 12px; cursor: pointer; font: 600 13px/1.4 system-ui, sans-serif; }
+#shopViews button[aria-pressed=true] { color: #f3d89d; background: #32362b; border-bottom: 3px solid #d6b977; }
+.shop-status:empty { display: none; }
+#shopGear h3 { color: #eddbad; font-size: 16px; margin: 14px 0 8px; }
+#shopGear h3 small, .gear-row small { font-size: 12px; color: #bfccb9; }
+.gear-row, .set-guide { border-left: 3px solid var(--family); margin: 8px 0; padding: 8px 12px; text-align: left; background: #15211e; }
+.gear-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gear-row h4 { margin: 3px 0; color: #f2e3c2; font-size: 15px; }
+.gear-row button { flex: none; }
+.gear-row button:disabled { opacity: .5; cursor: default; }
+#shopGear p, .set-guide, .forge-task { font-size: 12px; line-height: 1.65; color: #bacabd; }
+.gear-row p { margin: 0; }
+.set-guide ul { margin: 6px 0; padding-left: 1.4em; }
+.set-guide li.active, .set-guide > b { color: var(--family); }
+.forge-task { border-left: 3px solid #dfb67a; background: #26281f; padding: 9px 12px; color: #e3ce9e; }
+.forge-actions { display: grid; gap: 6px; margin-top: auto; }
+.forge-actions button { font: 600 12px/1.5 system-ui, sans-serif; padding: 8px; cursor: pointer; color: #eedfba; border: 1px solid #6b745e; background: #273329; }
+.forge-actions button.shop-buy { margin: 0; background: #d4bc7e; color: #17271f; }
+.forge-actions button:disabled { opacity: .5; cursor: default; }
+#huntObjective { border-color: #dbad69; color: #eed39b; }
 @media (max-width: 700px) {
   #panel-shop { padding: 18px 15px; }
   .shop-layout { grid-template-columns: 1fr; gap: 15px; margin-top: 15px; }

@@ -93,9 +93,10 @@
       p.facing.x = p.dashX;
       p.facing.y = p.dashY;
       p.dashT = C.PLAYER.DASH.TIME;
-      p.dashCd = C.PLAYER.DASH.CD * p.dashCooldownMul;
+      p.dashCd = C.PLAYER.DASH.CD * p.dashCooldownMul * (p.gear ? VS.Gear.dashMul(p) : 1);
       /* 无敌帧比位移略长：按得准就能"穿"过弹幕和冲撞 */
       p.invuln = Math.max(p.invuln, C.PLAYER.DASH.IFRAME);
+      if (p.gear) VS.Gear.onDash(p, game);
       if (game) {
         VS.Audio.play('hit');
         VS.Effects.burst(game.fx, p.x, p.y, '#7ee0ff', 12, { speed: 190, life: 0.32, size: 2.8 });
@@ -106,6 +107,8 @@
     /** 每帧更新；axis 由输入模块提供 */
     update: function (p, dt, world, axis) {
       if (!p.alive) return;
+      var startX = p.x, startY = p.y;
+      var dashing = p.dashT > 0;
 
       /* --- 闪避位移（优先于普通移动；无敌帧从按下那一刻算） --- */
       if (p.dashT > 0) {
@@ -123,8 +126,9 @@
       if (p.dashT <= 0) p.moving = (ax !== 0 || ay !== 0);
 
       if (p.dashT <= 0 && p.moving) {
-        p.x += ax * p.speed * p.stageSpeedMul * dt;
-        p.y += ay * p.speed * p.stageSpeedMul * dt;
+        var speed = p.speed * p.stageSpeedMul * (p.gear ? VS.Gear.moveMul(p) : 1);
+        p.x += ax * speed * dt;
+        p.y += ay * speed * dt;
 
         var alen = Math.sqrt(ax * ax + ay * ay);
         if (alen > 0.001) {
@@ -145,10 +149,15 @@
 
       /* --- 地图边界 --- */
       VS.World.clampEntity(world, p);
+      if (p.gear) {
+        var moved = (p.moving || dashing) && (p.x !== startX || p.y !== startY);
+        VS.Gear.step(p, dt, moved);
+      }
 
       /* --- 生命回复 --- */
-      if (p.hp < p.maxHp && p.regen > 0) {
-        p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
+      if (p.hp < p.maxHp) {
+        var regen = p.gear ? VS.Gear.regen(p) : p.regen;
+        if (regen > 0) p.hp = Math.min(p.maxHp, p.hp + regen * dt);
       }
 
       /* --- 计时器 --- */
@@ -174,9 +183,14 @@
       }
 
       var dmg = Math.max(1, amount - p.armor);
+      if (p.gear) {
+        dmg = VS.Gear.resolveHit(p, dmg, game);
+        if (dmg <= 0) return 0;
+      }
       p.hp -= dmg;
       p.invuln = C.PLAYER.INVULN;
       p.hurtFlash = 0.28;
+      if (p.gear) VS.Gear.onWound(p, game);
 
       /* 击退：从伤害来源指向玩家 */
       if (srcX !== undefined && srcY !== undefined) {
@@ -242,7 +256,7 @@
       var cap = p.endless ? Infinity : C.XP.MAX_LEVEL;
       if (p.level >= cap) return 0;
 
-      p.xp += amount;
+      p.xp += p.gear && p.gear.worn.sieve ? amount * 1.25 : amount;
       var levels = 0;
 
       while (p.xp >= p.xpNeeded && p.level < cap && levels < 100) {

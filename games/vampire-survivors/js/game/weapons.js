@@ -42,8 +42,13 @@
     var p = game.player;
     var dmg = base * p.damageMul;
     if (p.hp <= p.maxHp * 0.5) dmg *= 1 + p.lastStandBonus;
+    var chance = p.critChance;
+    if (p.gear) {
+      dmg *= VS.Gear.damageMul(game);
+      chance += VS.Gear.critBonus(p);
+    }
     var crit = false;
-    if (p.critChance > 0 && Math.random() < p.critChance) {
+    if (chance > 0 && Math.random() < chance) {
       dmg *= C.CRIT_MULT;
       crit = true;
     }
@@ -417,6 +422,9 @@
     if (w && w.schoolId && C.SCHOOLS && C.SCHOOLS[w.schoolId] && C.SCHOOLS[w.schoolId].weapon === id) {
       C.SCHOOLS[w.schoolId].apply(out, Math.min(3, w.schoolRank || 1));
     }
+    if (game && game.player && game.player.gear && out.damage !== undefined) {
+      out.damage *= VS.Gear.scopeMul(game.player, id);
+    }
 
     /* 关卡倍率：伤害（含"全技能加强"）与范围，数量不动 */
     if (mul !== 1 || dmgAll !== 1) {
@@ -533,11 +541,14 @@
     state.blasts.push({ x: x, y: y, r: radius, color: color, icy: icy, life: 0.4, maxLife: 0.4 });
   }
 
-  function damageArea(game, x, y, radius, damage, crit, slowMul, slowTime) {
+  function damageArea(game, x, y, radius, damage, crit, slowMul, slowTime, targets) {
     // 独立于弹道查询的 scratch，冰锥碎裂不会覆盖外层命中列表。
-    var found = game.weapons._areaHits || (game.weapons._areaHits = []);
-    game.world.grid.queryCircle(x, y, radius + enemyRadiusPad, found);
-    for (var i = 0; i < found.length; i++) {
+    var found = targets;
+    if (!found) {
+      found = game.weapons._areaHits || (game.weapons._areaHits = []);
+      game.world.grid.queryCircle(x, y, radius + enemyRadiusPad, found);
+    }
+    for (var i = 0, length = found.length; i < length; i++) {
       var e = found[i];
       if (e.dead || !U.circleHit(x, y, radius, e.x, e.y, e.radius)) continue;
       VS.Enemies.hurt(game, e, damage, crit, e.x - x, e.y - y);
@@ -697,6 +708,12 @@
     },
 
     rollDamage: rollDamage,
+    gearPulse: function (game, radius, base, color) {
+      var p = game.player, roll = rollDamage(game, base);
+      addBlast(game.weapons, p.x, p.y, radius, color, false);
+      // 闪避与受伤可能发生在本帧空间网格重建之前，换关后网格还可能指向上一关。
+      damageArea(game, p.x, p.y, radius, roll.dmg, roll.crit, null, 0, game.enemies.list);
+    },
 
     evolve: function (player, id) {
       var status = evolutionStatus(player, id);
@@ -770,6 +787,7 @@
         if (!state.extra) state.extra = VS.Arsenal.create();
         VS.Arsenal.update(state.extra, dt, game);
       }
+      if (p.gear) VS.Gear.settleBounty(game);
       for (var f = state.blasts.length - 1; f >= 0; f--) {
         state.blasts[f].life -= dt;
         if (state.blasts[f].life <= 0) U.swapRemove(state.blasts, f);

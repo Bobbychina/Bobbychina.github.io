@@ -47,6 +47,7 @@
         shopBtn: el('shopBtn'),
         weaponStrip: el('weaponStrip'),
         chapterMechanic: el('chapterMechanic'),
+        huntObjective: el('huntObjective'),
         muteBtn: el('muteBtn'),
         pauseBtn: el('pauseBtn'),
         dashBtn: el('dashBtn'),
@@ -112,6 +113,11 @@
       if (!dom || !dom.root) return;
 
       var p = game.player;
+      if (dom.huntObjective) {
+        var objective = VS.EndlessForge.objective(game);
+        dom.huntObjective.hidden = !objective;
+        if (dom.huntObjective.textContent !== objective) dom.huntObjective.textContent = objective;
+      }
       if (dom.coins && game.shop) dom.coins.textContent = U.group(game.shop.coins);
       if (dom.shopBtn) dom.shopBtn.disabled = [VS.Game.STATE.PLAYING, VS.Game.STATE.PAUSED, VS.Game.STATE.SHOP].indexOf(game.state) < 0;
       var mechanic = dom.chapterMechanic;

@@ -18,8 +18,14 @@
   function scaleFor(t, levelIndex, mode) {
     var mul = VS.Levels ? VS.Levels.statMul(levelIndex || 0) : { hp: 1, dmg: 1, speed: 1 };
     var waves = mode === 'endless' ? Math.floor(t / C.ENDLESS.WAVE_SECONDS) : 0;
+    // 到达原指数曲线上限后改为每波线性加血，保留速度与伤害的生存边界。
+    var hpFactor = Math.min(C.ENDLESS.MAX_HP_MULT, Math.pow(C.ENDLESS.HP_GROWTH, waves));
+    if (hpFactor === C.ENDLESS.MAX_HP_MULT) {
+      var cappedWave = Math.ceil(Math.log(C.ENDLESS.MAX_HP_MULT) / Math.log(C.ENDLESS.HP_GROWTH));
+      hpFactor += 25 * (waves - cappedWave);
+    }
     return {
-      hp: VS.Phases.hpMult(t) * mul.hp * Math.min(C.ENDLESS.MAX_HP_MULT, Math.pow(C.ENDLESS.HP_GROWTH, waves)),
+      hp: VS.Phases.hpMult(t) * mul.hp * hpFactor,
       dmg: VS.Phases.dmgMult(t) * mul.dmg * Math.min(C.ENDLESS.MAX_DAMAGE_MULT, Math.pow(C.ENDLESS.DAMAGE_GROWTH, waves)),
       speed: VS.Phases.speedMult(t) * mul.speed * Math.min(C.ENDLESS.MAX_SPEED_MULT, Math.pow(C.ENDLESS.SPEED_GROWTH, waves))
     };
@@ -668,6 +674,7 @@
 
     game.player.kills++;
     game.kills++;
+    if (game.mode === 'endless' && game.forge && VS.EndlessForge) VS.EndlessForge.onKill(game, e);
 
     /* 嗜血（第二关专属增益）：每次击杀回一点血。刻意不放音效/特效 —— 一秒杀几十只时会刷屏 */
     if (game.player.lifesteal > 0 && game.player.alive) {
@@ -818,6 +825,9 @@
         if (e.ai.vulnBonus > 1) amount *= e.ai.vulnBonus;
       }
 
+      if (game.mode === 'endless' && game.forge && VS.EndlessForge && amount > 0) {
+        amount *= VS.EndlessForge.hitMultiplier(game, e);
+      }
       e.hp -= amount;
       e.hitFlash = 0.12;
       game.player.damageDealt += amount;

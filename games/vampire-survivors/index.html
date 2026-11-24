@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="css/art-reset.css?v=20261104shop1">
 <link rel="stylesheet" href="css/levelup.css?v=20261104shop1">
 <link rel="stylesheet" href="css/expansion.css?v=20261104shop1">
-<link rel="stylesheet" href="css/shop.css?v=20261104shop1">
+<link rel="stylesheet" href="css/shop.css?v=20261124hunt1">
 </head>
 <body>
 
@@ -52,6 +52,7 @@
     </div>
     <div class="weapon-strip" id="weaponStrip"></div>
     <div class="chapter-mechanic" id="chapterMechanic" hidden aria-live="off"></div>
+    <div class="chapter-mechanic" id="huntObjective" hidden></div>
     <div class="touch-actions" id="touchActions" aria-label="触屏战斗操作">
       <button type="button" id="dashBtn" class="touch-action" aria-label="闪避"><span>闪避</span><small id="dashStatus">就绪</small></button>
       <button type="button" id="orbitBtn" class="touch-action" hidden><span>骨刃</span><small id="orbitStatus">切换范围</small></button>
@@ -89,14 +90,14 @@
       </div>
       <details class="field-guide"><summary>猎人手册 · 操作与关卡规则</summary><ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动 · 武器<b>自动攻击</b> · <kbd>Shift</kbd> <b>闪避</b> · <kbd>E</kbd> <b>切骨刃范围</b> · <kbd>B</kbd> 商店 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音</li>
-        <li>拾取经验球同时获得金币，每升一级额外获得 <b>12 金币</b>，不再弹出升级选卡。开局有 <b>30 金币</b>，随时按 <kbd>B</kbd> 或点击金币按钮，暂停战斗并购买武器、被动、流派和进化。</li>
+        <li>拾取经验球同时获得金币，每升一级额外获得 <b>12 金币</b>。通常带 <b>30 金币</b> 出发，行商带 48 金币。按 <kbd>B</kbd> 或点击金币按钮可暂停战斗，购买强化、搭配装备。</li>
         <li>商店每存活 <b>60 秒</b>免费补货，也可付费刷新。锁定的商品与价格保留，购买后的空位要等补货；关闭商店不会免费刷新。</li>
         <li>满 <b>3 分钟</b>起击杀有 <b>5%</b> 掉<b>金色经验球</b>（顶 100 颗）；打完 5 分钟的 Boss 升到 <b>20%</b></li>
         <li><b>5 分钟</b>的 Boss 送<b>等级 +1、金币和宠物</b>；<b>10 分钟</b>柠檬猪登场（扇形 / 环形 / 酸液池三种轮换）</li>
         <li><b>15 分钟</b>过关进<b>第二关</b>：继承构筑、等级、宠物与金币，怪血 ×1.3、<b>没有喘息</b>、地上冒<b>柠檬酸池</b>，另有新武器与增益。</li>
         <li>第二关 <b>12:00</b> 刷章节首领，<b>15:00 前必须打死</b>它；四关都保留构筑、等级、宠物、遗物和金币。</li>
         <li>第三、四关各 <b>12 分钟</b>；10 分钟刷新必须击杀的章节首领。暖灯能驱散寒意，卸压阀能取消地火并打断熔心巨像。</li>
-        <li><b>无尽模式</b>保留整局构筑与金币；每 3 分钟提升波次，每 5 分钟安排首领；10 分钟进入深渊、20 分钟进入霜钟回廊、30 分钟进入余烬熔庭，此后交替新场景。可在暂停菜单结束并结算。</li>
+        <li><b>无尽模式</b>每 3 分钟提升波次，每 5 分钟安排首领。10 分钟开启循环委托与无尽锻炉，提前练满常规强化也能开启。清剿、行军、讨伐轮番发放金币和炉芯，头顶带「赏」的敌人是讨伐目标。花金币可升一层或五层，一枚炉芯可直接升任意一层。20 分钟进入霜钟回廊、30 分钟进入余烬熔庭，此后交替。可在暂停菜单结束并结算。</li>
         <li>八把扩展武器各有 <b>3 条互斥流派</b>，每条 3 级；本局选定后沿该分支升级。</li>
       </ul>
       <div class="phases">
@@ -113,6 +114,9 @@
       </div>
       <div class="starter-choice"><label for="startWeapon">初始武器</label><select id="startWeapon"></select></div>
       <p class="starter-desc" id="starterDesc"></p>
+      <div class="starter-choice"><label for="startHunter">猎人出身</label><select id="startHunter" aria-describedby="hunterDesc"></select></div>
+      <p class="starter-desc" id="hunterDesc"></p>
+      <details class="arsenal-guide"><summary>装备图鉴 · 4 个装备位 / 4 系套装</summary><p>每系有 3 件装备。穿戴同系 2 件或 3 件可激活套装效果。可在商店免费换装。</p><div id="gearGuide"></div></details>
       <details class="arsenal-guide" id="arsenalGuide"><summary>武器图鉴 · 16 把武器 / 24 条新增流派 / 4 条进化</summary><div id="arsenalContent"></div></details>
       <details class="arsenal-guide chapter-guide"><summary>远征手册 · 新关卡、敌人与 6 件遗物</summary><div id="chapterGuide"></div></details>
       <button class="btn primary" id="startBtn">开始游戏</button>
@@ -130,11 +134,15 @@
     <section class="panel" id="panel-shop" hidden aria-labelledby="shopTitle">
       <div class="shop-heading"><div><span class="levelup-eyebrow">猎人补给站 / 强化交易</span><h2 id="shopTitle">夜行商店</h2></div><button type="button" class="shop-close" id="shopCloseBtn">继续狩猎 · B / Esc</button></div>
       <div class="shop-layout">
-        <aside class="shop-ledger"><span>可用金币</span><b id="shopCoins">30</b><p id="shopIncome"></p><p>拾取经验球赚金币<br>升级额外 +12 金币<br>击败首领获得赏金</p><p id="shopRestock"></p><button type="button" id="shopRefreshBtn" class="shop-refresh"></button><small>R 刷新 · 锁定商品保留原价<br>1–4 购买 · 战斗已暂停</small></aside>
-        <div class="shop-catalog"><div id="shopStatus" class="shop-status" role="status" aria-live="polite">选择商品购买，或攒钱等下一次补货。</div><div id="shopCards" class="shop-grid"></div></div>
+        <aside class="shop-ledger"><span><b id="shopHunter"></b> · 可用金币</span><b id="shopCoins">30</b><p id="shopIncome"></p><p id="shopRestock"></p><button type="button" id="shopRefreshBtn" class="shop-refresh"></button><small id="shopKeys"></small></aside>
+        <div class="shop-catalog">
+          <nav id="shopViews" aria-label="商店柜台"><button type="button" data-view="stock">强化货架</button><button type="button" data-view="gear">装备箱</button><button type="button" data-view="forge" hidden>无尽锻炉</button></nav>
+          <div id="shopStatus" class="shop-status" role="status" aria-live="polite"></div>
+          <div id="shopCards" class="shop-grid"></div><div id="shopGear" hidden></div><div id="shopForge" hidden></div>
+        </div>
       </div>
       <details class="shop-build"><summary>查看当前构筑与进化配方</summary><div class="build-summary" id="shopBuild"></div></details>
-      <p class="tip">价格随购买次数提高。货架不会因关闭商店而改变；流派分支仍互斥，满足配方后可购买武器进化。</p>
+      <p class="tip">常规商品随购买次数涨价，刻印按各自层数计价。满足配方后，下一次补货会优先提供武器进化。</p>
     </section>
 
     <section class="panel" id="panel-petselect" hidden>
@@ -204,7 +212,7 @@
 <script defer src="/games/account.js?v=20261021res1"></script>
 <script defer src="js/core/namespace.js?v=20261104shop1"></script>
 <script defer src="js/core/utils.js?v=20261104shop1"></script>
-<script defer src="js/game/config.js?v=20261104shop1"></script>
+<script defer src="js/game/config.js?v=20261124hunt1"></script>
 <script defer src="js/game/chapters-config.js?v=20261104shop1"></script>
 <script defer src="js/game/arsenal-config.js?v=20261104shop1"></script>
 <script defer src="js/game/phases.js?v=20261104shop1"></script>
@@ -220,29 +228,32 @@
 <script defer src="js/core/input.js?v=20261104shop1"></script>
 <script defer src="js/game/world.js?v=20261104shop1"></script>
 <script defer src="js/game/effects.js?v=20261104shop1"></script>
-<script defer src="js/game/player.js?v=20261104shop1"></script>
-<script defer src="js/game/weapons.js?v=20261104shop1"></script>
+<script defer src="js/game/gear.js?v=20261124hunt1"></script>
+<script defer src="js/game/endless-forge.js?v=20261124hunt1"></script>
+<script defer src="js/game/player.js?v=20261124hunt1"></script>
+<script defer src="js/game/weapons.js?v=20261124hunt1"></script>
 <script defer src="js/game/arsenal.js?v=20261104shop1"></script>
-<script defer src="js/game/enemies.js?v=20261104shop1"></script>
+<script defer src="js/game/enemies.js?v=20261124hunt1"></script>
 <script defer src="js/game/bosskit.js?v=20261104shop1"></script>
 <script defer src="js/game/encounters.js?v=20261104shop1"></script>
 <script defer src="js/game/stages.js?v=20261104shop1"></script>
 <script defer src="js/game/pickups.js?v=20261104shop1"></script>
 <script defer src="js/game/pets.js?v=20261104shop1"></script>
-<script defer src="js/game/shop.js?v=20261104shop1"></script>
+<script defer src="js/game/shop.js?v=20261124hunt1"></script>
 <script defer src="js/render/sprites.js?v=20261104shop1"></script>
 <script defer src="js/render/assets.js?v=20261104shop1"></script>
-<script defer src="js/render/renderer.js?v=20261104shop1"></script>
+<script defer src="js/render/renderer.js?v=20261124hunt1"></script>
 <script defer src="js/render/chapter-art.js?v=20261104shop1"></script>
-<script defer src="js/ui/hud.js?v=20261104shop1"></script>
-<script defer src="js/ui/panels.js?v=20261104shop1"></script>
+<script defer src="js/ui/hud.js?v=20261124hunt1"></script>
+<script defer src="js/ui/workshop.js?v=20261124hunt1"></script>
+<script defer src="js/ui/panels.js?v=20261124hunt1"></script>
 <script defer src="js/ui/account-ui.js?v=20261104shop1"></script>
 <script defer src="js/ui/scores-ui.js?v=20261104shop1"></script>
 <script defer src="js/ui/leaderboard-ui.js?v=20261104shop1"></script>
 <script defer src="js/ui/notes-ui.js?v=20261104shop1"></script>
-<script defer src="js/game/game.js?v=20261104shop1"></script>
+<script defer src="js/game/game.js?v=20261124hunt1"></script>
 <script defer src="js/core/cheats.js?v=20261104shop1"></script>
-<script defer src="js/main.js?v=20261104shop1"></script>
+<script defer src="js/main.js?v=20261124hunt1"></script>
 
 <!-- 站点 BETA 声明条（与主页/游戏厅同一份）：失败不影响游戏本体 -->
 

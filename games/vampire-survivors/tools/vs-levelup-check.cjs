@@ -15,7 +15,7 @@ vm.createContext(sandbox);
   'js/game/phases.js', 'js/game/levels.js', 'js/game/world.js',
   'js/game/effects.js', 'js/game/player.js', 'js/game/weapons.js', 'js/game/arsenal.js',
   'js/game/enemies.js', 'js/game/bosskit.js', 'js/game/encounters.js', 'js/game/stages.js',
-  'js/game/pickups.js', 'js/game/pets.js', 'js/game/shop.js', 'js/game/game.js'
+  'js/game/pickups.js', 'js/game/pets.js', 'js/game/gear.js', 'js/game/endless-forge.js', 'js/game/shop.js', 'js/game/game.js'
 ].forEach(file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file }));
 
 const VS = sandbox.window.VS;
@@ -215,6 +215,9 @@ test('战役满构筑满血时货架允许为空，刷新和购买都失败且�
   });
   C.UPGRADES.forEach(up => { p.upgrades[up.id] = up.max; });
   p.hp = p.maxHp;
+  VS.Game.openShop(game);
+  for (const id of Object.keys(VS.Gear.items)) assert.equal(VS.Gear.buy(game, id), true);
+  VS.Game.closeShop(game);
 
   assert.equal(VS.Game.upgradePool(game).length, 0, '满构筑满血的战役没有合法强化');
   game.shop.offers = [];

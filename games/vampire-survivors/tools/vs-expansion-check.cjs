@@ -12,7 +12,7 @@ vm.createContext(sandbox);
 [
   'core/namespace', 'core/utils', 'game/config', 'game/arsenal-config', 'core/save', 'core/scores',
   'game/phases', 'game/levels', 'game/world', 'game/effects', 'game/player', 'game/weapons', 'game/arsenal',
-  'game/enemies', 'game/pickups', 'game/pets', 'game/shop', 'game/game', 'core/cheats'
+  'game/enemies', 'game/pickups', 'game/pets', 'game/gear', 'game/endless-forge', 'game/shop', 'game/game', 'core/cheats'
 ].forEach(file => vm.runInContext(fs.readFileSync(path.join(root, 'js', file + '.js'), 'utf8'), sandbox, { filename: file }));
 const VS = sandbox.window.VS, C = VS.Config;
 VS.Audio = { play() {}, unlock() {} };
@@ -58,7 +58,7 @@ test('选定分支后，合法池只产生该分支的后续等级', () => {
   const g = game('sickle', 'hook'), w = g.player.weapons[0];
   g.player.weapons = [w, { id: 'bolt', level: 8, evolved: true, school: 3 }, { id: 'garlic', level: 8, evolved: true, school: 3 }, { id: 'orbit', level: 8, school: 3 }];
   w.level = 8; C.UPGRADES.forEach(up => { g.player.upgrades[up.id] = up.max; });
-  const cards = VS.Game.upgradePool(g);
+  const cards = VS.Game.upgradePool(g).filter(card => card.kind === 'school');
   assert.equal(cards.length, 1); assert.equal(cards[0].schoolId, 'sickle_hook');
   assert.equal(VS.Game._applyChoice(g, cards[0]), true); assert.equal(w.schoolRank, 2);
 });
@@ -196,17 +196,122 @@ test('无尽首领持续轮换，单只存活时不重复生成，击败后仍�
   VS.Enemies.kill(g, second); g.time = 902; VS.Enemies.update(g.enemies, 0, g); assert.equal(g.enemies.boss.type, 'boss');
   assert.equal(g.enemies.bossCount, 3);
 });
-test('无尽后期倍率有限，满构筑仍有补给卡，战役等级仍封顶', () => {
+test('无尽满构筑满血仍有四种可重复刻印，战役等级仍封顶', () => {
   const g = game('sickle', 'hook', 'endless');
   for (const t of [0, 1800, 360000000]) for (const v of Object.values(VS.Enemies.scaleFor(t, 1, 'endless'))) assert.ok(Number.isFinite(v) && v > 0);
+  assert.ok(VS.Enemies.scaleFor(20000, 1, 'endless').hp > VS.Enemies.scaleFor(18000, 1, 'endless').hp);
   const w = g.player.weapons[0]; w.level = 8; w.schoolRank = 3;
   ['bolt', 'garlic', 'frost'].forEach(id => { VS.Weapons.add(g.player, id); const v = VS.Weapons.get(g.player, id); v.level = 8; v.school = 999; v.evolved = true; });
   C.UPGRADES.forEach(up => { g.player.upgrades[up.id] = up.max; });
-  const choices = VS.Game.upgradePool(g);
-  assert.equal(choices.length, 2, '满构筑且满血时只应剩两项无尽补给');
-  assert.ok(choices.every(c => c.kind === 'supply'), '满构筑仍应提供无尽补给');
-  assert.equal(choices.map(c => c.id).sort().join(','), 'guard,power');
+  VS.Game.openShop(g);
+  for (const id of Object.keys(VS.Gear.items)) assert.equal(VS.Gear.buy(g, id), true);
+  g.player.damageMul = 1000000;
+  g.player.armor = 500;
+  function assertStock() {
+    const choices = VS.Game.upgradePool(g);
+    assert.equal(choices.length, 4);
+    assert.ok(choices.every(c => c.kind === 'forge'));
+    assert.equal(choices.map(c => c.id).sort().join(','), 'duel,echo,sight,vigor');
+    assert.ok(VS.Shop.refresh(g, false));
+    assert.equal(new Set(g.shop.offers.map(o => o.choice.id)).size, 4);
+  }
+  assertStock();
+  g.shop.view = 'forge';
+  VS.Shop.earn(g, 300000);
+  for (let i = 0; i < 40; i++) {
+    const cost = VS.EndlessForge.price(g, 'duel');
+    assert.ok(VS.Shop.forge(g, 'duel', cost));
+  }
+  assert.equal(g.forge.ranks.duel, 40);
+  assert.equal(g.shop.spent, 260580);
+  assertStock();
   const campaign = game('bolt'); campaign.player.level = 99; assert.equal(VS.Player.grantLevel(campaign.player), false);
+});
+test('已锻造刻印按命中距离和每个目标的有效命中次数增伤', () => {
+  const g = game('bolt', null, 'endless');
+  g.time = 600;
+  VS.Game.openShop(g);
+  g.shop.view = 'forge';
+  VS.Shop.earn(g, 180);
+  for (const id of ['duel', 'sight', 'echo']) assert.ok(VS.Shop.forge(g, id, 60));
+  VS.Game.closeShop(g);
+  function hit(target) {
+    const before = target.hp;
+    VS.Enemies.hurt(g, target, 100);
+    return Math.round(before - target.hp);
+  }
+  for (const [distance, damage] of [[135, 114], [136, 100], [234, 100], [235, 118]]) {
+    assert.equal(hit(enemy(g, distance, 0)), damage);
+  }
+  const regular = enemy(g, 170, 0), chief = enemy(g, 170, 0, 10000, 'boss');
+  assert.equal(hit(regular), 100);
+  chief.ai = { invuln: 1 };
+  assert.equal(hit(chief), 0);
+  chief.ai.invuln = 0;
+  assert.equal(hit(chief), 100);
+  assert.equal(hit(regular), 100);
+  assert.equal(hit(chief), 135);
+  assert.equal(hit(regular), 135);
+  assert.equal(hit(regular), 100);
+});
+test('从10分钟起实际击杀、移动及讨伐结算三份赏金，并继续下一轮', () => {
+  const g = game('bolt', null, 'endless'), p = g.player;
+  g.time = 599.99;
+  g.enemies.endlessBossAt = 9999;
+  assert.equal(VS.EndlessForge.choices(g, false).length, 0);
+  VS.Game.step(g, 0.02);
+  assert.match(VS.EndlessForge.objective(g), /清剿/);
+
+  VS.Game.openShop(g);
+  g.shop.view = 'forge';
+  VS.Shop.earn(g, 60);
+  assert.ok(VS.Shop.forge(g, 'vigor', 60));
+  VS.Game.closeShop(g);
+  p.hp -= 40;
+  const wounded = p.hp;
+  const startingCoins = g.shop.coins;
+  for (let n = 0; n < 45; n++) VS.Enemies.kill(g, enemy(g, 300, 0));
+  assert.equal(g.shop.coins, startingCoins + 120);
+  assert.equal(g.forge.cores, 1);
+  assert.equal(p.hp, wounded + 8);
+  assert.match(VS.EndlessForge.objective(g), /行军/);
+  for (let n = 0; n < 13 && g.forge.completed === 1; n++) {
+    VS.Player.update(p, 1, g.world, { x: n % 2 ? -1 : 1, y: 0 });
+    VS.EndlessForge.update(g, 1);
+  }
+  assert.equal(g.forge.completed, 2);
+  assert.equal(g.shop.coins, startingCoins + 240);
+  assert.equal(g.forge.cores, 2);
+  VS.EndlessForge.update(g, 0);
+  const marked = g.forge.target, spawned = g.enemies.list.length;
+  assert.ok(marked && marked.bountyTarget && marked.elite);
+  VS.EndlessForge.update(g, 1);
+  assert.equal(g.enemies.list.length, spawned);
+  VS.Enemies.hurt(g, marked, marked.hp + 1);
+  assert.equal(g.shop.coins, startingCoins + 360);
+  assert.equal(g.forge.completed, 3);
+  assert.equal(g.forge.cores, 3);
+  assert.match(VS.EndlessForge.objective(g), /清剿 0\/50/);
+  VS.Game.openShop(g);
+  g.shop.view = 'forge';
+  g.shop.coins = 0;
+  const hpBefore = p.maxHp, spentBefore = g.shop.spent;
+  assert.equal(VS.Shop.forge(g, 'vigor', 87), false);
+  assert.equal(VS.Shop.useCore(g, 'unknown'), false);
+  assert.equal(g.forge.cores, 3);
+  assert.ok(VS.Shop.useCore(g, 'vigor'));
+  assert.equal(g.forge.cores, 2);
+  assert.equal(g.forge.ranks.vigor, 2);
+  assert.equal(p.maxHp, hpBefore + 12);
+  assert.ok(VS.Shop.useCore(g, 'echo'));
+  assert.ok(VS.Shop.useCore(g, 'sight'));
+  assert.equal(VS.Shop.useCore(g, 'duel'), false);
+  assert.equal(g.forge.cores, 0);
+  assert.equal(g.shop.coins, 0);
+  assert.equal(g.shop.spent, spentBefore);
+  VS.Game.start(g, { mode: 'endless' });
+  assert.equal(g.forge, null);
+  assert.equal(VS.EndlessForge.objective(g), '');
 });
 test('战役与无尽分别记录，重复结算无副作用，无尽不提交战役排行榜', () => {
   storage.clear(); const g = game('sickle', null, 'endless'); let submits = 0;

@@ -172,26 +172,21 @@
       weights.push(11);
     }
 
+    pool.forEach(function (choice, index) { choice.weight = weights[index]; });
+    var forge = VS.EndlessForge.choices(game, pool.length === 0);
+    pool = pool.concat(VS.Gear.choices(game));
     if (pool.length < 4) {
-      [
-        { id: 'heal', name: '战场补给', icon: '✚', desc: '立即回复最大生命的 30%' },
-        { id: 'power', name: '无尽战意', icon: '⚔', desc: '全武器伤害 +2%（最高 ×1000000）' },
-        { id: 'guard', name: '百战护甲', icon: '⛨', desc: '护甲 +0.5（最高 500）' }
-      ].forEach(function (supply) {
-        if (supply.id === 'heal' && p.hp >= p.maxHp) return;
-        if (supply.id !== 'heal' && game.mode !== 'endless') return;
-        if (supply.id === 'power' && p.damageMul >= 1000000 || supply.id === 'guard' && p.armor >= 500) return;
-        pool.push({ kind: 'supply', id: supply.id, name: supply.name, icon: supply.icon,
-          color: '#dfc58e', desc: supply.desc, tag: '无尽补给' }); weights.push(8);
-      });
+      if (p.hp < p.maxHp) pool.push({ kind: 'supply', id: 'heal', name: '战场补给', icon: '✚',
+        color: '#dfc58e', desc: '立即回复最大生命的 30%', tag: '治疗', weight: 8 });
+      pool = pool.concat(forge);
     }
-
-    return pool.map(function (choice, i) { choice.weight = weights[i]; return choice; });
+    return pool;
   }
 
   function rewardLevels(game, count) {
     if (count <= 0) return;
     var coins = VS.Shop.levelReward(game, count);
+    if (game.hunter === 'warden') VS.Player.heal(game.player, 6 * count, game);
     if (game.fx) VS.Effects.text(game.fx, game.player.x, game.player.y - 28,
       '等级 +' + count + ' · +' + coins + ' 金币', '#ffd166', { life: 1.1, size: 15 });
   }
@@ -202,10 +197,10 @@
     })) return false;
     var p = game.player;
 
+    if (c.kind === 'gear') return VS.Gear.buy(game, c.id);
+    if (c.kind === 'forge') return VS.EndlessForge.buy(game, c.id);
     if (c.kind === 'supply') {
       if (c.id === 'heal') VS.Player.heal(p, p.maxHp * 0.3, game);
-      if (c.id === 'power') p.damageMul = Math.min(1000000, p.damageMul * 1.02);
-      if (c.id === 'guard') p.armor = Math.min(500, p.armor + 0.5);
     } else if (c.kind === 'evolution') {
       return VS.Weapons.evolve(p, c.id);
     } else if (c.kind === 'weapon-up') {
@@ -239,6 +234,7 @@
       var game = {
         state: STATE.MENU,
         mode: 'campaign',
+        hunter: 'wanderer',
         endlessWave: 1,
         time: 0,
         totalTime: 0,          // 已经打完的关卡时长之和（结算/排行用 runTime()）
@@ -317,6 +313,8 @@
       game.relicChoices = [];
       if (opt.mode === 'campaign' || opt.mode === 'endless') game.mode = opt.mode;
       if (C.START_WEAPONS.indexOf(opt.startWeapon) >= 0) game.startWeapon = opt.startWeapon;
+      if (Object.prototype.hasOwnProperty.call(C.HUNTERS, opt.hunter)) game.hunter = opt.hunter;
+      game.forge = null;
       game.time = 0;
       game.totalTime = 0;
       game.level = 0;
@@ -336,6 +334,8 @@
       game.pets = VS.Pets.create();
       game.player = VS.Player.create(game.world);
       game.player.endless = game.mode === 'endless';
+      var hunter = C.HUNTERS[game.hunter];
+      if (hunter.start) hunter.start(game.player, game.shop);
       if (VS.Stages) VS.Stages.enter(game);
 
       game.pendingPetSelect = false;
@@ -431,6 +431,10 @@
 
       var prevTime = game.time;
       game.time += dt;
+      if (game.hunter === 'broker' && Math.floor(runTime(game) / 60) > Math.floor((game.totalTime + prevTime) / 60)) {
+        var interest = VS.Shop.earn(game, Math.min(18, Math.floor(game.shop.coins / 10)));
+        if (interest) VS.Effects.text(game.fx, game.player.x, game.player.y - 28, '利息 +' + interest, '#ffd166');
+      }
 
       /* --- 阶段推进：跨过时间点就播报一次 --- */
       if (game.mode === 'endless') {
@@ -483,6 +487,7 @@
       /* --- 逻辑推进 --- */
       if (VS.Stages) VS.Stages.update(game, dt);
       VS.Player.update(game.player, dt, game.world, axis);
+      if (game.mode === 'endless') VS.EndlessForge.update(game, dt);
       VS.Pets.update(game.pets, dt, game);
       VS.Enemies.update(game.enemies, dt, game);
       if (VS.Encounters) VS.Encounters.update(game.encounters, dt, game);
@@ -632,6 +637,7 @@
       if ([STATE.PLAYING, STATE.PAUSED].indexOf(game.state) < 0) return false;
       game.shopReturnState = game.state;
       game.state = STATE.SHOP;
+      game.shop.view = 'stock';
       if (VS.Input && VS.Input.reset) VS.Input.reset();
       VS.Shop.sync(game);
       if (game.deps.panels) { game.deps.panels.hideBanner(); game.deps.panels.showShop(game); }
@@ -653,14 +659,17 @@
     },
 
     buyShop: function (game, index, token) {
+      var offer = game.shop && game.shop.offers[index];
       if (!VS.Shop.buy(game, index, token)) return false;
-      if (game.deps.panels) game.deps.panels.showShop(game, '购买成功 · 强化已生效');
+      var message = '已购买' + offer.choice.name;
+      if (offer.choice.kind === 'gear') message += VS.Gear.equipped(game.player).indexOf(offer.choice.id) >= 0 ? ' · 已装备' : ' · 已存入装备箱';
+      if (game.deps.panels) game.deps.panels.showShop(game, message);
       if (game.deps.hud) game.deps.hud.update(game);
       return true;
     },
 
     refreshShop: function (game) {
-      if (game.state !== STATE.SHOP || !VS.Shop.refresh(game, true)) return false;
+      if (game.state !== STATE.SHOP || game.shop.view !== 'stock' || !VS.Shop.refresh(game, true)) return false;
       if (game.deps.panels) game.deps.panels.showShop(game, '货架已刷新 · 锁定商品保留');
       if (game.deps.hud) game.deps.hud.update(game);
       return true;
@@ -676,7 +685,7 @@
       if (game.state === STATE.RELICSELECT && VS.Stages) return VS.Stages.chooseRelic(game, index);
       if (game.state === STATE.PETSELECT) return Game.choosePet(game, index);
       var offer = game.shop && game.shop.offers[index];
-      if (game.state === STATE.SHOP && offer) return Game.buyShop(game, index, offer.token);
+      if (game.state === STATE.SHOP && game.shop.view === 'stock' && offer) return Game.buyShop(game, index, offer.token);
       return false;
     },
 

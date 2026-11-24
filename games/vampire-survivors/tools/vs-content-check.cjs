@@ -14,7 +14,7 @@ vm.createContext(sandbox);
   'js/game/phases.js', 'js/game/levels.js', 'js/game/world.js',
   'js/game/effects.js', 'js/game/player.js', 'js/game/weapons.js',
   'js/game/enemies.js', 'js/game/pickups.js', 'js/game/pets.js',
-  'js/game/shop.js', 'js/game/game.js'
+  'js/game/gear.js', 'js/game/endless-forge.js', 'js/game/shop.js', 'js/game/game.js'
 ].forEach(file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file }));
 
 const VS = sandbox.window.VS;

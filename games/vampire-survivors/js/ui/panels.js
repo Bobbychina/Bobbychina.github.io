@@ -32,7 +32,7 @@
     if (!dom) return;
     var endless = dom.startMode && dom.startMode.value === 'endless';
     if (dom.modeDesc) dom.modeDesc.textContent = endless
-      ? '无时间上限 · 每 3 分钟提升波次 · 每 10 分钟推进场景，随后轮换寒潮与熔炉'
+      ? '每 3 分钟提升波次。10 分钟开启无尽锻炉与循环委托；提前练满常规强化也能开启。'
       : '四关远征 · 全程继承构筑与金币 · 随时按 B 购买强化';
     var game = VS.Game && VS.Game.current;
     var data = game ? game.data : VS.Save.load();
@@ -131,8 +131,9 @@
       ? '<span>背水生效 +' + Math.round(p.lastStandBonus * 100) + '%</span>' : '';
     return '<div class="build-line"><span class="build-label">武器 ' + p.weapons.length + '/' + VS.Config.MAX_WEAPONS + '</span>' + weapons + '</div>' +
       '<div class="build-line build-stats"><span>生命 ' + Math.ceil(p.hp) + '/' + Math.round(p.maxHp) + '</span>' +
-      '<span>伤害加成 ×' + p.damageMul.toFixed(2) + '</span>' + lastStand + '<span>护甲 ' + p.armor + '</span>' +
-      '<span>闪避冷却 ' + (VS.Config.PLAYER.DASH.CD * p.dashCooldownMul).toFixed(2) + ' 秒</span>' +
+      '<span>伤害加成 ×' + (p.damageMul * (p.gear ? VS.Gear.damageMul(game) : 1)).toFixed(2) + '</span>' + lastStand + '<span>护甲 ' + p.armor + '</span>' +
+      '<span>暴击率 ' + Math.round(100 * Math.min(1, p.critChance + (p.gear ? VS.Gear.critBonus(p) : 0))) + '%</span>' +
+      '<span>闪避冷却 ' + (VS.Config.PLAYER.DASH.CD * p.dashCooldownMul * (p.gear ? VS.Gear.dashMul(p) : 1)).toFixed(2) + ' 秒</span>' +
       (pet ? '<span>宠物 ' + pet + '</span>' : '') + '</div>' +
       '<details class="build-passives"><summary>被动增益 ' + passives.length + ' 项</summary>' +
       '<div class="build-passive-list">' + (passives.join('') || '<span>尚无被动增益</span>') + '</div></details>' +
@@ -202,6 +203,7 @@
         modeDesc: el('modeDesc'),
         startWeapon: el('startWeapon'),
         starterDesc: el('starterDesc'),
+        startHunter: el('startHunter'),
         arsenalContent: el('arsenalContent'),
         chapterGuide: el('chapterGuide'),
 
@@ -260,6 +262,15 @@
       }
       renderArsenal();
       renderChapters();
+      if (dom.startHunter) {
+        dom.startHunter.innerHTML = Object.keys(VS.Config.HUNTERS).map(function (id) {
+          return '<option value="' + id + '">' + VS.Config.HUNTERS[id].name + '</option>';
+        }).join('');
+        var hunterInfo = function () { el('hunterDesc').textContent = VS.Config.HUNTERS[dom.startHunter.value].desc; };
+        dom.startHunter.addEventListener('change', hunterInfo);
+        hunterInfo();
+      }
+      VS.Workshop.init();
       if (dom.startMode) dom.startMode.addEventListener('change', modeInfo);
       bindClick(dom.startBtn, function () { Panels.start(); });
       bindClick(dom.retryBtn, function () { if (cb.onRetry) cb.onRetry(); });
@@ -324,7 +335,7 @@
 
     start: function () {
       if (cb.onStart) cb.onStart(dom && dom.startWeapon ? dom.startWeapon.value : null,
-        dom && dom.startMode ? dom.startMode.value : 'campaign');
+        dom && dom.startMode ? dom.startMode.value : 'campaign', dom && dom.startHunter ? dom.startHunter.value : 'wanderer');
     },
 
     showStart: function (bestTime, levelCount) {
@@ -343,7 +354,7 @@
       dom.shopCoins.textContent = U.group(stock.coins);
       dom.shopIncome.textContent = '本局获得 ' + U.group(stock.earned) + ' · 已消费 ' + U.group(stock.spent);
       dom.shopRestock.textContent = '下次免费补货：' + Math.max(0, Math.ceil(stock.nextRefreshAt - VS.Game._runTime(game))) + ' 秒战斗时间';
-      dom.shopStatus.textContent = message || '可多次购买；金币不足时继续狩猎，锁定想留到下一次的商品。';
+      dom.shopStatus.textContent = message || (stock.view === 'stock' ? '锁定想留下的商品，下次补货时仍可按原价购买。' : '');
       dom.shopCloseBtn.textContent = game.shopReturnState === VS.Game.STATE.PAUSED ? '返回暂停菜单 · B / Esc' : '继续狩猎 · B / Esc';
       var cost = VS.Shop.refreshCost(game);
       dom.shopRefreshBtn.textContent = '刷新货架 · ' + cost + ' 金币';
@@ -353,7 +364,8 @@
         var offer = stock.offers[i];
         if (!offer) return '<article class="shop-offer empty"><span class="shop-slot">0' + (i + 1) + '</span><h3>暂时无货</h3><p>当前没有可购买的强化。</p></article>';
         var c = offer.choice, inactive = offer.sold || offer.unavailable, short = Math.max(0, offer.price - stock.coins);
-        var kind = c.kind === 'weapon-new' ? '新武器' : c.kind === 'weapon-up' ? '武器升级' : c.kind === 'school' ? '流派' : c.kind === 'evolution' ? '武器进化' : c.kind === 'supply' ? '补给' : '被动增益';
+        var kind = { 'weapon-new': '新武器', 'weapon-up': '武器升级', school: '流派', evolution: '武器进化',
+          supply: '补给', buff: '被动增益', gear: '套装装备', forge: '无尽刻印' }[c.kind];
         var status = offer.sold ? '已购买' : offer.unavailable ? '当前构筑不可购买' : short > 0 ? '还差 ' + short + ' 金币' : '购买 · ' + offer.price + ' 金币';
         var attrs = ' data-index="' + i + '" data-token="' + offer.token + '"';
         return '<article class="shop-offer' + (offer.locked ? ' locked' : '') + (inactive ? ' inactive' : '') + '" style="--offer-accent:' + (c.color || '#d7bd81') + '">' +
@@ -365,6 +377,7 @@
           '<div class="shop-price">' + offer.price + '<small>金币' + (offer.locked ? ' · 已保价' : '') + '</small></div>' +
           '<button type="button" class="shop-buy" data-shop-action="buy"' + attrs + (inactive || short > 0 ? ' disabled' : '') + '>' + status + '</button></article>';
       }).join('');
+      VS.Workshop.render(game);
       show(dom.panelShop);
       dom.panelShop.scrollTop = wasHidden ? 0 : scroll;
       if (wasHidden) dom.shopCloseBtn.focus({ preventScroll: true });

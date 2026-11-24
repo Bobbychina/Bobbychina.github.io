@@ -131,6 +131,7 @@
       case 'buff': return 16 + buffLevel(game, choice.id) * 5;
       case 'school': return 20 + schoolRank(game, choice) * 7;
       case 'evolution': return 75;
+      case 'gear': return 24;
       case 'supply': return 25;
       default: return 22;
     }
@@ -292,6 +293,9 @@
     if (!hasWeaponCategory(slots)) {
       place(takeChoice(function (c) { return c.kind === 'weapon-up'; }));
     }
+    if (!slots.some(function (slot) { return slot && slot.choice.kind === 'gear'; })) {
+      place(takeChoice(function (c) { return c.kind === 'gear'; }, previousKeys));
+    }
 
     /* 其余空位按权重抽取；优先避开上一批未锁定商品 */
     for (i = 0; i < SLOT_COUNT; i++) {
@@ -379,11 +383,30 @@
     /** 按当前购买次数计算售价；已锁定商品不会重新走这个函数 */
     price: function (game, choice) {
       if (!isValidChoice(choice)) return 0;
+      if (choice.kind === 'forge') return VS.EndlessForge.price(game, choice.id);
 
       var shop = game && game.shop;
       var purchases = shop ? Math.max(0, Math.floor(finiteOr(shop.purchases, 0))) : 0;
       var base = basePrice(game, choice);
       return Math.ceil(base * (1 + PRICE_GROWTH * purchases));
+    },
+
+    forge: function (game, id, displayedPrice, count) {
+      if (count === undefined) count = 1;
+      if ((count !== 1 && count !== 5) || !atForge(game, id)) return false;
+      var cost = VS.EndlessForge.price(game, id, count);
+      if (cost !== displayedPrice || game.shop.coins < cost || !VS.EndlessForge.buy(game, id, count)) return false;
+      game.shop.coins -= cost;
+      game.shop.spent += cost;
+      Shop.sync(game);
+      return true;
+    },
+
+    useCore: function (game, id) {
+      if (!atForge(game, id) || game.forge.cores < 1 || !VS.EndlessForge.buy(game, id, 1)) return false;
+      game.forge.cores--;
+      Shop.sync(game);
+      return true;
     },
 
     refreshCost: function (game) {
@@ -456,9 +479,13 @@
       for (var i = 0; i < shop.offers.length; i++) {
         var offer = shop.offers[i];
         if (!offer || !offer.choice) continue;
-        if (!byKey[choiceKey(offer.choice)]) {
+        var current = byKey[choiceKey(offer.choice)];
+        if (!current) {
           offer.unavailable = true;
           offer.locked = false;
+        } else if (!offer.sold) {
+          // 描述随套装件数和刻印层数更新，已锁定的价格与 token 保留。
+          offer.choice = current;
         }
       }
       return true;
@@ -516,7 +543,7 @@
 
       shop.coins = finiteOr(shop.coins, 0) - cost;
       shop.spent = finiteOr(shop.spent, 0) + cost;
-      shop.purchases = Math.max(0, finiteOr(shop.purchases, 0)) + 1;
+      if (fresh.kind !== 'forge') shop.purchases = Math.max(0, finiteOr(shop.purchases, 0)) + 1;
 
       offer.sold = true;
       offer.locked = false;
@@ -529,6 +556,11 @@
 
   function sync(game) {
     return Shop.sync(game);
+  }
+
+  function atForge(game, id) {
+    return game.state === 'shop' && game.shop.view === 'forge' &&
+      VS.EndlessForge.choices(game, false).some(function (seal) { return seal.id === id; });
   }
 
   function price(game, choice) {
