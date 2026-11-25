@@ -288,6 +288,16 @@
     }
     disclosure.addEventListener('toggle', rememberIndex);
     window.addEventListener('hashchange', rememberIndex);
+    window.addEventListener('pageshow', function (event) {
+      var navigation = performance.getEntriesByType('navigation')[0];
+      if (!event.persisted && (!navigation || navigation.type !== 'back_forward')) return;
+      requestAnimationFrame(function () {
+        var card = document.getElementById(location.hash.slice(1));
+        if (document.activeElement === document.body && card && card.matches('.grid .game[tabindex]')) {
+          card.focus({ preventScroll: true });
+        }
+      });
+    });
   })();
 </script>
 
