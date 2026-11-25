@@ -62,7 +62,6 @@ body.resources-page { --res-num-col: 52px; }
   min-width: 0;
 }
 .res-row:last-child { border-bottom: 1px solid var(--line); }
-.res-list.res-anim .res-row { animation: res-in .3s ease both; }
 
 .res-num {
   padding-top: 7px; color: var(--dim);
@@ -118,8 +117,6 @@ body.resources-page { --res-num-col: 52px; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-@keyframes res-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-
 /* 手机：编号保留，正文堆叠，操作按钮落到第二行 —— 390px 无横向滚动 */
 @media (max-width: 760px) {
   .res-head { padding: 34px 0 24px; }
@@ -140,6 +137,5 @@ body.resources-page { --res-num-col: 52px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .res-list.res-anim .res-row { animation: none; }
   .res-search, .res-chip, .res-act, .res-retry { transition: none; }
 }

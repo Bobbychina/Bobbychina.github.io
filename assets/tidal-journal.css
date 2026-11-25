@@ -1,0 +1,230 @@
+/* Reading and writing surfaces for the personal site's static blog and private editor. */
+:is(.tidal-journal, .tidal-editor) {
+  --journal-paper: var(--t-paper, #f5e8d7);
+  --journal-panel: var(--t-panel, #fff5e8);
+  --journal-ink: var(--t-ink, #332f45);
+  --journal-muted: var(--t-muted, #655967);
+  --journal-edge: var(--t-edge, #af9690);
+  --journal-accent: var(--t-accent, #9b473f);
+  --journal-teal: var(--t-teal, #3d7069);
+  --journal-rule: color-mix(in srgb, var(--journal-edge) 64%, transparent);
+  --journal-type: var(--serif, Georgia, "Songti SC", SimSun, serif);
+  --bg: var(--journal-paper);
+  --fg: var(--journal-ink);
+  --ink: var(--journal-ink);
+  --soft: var(--journal-muted);
+  --dim: var(--journal-muted);
+  --line: var(--journal-rule);
+  --control-line: var(--t-control, var(--journal-edge));
+  --seal: var(--journal-accent);
+  --paper2: var(--journal-panel);
+  color: var(--journal-ink);
+  background-color: var(--journal-paper);
+}
+.tidal-journal .journal-cover {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
+  gap: clamp(12px, 4vw, 55px);
+  align-items: center;
+  border-bottom: 1px solid var(--journal-ink);
+  padding-block: clamp(24px, 4vw, 54px);
+}
+.journal-cover h1, .journal-heading h1, .tidal-editor .editor-login h1 {
+  font-family: var(--journal-type);
+  font-weight: 600;
+  color: var(--journal-ink);
+}
+.journal-cover h1 {
+  font-size: clamp(42px, 6.3vw, 86px);
+  letter-spacing: -.055em;
+  line-height: 1.16;
+  margin: 0 0 25px;
+}
+.journal-feed, .journal-back, .tidal-journal .post-return {
+  display: inline-flex;
+  align-items: center;
+  gap: .75em;
+  min-height: 44px;
+  color: var(--journal-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--journal-teal);
+  text-underline-offset: .3em;
+}
+.journal-feed {
+  border: 1px solid var(--journal-edge);
+  padding: 0 14px;
+  border-radius: 24px;
+  font: 600 13px/1.3 var(--mono);
+  text-decoration: none;
+}
+.journal-feed:hover, .journal-feed:focus-visible { background: var(--journal-panel); }
+.journal-cover-art, .journal-porthole, .tidal-editor .editor-window {
+  background: var(--journal-panel) url("/assets/art/tidal/terminal.webp?v=20261125-spaceport1") center / cover no-repeat;
+  border: 1px solid var(--journal-ink);
+}
+.journal-cover-art {
+  min-height: 136px;
+  height: clamp(150px, 19vw, 250px);
+  border-radius: 44% 10px 10px 10px / 61% 10px 10px 10px;
+  box-shadow: 4px 4px 0 var(--journal-paper), 5px 5px 0 var(--journal-edge);
+  margin: 0 5px 5px 0;
+}
+.journal-inventory { display: flex; gap: 10px; align-items: baseline; padding: 28px 0 15px; }
+.journal-inventory h2 { margin: 0; font-size: 17px; font-weight: 650; }
+.journal-inventory > span, .journal-entries time, .journal-meta time { font: 12px/1.6 var(--mono); color: var(--journal-muted); }
+.journal-entries { margin: 0; padding: 0; list-style: none; }
+.journal-entries li {
+  position: relative;
+  display: grid;
+  align-items: start;
+  grid-template-columns: 98px minmax(0, 1fr) 26px;
+  gap: clamp(12px, 3.2vw, 42px);
+  border-top: 1px solid var(--journal-rule);
+  padding: 23px 4px;
+}
+.journal-entries li:last-child { border-bottom: 1px solid var(--journal-rule); }
+.journal-entries time { padding-top: 5px; white-space: nowrap; }
+.journal-entry h3 { margin: 0; font: 600 clamp(20px, 2vw, 27px)/1.45 var(--journal-type); }
+.journal-entry h3 a::after { position: absolute; inset: 0; content: ""; }
+.journal-entry h3 a:focus-visible { outline-offset: 4px; }
+.journal-entries li:has(h3 a:is(:hover,:focus-visible)) { background: color-mix(in srgb, var(--journal-panel) 75%, transparent); }
+.journal-entry p { max-width: 65ch; margin: 6px 0 0; font-size: 14px; line-height: 1.8; color: var(--journal-muted); }
+.journal-meta { display: flex; gap: 5px 15px; align-items: baseline; flex-wrap: wrap; font-size: 12px; color: var(--journal-muted); }
+.journal-entry .journal-meta:not(:empty) { margin-top: 8px; }
+.journal-meta > :empty { display: none; }
+.journal-tag { color: var(--journal-teal); overflow-wrap: anywhere; }
+.journal-arrow { align-self: center; justify-self: end; color: var(--journal-accent); font-size: 22px; }
+.tidal-journal .articlewrap { grid-template-columns: minmax(0, 1fr) minmax(160px, 215px); gap: clamp(25px, 5vw, 85px); }
+.tidal-journal .journal-heading { padding: 25px 0 21px; border-bottom: 1px solid var(--journal-edge); }
+.tidal-journal .journal-heading h1 { max-width: 26ch; margin: 14px 0 12px; font-size: clamp(34px, 4.2vw, 59px); line-height: 1.25; letter-spacing: -.035em; }
+.journal-back { font-size: 13px; }
+.journal-abstract { max-width: 49em; margin: 0 0 18px; font-size: 16px; line-height: 1.8; color: var(--journal-muted); }
+.tidal-journal #post article { max-width: 48em; padding: 12px 0; font-size: clamp(16px, 1.55vw, 18px); line-height: 1.95; }
+.tidal-journal article p { margin: 1em 0; line-height: inherit; }
+.tidal-journal article :is(h1,h2,h3) { font-family: var(--journal-type); margin: 1.3em 0 .5em; line-height: 1.5; }
+.tidal-journal article blockquote { border-left: 3px solid var(--journal-teal); padding: 1px 18px; margin-inline: 0; background: color-mix(in srgb, var(--journal-teal) 7%, var(--journal-panel)); color: var(--journal-ink); }
+.tidal-journal article pre, .tidal-editor .prev pre { max-width: 100%; overflow-x: auto; background: var(--journal-panel); border: 1px solid var(--journal-rule); }
+.tidal-journal img { max-width: 100%; }
+.tidal-journal .articlewrap .side {
+  display: block;
+  margin-top: 48px;
+  padding: 0 0 0 20px;
+  border-left: 1px solid var(--journal-rule);
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+  position: sticky;
+  top: 26px;
+}
+.journal-porthole { aspect-ratio: 2.45; border-radius: 70px 70px 5px 5px; margin: 0 0 22px; }
+.tidal-journal .side h4 { color: var(--journal-ink); font-size: 14px; }
+.tidal-journal .comments { margin: 28px 0; padding-top: 22px; border-top: 1px solid var(--journal-rule); }
+.tidal-journal footer { margin-top: 42px; }
+
+.tidal-editor { min-height: 100vh; }
+.tidal-editor > header {
+  padding: 13px var(--site-gutter, 20px);
+  gap: 8px 12px;
+  border-bottom: 1px solid var(--journal-edge);
+  background: var(--journal-panel);
+}
+.tidal-editor > .editor-header { width: 100%; }
+.tidal-editor .editor-appearance { display: inline-flex; align-items: center; gap: 4px; }
+.tidal-editor .editor-appearance #btnTheme { margin: 0; border: 0; border-radius: 5px; }
+.tidal-editor #who:empty { display: none; }
+.tidal-editor .editor-header .i18n-sw button { min-height: 28px; }
+.tidal-editor > header .b { border-left: 1px solid var(--journal-rule); padding-inline-start: 12px; }
+.tidal-editor:has(#loginView:not([style*="display: none"])) :is(#btnMail,#btnNew) { display: none; }
+.tidal-editor .editor-login {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  align-items: stretch;
+  margin: clamp(34px, 9vh, 110px) auto;
+  width: calc(100% - 2 * var(--site-gutter, 24px));
+  border: 1px solid var(--journal-ink);
+  border-radius: 12px;
+  background: var(--journal-panel);
+  box-shadow: 4px 4px 0 var(--journal-paper), 5px 5px 0 var(--journal-edge);
+}
+.tidal-editor .editor-window {
+  border: none;
+  border-inline-end: 1px solid var(--journal-ink);
+  border-radius: 10px 0 0 10px;
+  background-position: 45% center;
+}
+.tidal-editor .editor-login-form { width: 100%; max-width: 43rem; margin-inline: auto; padding: clamp(30px, 5.1vw, 69px); }
+.tidal-editor .editor-login h1 { margin: 0 0 32px; font-size: clamp(29px, 3.2vw, 44px); line-height: 1.32; letter-spacing: -.045em; }
+.tidal-editor .editor-login .row:last-child { margin: 26px 0 0; }
+.tidal-editor label { color: var(--journal-muted); font-size: 13px; margin-bottom: 6px; }
+.tidal-editor :is(input, textarea, select) { color: var(--journal-ink); background: var(--journal-paper); border: 1px solid var(--control-line); border-radius: 5px; padding: 9px 10px; }
+.tidal-editor button { border: 1px solid var(--journal-edge); background: var(--journal-panel); color: var(--journal-ink); border-radius: 6px; min-height: 42px; }
+.tidal-editor button.primary { background: var(--journal-ink); color: var(--journal-panel); border-color: var(--journal-ink); }
+.tidal-editor button.primary:hover { background: var(--journal-muted); border-color: var(--journal-muted); }
+.tidal-editor .wrap { max-width: none; grid-template-columns: minmax(175px, 245px) minmax(0, 1fr); }
+.tidal-editor[data-editor-pending] #editorStatus { max-width: none; width: calc(100% - 2 * var(--site-gutter, 24px)); }
+/* The private editor template sets a legacy inline max-width on this full-width pane. */
+.tidal-editor #mailView > .main { max-width: none !important; }
+.tidal-editor .side { padding: 25px 16px; color: var(--journal-muted); background: color-mix(in srgb, var(--journal-panel) 48%, var(--journal-paper)); }
+.tidal-editor .item { border-radius: 5px; padding: 13px 12px; }
+.tidal-editor .item.on { border-left: 4px solid var(--journal-teal); padding-left: 9px; }
+.tidal-editor .main { background: var(--journal-panel); padding: clamp(20px, 3vw, 43px); }
+.tidal-editor .main > .row:has(> div > button) { gap: 8px 12px; }
+.tidal-editor .main > .row:has(> div > button) > div { min-width: 0; }
+.tidal-editor #fTitle { font-family: var(--journal-type); font-size: 19px; }
+.tidal-editor #fBody, .tidal-editor .prev { line-height: 1.85; font-size: 15px; }
+.tidal-editor .prev { padding: 18px 22px; }
+/* At wide reading sizes the title, text and contents sit side by side. */
+@media screen and (min-width: 1440px) {
+  .tidal-journal .articlewrap {
+    grid-template-columns: minmax(0, 1fr) clamp(180px, 13vw, 340px);
+    gap: clamp(28px, 2.5vw, 64px);
+    padding-top: clamp(32px, 3vw, 64px);
+  }
+  .tidal-journal #post {
+    display: grid;
+    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+    column-gap: clamp(30px, 3vw, 76px);
+    align-items: start;
+  }
+  .tidal-journal .journal-heading { grid-column: 1; grid-row: 1 / span 3; padding-top: 0; }
+  .tidal-journal .journal-heading::after {
+    content: ""; display: block; aspect-ratio: 2.65; margin-top: 28px;
+    border: 1px solid var(--journal-ink); border-radius: 65px 7px 7px 7px;
+    background: var(--journal-panel) url("/assets/art/tidal/terminal.webp?v=20261125-spaceport1") center / cover no-repeat;
+  }
+  .tidal-journal #post > :is(article, .post-return, .comments) { grid-column: 2; }
+  .tidal-journal #post article { max-width: none; padding-top: 0; font-size: clamp(18px, 1vw, 22px); }
+  .tidal-journal #post article > :first-child { margin-top: 0; }
+  .tidal-journal #post article :is(p, li) { max-width: 62em; }
+  .tidal-journal #post .post-return { justify-self: start; }
+  .tidal-journal .articlewrap .side { margin-top: 0; }
+  .tidal-journal .side .journal-porthole { display: none; }
+}
+@media (max-width: 760px) {
+  .tidal-journal .articlewrap { grid-template-columns: minmax(0, 1fr); }
+  .tidal-journal .articlewrap .side { position: static; max-height: none; margin: 0 0 18px; padding: 16px 0 0; border: 0; border-top: 1px solid var(--journal-rule); }
+  .tidal-journal .side :is(.journal-porthole,.facts2,.facts2 + *,h4:last-of-type) { display: none; }
+  .tidal-editor .wrap { grid-template-columns: minmax(0, 1fr); }
+  .tidal-editor .side { max-height: 35vh; }
+}
+@media (max-width: 600px) {
+  .tidal-journal .journal-cover { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .journal-cover-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; justify-content: space-between; }
+  .journal-cover h1 { margin: 0; }
+  .journal-cover-art { height: clamp(123px, 35vw, 190px); min-height: 0; border-radius: 56px 6px 6px 6px; }
+  .journal-inventory { padding-top: 21px; }
+  .journal-entries li { grid-template-columns: minmax(0, 1fr) 20px; gap: 4px 12px; padding: 16px 0; }
+  .journal-entries time { grid-column: 1; }
+  .journal-entry { grid-column: 1; }
+  .journal-arrow { grid-column: 2; grid-row: 1 / span 2; }
+  .tidal-editor .editor-login { grid-template-columns: minmax(0, 1fr); width: calc(100% - 36px); margin: 25px auto 32px; }
+  .tidal-editor .editor-window { height: 136px; border: 0; border-bottom: 1px solid var(--journal-ink); border-radius: 10px 10px 0 0; }
+  .tidal-editor .editor-login-form { padding: 24px; }
+  .tidal-editor .editor-login h1 { margin-bottom: 22px; }
+  .tidal-editor .main { padding: 20px 15px; }
+  .tidal-editor .row { gap: 12px; }
+}
+@media print {
+  .tidal-journal :is(.journal-cover-art, .side, .journal-arrow, .post-return, .journal-back) { display: none; }
+  .tidal-journal .articlewrap, .tidal-journal .journal-cover { display: block; }
+}

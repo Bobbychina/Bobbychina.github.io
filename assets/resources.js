@@ -31,7 +31,6 @@
   let query = '';
   let loaded = false;
   let failed = false;
-  let animated = false;
   let requestId = 0;
 
   const t = (key, vars) => I18N.t('resources.' + key, vars);
@@ -213,11 +212,6 @@
     renderChips();
     renderList();
     document.title = t('title') + ' · Bobbychina';
-    if (!animated && loaded && items.length && !listEl.hidden) {
-      animated = true;
-      listEl.classList.add('res-anim');
-      setTimeout(() => listEl.classList.remove('res-anim'), 450);
-    }
   }
 
   async function load() {

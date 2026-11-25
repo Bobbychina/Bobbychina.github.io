@@ -1,0 +1,143 @@
+/* Common inks, paper and navigation for the Tidal Spaceport edition. */
+html:not([data-theme]), html[data-theme="light"] {
+  color-scheme: light;
+  --t-paper: #f7efdd;
+  --t-panel: #fff8e9;
+  --t-ink: #30283b;
+  --t-muted: #66596a;
+  --t-edge: #c7b8a8;
+  --t-accent: #98432f;
+  --t-teal: #23665e;
+  --t-wash: #eddbca;
+  --t-sky: #b9d5cc;
+  --t-control: #8a746d;
+  --t-action-ink: #fff9ed;
+  --t-action-hover: #753320;
+  --t-ok: #36634d;
+  --t-warn: #83591b;
+  --t-error: #9d343d;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --t-paper: #242233;
+  --t-panel: #302c41;
+  --t-ink: #fff0dc;
+  --t-muted: #d2bdc4;
+  --t-edge: #605465;
+  --t-accent: #ffb397;
+  --t-teal: #93ddca;
+  --t-wash: #403244;
+  --t-sky: #385750;
+  --t-control: #a38a96;
+  --t-action-ink: #32232a;
+  --t-action-hover: #ffd2b8;
+  --t-ok: #a1d8af;
+  --t-warn: #f3ce86;
+  --t-error: #ffabb3;
+}
+html:not([data-theme]), html[data-theme] {
+  --sans: "DM Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --serif: "Baskervville", Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  --bg: var(--t-paper); --paper2: var(--t-panel); --ink: var(--t-ink);
+  --soft: var(--t-muted); --dim: var(--t-muted); --line: var(--t-edge);
+  --line2: color-mix(in srgb, var(--t-edge) 54%, var(--t-paper));
+  --control-line: var(--t-control); --underline: var(--t-teal);
+  --seal: var(--t-accent); --accent-hover: var(--t-action-hover); --on-accent: var(--t-action-ink);
+  --red: var(--t-error); --ok: var(--t-ok); --yellow: var(--t-warn);
+  --code-bg: color-mix(in srgb, var(--t-wash) 48%, var(--t-panel)); --code-line: var(--t-edge);
+  --panel: var(--t-panel); --card: var(--t-panel); --edge: var(--t-edge); --border: var(--t-edge);
+  --text: var(--t-ink); --fg: var(--t-ink); --accent: var(--t-accent);
+}
+body {
+  background-color: var(--t-paper);
+  color: var(--t-ink);
+  background-image: url("/assets/art/tidal/grain.png?v=20261125-spaceport1");
+}
+::selection { background: var(--t-sky); color: var(--t-ink); }
+:where(a, button, input, summary, textarea, select):focus-visible {
+  outline: 2px solid var(--t-teal); outline-offset: 3px;
+}
+.top.site-header {
+  max-width: 1216px; padding: 19px 0 14px;
+  border-block-end: 1px solid var(--t-control);
+}
+.site-header .toprow { gap: clamp(12px, 2.4vw, 38px); }
+.site-header .name {
+  display: inline-flex; align-items: baseline; gap: 0; position: relative;
+  padding-inline-start: 40px;
+  font: italic 700 28px/1.12 var(--serif); letter-spacing: -1.6px; color: var(--t-ink);
+}
+.site-header .name::before, .site-header .name::after {
+  content: ""; position: absolute; pointer-events: none;
+}
+.site-header .name::before {
+  left: 8px; top: 5px; width: 20px; height: 20px; border-radius: 50%;
+  background: linear-gradient(155deg, #f5cc9e 11%, #e99980 52%, #ad7695 54%, #726788 95%);
+  border: 1px solid var(--t-ink);
+}
+.site-header .name::after {
+  left: 0; top: 12px; width: 34px; height: 8px; border: 1.5px solid var(--t-ink);
+  border-radius: 50%; transform: rotate(-25deg);
+}
+.site-header .brand-dot, .site-header .name i { color: var(--t-accent); }
+.site-header .tabs { gap: clamp(12px, 1.65vw, 26px); }
+.site-header .tabs a { color: var(--t-muted); }
+.site-header .tabs a:hover, .site-header .tabs a.on { color: var(--t-ink); }
+.site-header .tabs a.on::after { background: var(--t-accent); height: 2px; }
+.site-header .i18n-sw { display: inline-flex; align-items: center; gap: 1px; padding: 3px; border: 1px solid var(--t-edge); border-radius: 30px; }
+.site-header .i18n-sw button {
+  padding: 4px 7px; border: 0; border-radius: 20px; background: transparent;
+  color: var(--t-muted); font: 11px/1.45 var(--sans); cursor: pointer;
+}
+.site-header .i18n-sw button[aria-pressed="true"] { color: var(--t-panel); background: var(--t-ink); }
+.site-header .header-actions { gap: 4px; }
+.site-header .iconbtn { color: var(--t-ink); }
+.site-header #btnTheme { border-left: 1px solid var(--t-edge); border-radius: 0; }
+.theme-label-dark, html[data-theme="dark"] .theme-label-light { display: none; }
+html[data-theme="dark"] .theme-label-dark { display: inline; }
+.site-header [data-i18n-switch]:empty {
+  display: inline-flex; width: 110px; height: 32px; vertical-align: middle;
+}
+.top.site-header .tabs a, footer a { text-underline-offset: .28em; }
+.btn, .cmt-send { border-radius: 4px; }
+.btn.primary, .btn.ok, .cmt-send {
+  background: var(--t-accent); border-color: var(--t-accent); color: var(--t-action-ink);
+}
+.btn.primary:hover, .btn.ok:hover, .cmt-send:hover {
+  background: var(--t-action-hover); border-color: var(--t-action-hover); color: var(--t-action-ink);
+}
+footer { border-color: var(--t-control); }
+@media (max-width: 1000px) {
+  .site-header .toprow { gap: 10px 20px; }
+  .site-header .tabs { order: 3; flex: 1 0 100%; }
+}
+@media (max-width: 600px) {
+  .top.site-header { padding: 13px 0 5px; }
+  .site-header .toprow { gap: 5px 7px; }
+  .site-header .name { font-size: 23px; padding-inline-start: 31px; }
+  .site-header .name::before { left: 5px; top: 4px; width: 17px; height: 17px; }
+  .site-header .name::after { left: 0; top: 9px; width: 26px; height: 7px; }
+  .site-header .header-actions { gap: 0; }
+  .site-header .i18n-sw { padding: 1px; }
+  .site-header [data-i18n-switch]:empty { width: 88px; height: 30px; }
+  .site-header .i18n-sw button { padding: 4px; min-height: 26px; }
+  .site-header .iconbtn { padding: 5px; font-size: 11px; }
+  .site-header .tabs { gap: 20px; padding: 0; }
+}
+@media print {
+  body { background: white; color: black; }
+}
+/* All primary page frames follow the viewport. Individual text blocks keep their own measure. */
+@media screen and (min-width: 751px) {
+  html { --site-gutter: clamp(18px, 2.2vw, 44px); }
+  html body > .wrap, html body[class] > .wrap, html body.legacy-page {
+    width: 100%; max-width: none; padding-inline: var(--site-gutter); margin-inline: auto;
+  }
+  html .top.site-header { max-width: none; }
+  html body > .top.site-header, html .tidal-service > .identity-layout,
+  html .tidal-service > .chat-shell, html .p2p-page > .shell {
+    width: calc(100% - 2 * var(--site-gutter)); max-width: none; margin-inline: auto;
+  }
+  html .legacy-page > .top.site-header { width: 100%; }
+}

@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="light">
 <head>
-<script src="/i18n/i18n.js?v=20261021res1"></script>
 <meta charset="utf-8">
+<meta name="color-scheme" content="light dark"><style>html{color-scheme:light;background:#f7efdd}html[data-theme="dark"]{color-scheme:dark;background:#242233}</style><script>try{document.documentElement.dataset.theme=localStorage.getItem('site-theme')==='dark'?'dark':'light'}catch{}</script>
+<script src="/i18n/i18n.js?v=20261125-spaceport1"></script>
+
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title data-i18n="site.copy.41883ff1d91c">Bobby · 在做的和写过的东西</title>
 <meta name="description" content="Bobby（bobbychina）：做游戏、写工具、折腾静态站点与 AI 工具链。这里放着在做的东西和写下来的东西。" data-i18n-attr="content:site.copy.7bb513cfa944">
 <meta property="og:title" content="Bobby · 在做的和写过的东西" data-i18n-attr="content:site.copy.41883ff1d91c">
 <meta property="og:description" content="做游戏、写工具、折腾静态站点与 AI 工具链。" data-i18n-attr="content:site.copy.148254f325a2">
-<meta property="og:image" content="/og/home.png">
+<meta property="og:image" content="/og/home.png?v=20261125-spaceport1">
 <link rel="alternate" type="application/rss+xml" title="Bobby 的博客" href="/feed.xml" data-i18n-attr="title:site.copy.286f579f7b36">
 <script src="/mac-block.js" defer></script>
 <!--
   2026-09-28 改版 v2（预览版 /new/，线上首页未动）
   站主要求：① 分区导航要明显（topbar）② 深色模式（浅色刺眼）③ 登录态全站可见
   设计：纸感底（暖黑墨色）+ 衬线标题 + 朱砂句读；清单行 hover 右移 + 短横浮出（v1 保留）
-  深色默认，右上角可切浅色；选择记 localStorage（key: site-theme）
+  浅色默认，右上角可切深色；选择记 localStorage（key: site-theme）
   登录态：读 /api/auth/identity/me（域级 Cookie，Domain=.bobbycn.cc，全站子域共用）
 -->
 <style>
@@ -113,6 +115,7 @@
   }
 </style>
 <link rel="stylesheet" href="/assets/edition.css?v=20261011reset2">
+<link rel="stylesheet" href="/assets/tidal.css?v=20261125-spaceport1">
 </head>
 <body>
 <div class="wrap">
@@ -120,7 +123,7 @@
   <header class="top site-header"><span data-i18n-switch></span>
   <div class="toprow"><a class="name" href="/" aria-label="Bobbychina 首页" data-i18n-attr="aria-label:site.copy.25097b84dd1d">Bobbychina<span class="brand-dot">.</span></a>
   <nav class="tabs" aria-label="主导航" data-i18n-attr="aria-label:site.copy.9bae68040509"><a href="/" class="on" aria-current="page" data-i18n="nav.projects">作品</a><a href="/games/" data-i18n="nav.games">游戏厅</a><a href="/posts/" data-i18n="nav.posts">文章</a><a href="/resources/" data-i18n="nav.resources">资源</a><a href="/#about" data-i18n="nav.about">关于</a></nav>
-  <div class="header-actions"><span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut"><span data-i18n="games.acct.signOut">退出</span></button></span><a class="iconbtn" id="btnIn" href="/login/"><span data-i18n="games.login.do">登录</span></a><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
+  <div class="header-actions"><span class="me" id="meBox" hidden><b id="meName"></b><button class="iconbtn" id="btnOut"><span data-i18n="games.acct.signOut">退出</span></button></span><a class="iconbtn" id="btnIn" href="/login/"><span data-i18n="games.login.do">登录</span></a><button class="iconbtn" id="btnTheme" type="button" aria-label="切换深浅色" title="切换深浅色" data-i18n-attr="aria-label:site.copy.9970c97a4fb5;title:site.copy.9970c97a4fb5"><span class="theme-label-light" data-i18n="site.copy.71bca47baab4">☀ 浅色</span><span class="theme-label-dark" data-i18n="site.copy.e2ff2b4b22e4">☾ 深色</span></button></div></div>
  </header>
 
   <h1><span data-i18n="site.copy.e498a2ea64df">我做</span><em style="font-style:normal"><span data-i18n="account.thGame">游戏</span></em><span data-i18n="site.copy.b39493889a68">，也做让人少干活的</span><em style="font-style:normal"><span data-i18n="site.copy.5ca6730d4415">工具</span></em><span class="seal">。</span></h1>
@@ -129,9 +132,9 @@
 
   <span class="studio-kicker">BOBBYCHINA / INDEPENDENT PLAY</span>
 <section class="studio-shelf" aria-label="在线游戏精选" data-i18n-attr="aria-label:site.copy.85387afec3b6">
- <a class="studio-feature" href="/games/zombie-survival/"><img src="/assets/art/embers-20261010.webp" alt="" width="640" height="360"><small>01 / SURVIVAL</small><strong><span data-i18n="home.reset.survival">丧尸末日生存</span></strong><span><span data-i18n="site.copy.9a9d94431385">探索大世界，守住你的安全屋。</span></span><b><span data-i18n="site.copy.54ae913b55e0">进入世界 ↗</span></b></a>
- <a class="studio-feature" href="/games/racing3d/"><img src="/assets/art/circuit-20261010.webp" alt="" width="640" height="360"><small>02 / CIRCUIT</small><strong><span data-i18n="site.copy.9229e82de12b">极速椭圆</span></strong><span><span data-i18n="site.copy.fd314b4f73e4">刹车、入弯、抓住出弯线。</span></span><b><span data-i18n="site.copy.393cb0c6ff5d">驶入赛道 ↗</span></b></a>
- <a class="studio-feature" href="/games/vampire-survivors/"><img src="/assets/art/nightfall-20261010.webp" alt="" width="640" height="360"><small>03 / NIGHTFALL</small><strong><span data-i18n="home.reset.nightfall">吸血鬼幸存者</span></strong><span><span data-i18n="site.copy.e24016e5751e">与朋友共创。撑过下一波怪物。</span></span><b><span data-i18n="site.copy.e77abd2f35cb">迎接夜幕 ↗</span></b></a>
+ <a class="studio-feature" href="/games/zombie-survival/"><img src="/assets/art/tidal/survival.webp?v=20261125-spaceport1" alt="" width="640" height="360"><small>01 / SURVIVAL</small><strong><span data-i18n="home.reset.survival">丧尸末日生存</span></strong><span><span data-i18n="site.copy.9a9d94431385">探索大世界，守住你的安全屋。</span></span><b><span data-i18n="site.copy.54ae913b55e0">进入世界 ↗</span></b></a>
+ <a class="studio-feature" href="/games/racing3d/"><img src="/assets/art/tidal/racing.webp?v=20261125-spaceport1" alt="" width="640" height="360"><small>02 / CIRCUIT</small><strong><span data-i18n="site.copy.9229e82de12b">极速椭圆</span></strong><span><span data-i18n="site.copy.fd314b4f73e4">刹车、入弯、抓住出弯线。</span></span><b><span data-i18n="site.copy.393cb0c6ff5d">驶入赛道 ↗</span></b></a>
+ <a class="studio-feature" href="/games/vampire-survivors/"><img src="/assets/art/tidal/nightfall.webp?v=20261125-spaceport1" alt="" width="640" height="360"><small>03 / NIGHTFALL</small><strong><span data-i18n="home.reset.nightfall">吸血鬼幸存者</span></strong><span><span data-i18n="site.copy.e24016e5751e">与朋友共创。撑过下一波怪物。</span></span><b><span data-i18n="site.copy.e77abd2f35cb">迎接夜幕 ↗</span></b></a>
 </section>
 <h2 id="projects"><span data-i18n="site.copy.224b68f6a306">在做的东西</span></h2>
   <ul class="list">
@@ -211,7 +214,7 @@
 (function(){
   var KEY='site-theme';
   var saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
-  var theme=(saved==='light'||saved==='dark')?saved:'dark';
+  var theme=(saved==='light'||saved==='dark')?saved:'light';
   function apply(t){
     document.documentElement.setAttribute('data-theme',t);
     var b=document.getElementById('btnTheme');

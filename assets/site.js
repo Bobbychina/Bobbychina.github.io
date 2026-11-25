@@ -9,7 +9,7 @@
     var KEY = 'site-theme';
     var saved = null;
     try { saved = localStorage.getItem(KEY); } catch (e) {}
-    var theme = (saved === 'light' || saved === 'dark') ? saved : 'dark';   // 深色默认
+    var theme = (saved === 'light' || saved === 'dark') ? saved : 'light';
     function apply(t) {
         document.documentElement.setAttribute('data-theme', t);
         var b = document.getElementById('btnTheme');
@@ -27,7 +27,7 @@
     function syncTheme() {
         var next;
         try { next = localStorage.getItem(KEY); } catch (e) { return; }
-        theme = next === 'light' || next === 'dark' ? next : 'dark';
+        theme = next === 'light' || next === 'dark' ? next : 'light';
         apply(theme);
     }
     window.addEventListener('storage', function (event) { if (event.key === KEY || event.key === null) syncTheme(); });

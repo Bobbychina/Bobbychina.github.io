@@ -8,7 +8,12 @@ function setup({search='',saved='',languages=['en-US']}={}) {
   const document={nodeType:9,readyState:'loading',currentScript:{src:'https://example.test/i18n/i18n.js'},documentElement:{setAttribute(){}},write:s=>writes.push(s),addEventListener:(name,fn)=>events[name]=fn,dispatchEvent(){},querySelectorAll:()=>[],createElement:tag=>({tag}),head:{appendChild:s=>pending.push(s)}};
   const c=vm.createContext({document,location:new URL('https://example.test/'+search),navigator:{languages},localStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)},URL,URLSearchParams,Intl,Map,console,history:{state:null,replaceState(){}},CustomEvent:class{}});c.window=c;vm.runInContext(source,c);
   function load(lang){vm.runInContext(fs.readFileSync(new URL('../i18n/'+lang+'.js',import.meta.url),'utf8'),c);}
-  load(c.I18N.current());return {c,writes,pending,store,load,ready:events.DOMContentLoaded};
+  document.removeEventListener = name => { delete events[name]; };
+  function ready() {
+    document.readyState = 'interactive';
+    events.readystatechange();
+  }
+  load(c.I18N.current());return {c,writes,pending,store,load,ready};
 }
 
 test('language selection prioritizes URL and stored choice, and recognizes traditional variants',()=>{

@@ -1,0 +1,260 @@
+.tidal-service {
+  --bg: var(--t-paper, #f5e9d9);
+  --paper2: var(--t-panel, #fff4e6);
+  --ink: var(--t-ink, #382d48);
+  --soft: var(--t-muted, #67576a);
+  --dim: var(--soft);
+  --line: var(--t-edge, #bbaba0);
+  --line2: var(--line);
+  --seal: var(--t-accent, #994f43);
+  --ok: var(--t-teal, #32675f);
+  --green: var(--ok);
+  --blue: var(--service-link);
+  --panel: var(--paper2);
+  --card: var(--paper2);
+  --control-line: color-mix(in srgb, var(--ink) 51%, var(--bg));
+  --code-bg: color-mix(in srgb, var(--line) 18%, var(--bg));
+  --code-line: var(--line);
+  --service-link: #385f60;
+  --service-action: #4b3c58;
+  --service-action-hover: #674c64;
+  --service-action-text: #fff4e6;
+  --service-warm: #d89980;
+  --service-heading: var(--serif);
+  --red: #963f43;
+  --yellow: #79572e;
+  color: var(--ink);
+  background-color: var(--bg);
+}
+html[data-theme="dark"] .tidal-service {
+  --service-action: #edc2a7;
+  --service-action-hover: #ffdcc2;
+  --service-action-text: #322636;
+  --service-link: #abd6cb;
+  --service-warm: #bd8c88;
+  --red: #ffb1ab;
+  --yellow: #eac391;
+}
+.tidal-service :is(.btn, .send) {border-radius: 4px}
+.tidal-service .btn.primary, .tidal-service .send,
+.identity-edition .identity-layout .card button:not(.iconbtn) {
+  border: 1px solid var(--service-action);
+  background: var(--service-action);
+  color: var(--service-action-text);
+  border-radius: 4px;
+}
+.tidal-service .btn.primary:hover, .tidal-service .send:hover,
+.identity-edition .identity-layout .card button:hover:not(.iconbtn) {
+  background: var(--service-action-hover);
+  border-color: var(--service-action-hover);
+  color: var(--service-action-text);
+}
+.tidal-service :is(.foot a, .text-link, .back, .ghost-link),
+.secret-edition .wrap a {color: var(--service-link); text-underline-offset: .22em}
+.tidal-service :is(.foot a, .text-link, .back):hover, .secret-edition .wrap a:hover {text-decoration: underline}
+.tidal-service :is(input, textarea, button, a):focus-visible, .tidal-service .card input:focus-visible {
+  outline: 2px solid var(--service-link);
+  outline-offset: 3px;
+}
+.tidal-service .service-window, .tidal-service .service-intro::after,
+.sponsor-page .sponsor-copy::after, .chat-edition .gate::after {
+  background: var(--service-warm) url("/assets/art/tidal/terminal.webp?v=20261125-spaceport1") center / cover no-repeat;
+  border: 1px solid var(--line);
+}
+
+/* Two neighboring bays keep the form readable when its validation state grows. */
+.identity-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  width: min(1064px, calc(100% - 56px));
+  max-width: none;
+  margin: clamp(32px, 6vw, 78px) auto;
+  padding: 0;
+  gap: clamp(24px, 5vw, 74px);
+  align-items: start;
+}
+.identity-layout .service-window {
+  aspect-ratio: 4 / 4.4;
+  align-self: start;
+  border-radius: 49% 49% 3px 3px / 34% 34% 3px 3px;
+  background-position: 41% center;
+  position: relative;
+}
+.identity-layout .service-window::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid #fff0d885;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.identity-edition .identity-layout > .card {
+  padding: clamp(18px, 2.3vw, 34px) 0;
+  margin: 0;
+  border: 0;
+  border-top: 3px double var(--line);
+  border-radius: 0;
+  background: none;
+}
+.identity-edition .identity-layout .card > h1, .tidal-service .service-intro h1,
+.sponsor-page .sponsor-copy h1 {
+  font: 500 clamp(35px, 4.2vw, 64px)/1.12 var(--service-heading);
+  letter-spacing: -.045em;
+  overflow-wrap: anywhere;
+  margin: 0 0 16px;
+  color: var(--ink);
+}
+.identity-edition .identity-layout .card input, .p2p-page #join-code {
+  background: var(--paper2);
+  border-color: var(--control-line);
+  border-radius: 4px;
+}
+.identity-edition .identity-layout .card label {font-size: 13px; color: var(--ink)}
+.identity-edition .identity-layout .card .sub {font-size: 14px; max-width: 46ch}
+.identity-edition .identity-layout .card .foot {gap: 10px 20px}
+.identity-edition .identity-layout .card .msg:empty {min-height: 0; margin: 0}
+.tidal-service .hintbox {border-radius: 3px; border-left-color: var(--ok)}
+.tidal-service .service-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(200px, .8fr);
+  position: relative;
+  align-content: center;
+  min-height: clamp(155px, 18vw, 236px);
+  gap: 0 clamp(22px, 5vw, 70px);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 22px;
+}
+.tidal-service .service-intro > * {grid-column: 1; align-self: end}
+.tidal-service .service-intro > p {max-width: 55ch; align-self: start; margin: 0; color: var(--soft)}
+.tidal-service .service-intro::after {
+  content: "";
+  grid-column: 2;
+  grid-row: 1 / 5;
+  align-self: stretch;
+  min-height: 136px;
+  border-radius: 65px 3px 3px 3px;
+  background-position: center 58%;
+}
+.account-edition .wrap, .secret-edition .wrap {max-width: 1120px}
+.account-edition .wrap {gap: 18px}
+.account-edition .service-intro, .account-edition #idcard {grid-column: 1 / -1}
+.account-edition .wrap > .card, .secret-edition .wrap .card, .p2p-page .room-panel,
+.sponsor-page .payment-card {
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--paper2);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--line) 42%, transparent);
+}
+.account-edition .wrap > .card, .secret-edition .wrap .card {border-top: 2px solid var(--ok)}
+.account-edition .card h2, .secret-edition .card h2 {color: var(--ink); text-transform: none}
+.p2p-page .shell {width: min(1064px, calc(100% - 56px))}
+.p2p-page main {margin-top: clamp(26px, 4vw, 52px)}
+.p2p-page .service-intro {margin-bottom: 22px}
+.p2p-page .service-intro h1 {margin-top: 15px}
+.p2p-page #dropzone {border-color: var(--control-line); border-radius: 4px}
+.p2p-page #dropzone.drag {border-color: var(--service-link)}
+.p2p-page #room-code {overflow-wrap: anywhere; color: var(--ink)}
+.p2p-page .room-details {min-width: 0}
+.p2p-page .columns section {border-top: 3px double var(--line)}
+.secret-edition .service-intro {margin: 20px 0}
+.secret-edition .wrap h1 em {color: var(--service-link)}
+.secret-edition .wrap .locked {border-style: dashed; padding-block: 32px}
+.secret-edition #term {
+  --bg2: #2e293a;
+  --card: #3b3347;
+  --ink: #fff0e2;
+  --dim: #d8c5cc;
+  --line: #796875;
+  --line2: #8d838f;
+  --green: #a9e4d5;
+  --blue: #b9d6ef;
+  --yellow: #f5c48c;
+  --red: #ffb4a9;
+  border-radius: 4px;
+}
+.secret-edition #term .row:focus-within {box-shadow: inset 3px 0 var(--green)}
+.secret-edition #term input:focus-visible {outline: 1px solid var(--green); outline-offset: 2px}
+.secret-edition #term input {border-radius: 2px}
+.secret-edition #chips button {border-radius: 3px; color: var(--ink)}
+.secret-edition #chips button:hover {color: var(--service-link); border-color: var(--service-link)}
+.sponsor-page .sponsor-intro {gap: clamp(28px, 6vw, 82px)}
+.sponsor-page .sponsor-copy::after {
+  content: "";
+  display: block;
+  width: min(100%, 520px);
+  aspect-ratio: 2.7;
+  margin-top: 30px;
+  border-radius: 3px 90px 3px 3px;
+  background-position: center 64%;
+}
+.sponsor-page .support-note {border-left-color: var(--service-warm)}
+.sponsor-page .payment-heading {padding-bottom: 14px; border-bottom: 1px solid var(--line)}
+.sponsor-page .payment-card {border-top: 3px solid var(--ok)}
+.sponsor-page .payment-code {background: white}
+.sponsor-page .thanks-status {background: var(--paper2); border-radius: 3px}
+.chat-edition .chat-shell {max-width: 1064px; padding: 14px 24px 16px; background: var(--paper2); border-inline: 1px solid var(--line)}
+.chat-edition .chat-head {border-bottom: 3px double var(--line)}
+.chat-edition .seal {--stamp: var(--service-link)}
+.chat-edition .gate {
+  position: relative;
+  max-width: none;
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(18px, 3vw, 40px);
+  margin: clamp(16px, 4vw, 50px) 0;
+  padding-right: 49%;
+  border-block: 1px solid var(--line);
+  background: var(--bg);
+}
+.chat-edition .gate::after {
+  content: "";
+  position: absolute;
+  right: 4%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 39%;
+  height: min(68%, 350px);
+  border-radius: 52% 52% 3px 3px / 40% 40% 3px 3px;
+}
+.chat-edition .gate-title {font: 500 clamp(26px, 3.5vw, 44px)/1.22 var(--service-heading)}
+.chat-edition .is-gated .thread-wrap {display: none}
+.chat-edition .thread .msg {margin-top: 0}
+.chat-edition .msg.mine .slip {background: color-mix(in srgb, var(--service-warm) 17%, var(--paper2))}
+.chat-edition .slip {background-color: var(--bg)}
+.chat-edition .linkcard-url, .chat-edition .slip-text a {color: var(--service-link)}
+.redirect-edition > p {
+  margin: clamp(36px, 9vw, 100px) 20px;
+  padding: 30px;
+  background: var(--paper2);
+  border: 1px solid var(--line);
+  border-top: 3px double var(--ok);
+}
+.redirect-edition > p a {color: var(--service-link); text-decoration: underline}
+
+@media (max-width: 750px) {
+  .identity-layout {grid-template-columns: 1fr; width: min(520px, calc(100% - 40px)); gap: 18px; margin: 24px auto 40px}
+  .identity-layout .service-window {aspect-ratio: 3.6; border-radius: 55px 3px 3px 3px; background-position: center 60%}
+  .identity-edition .identity-layout > .card {border-top: 0; padding: 0}
+  .tidal-service .service-intro {grid-template-columns: minmax(0, 1fr) minmax(120px, .48fr); gap: 0 18px}
+  .tidal-service .service-intro::after {min-height: 100px}
+  .sponsor-page .sponsor-copy::after {aspect-ratio: 3.9; margin-top: 20px}
+}
+@media (max-width: 540px) {
+  .p2p-page .shell {width: calc(100% - 40px)}
+  .tidal-service .service-intro {display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0 0 16px}
+  .tidal-service .service-intro > * {align-self: start}
+  .tidal-service .service-intro::after {align-self: stretch; min-height: 0; aspect-ratio: 4.3; margin-top: 16px; border-radius: 3px 40px 3px 3px}
+  .chat-edition .chat-shell {padding: 7px 14px 4px; border: 0}
+  .chat-edition .gate {justify-content: safe center; padding: 22px; margin: 12px 0}
+  .chat-edition .gate::after {position: static; transform: none; width: 100%; height: auto; flex: 0 0 auto; aspect-ratio: 3.2; margin-top: 18px; border-radius: 3px 36px 3px 3px}
+  .sponsor-page .sponsor-copy::after {aspect-ratio: 4.5; border-radius: 3px 42px 3px 3px}
+}
+@media (max-height: 480px) {
+  .chat-edition .gate {justify-content: safe center; margin-block: 3px; padding-block: 8px}
+  .chat-edition .gate::after {display: none}
+}
+@media print {
+  .tidal-service .service-window, .tidal-service .service-intro::after,
+  .sponsor-page .sponsor-copy::after, .chat-edition .gate::after {display: none}
+  .identity-layout, .tidal-service .service-intro {display: block; width: auto; min-height: 0}
+}

@@ -1,0 +1,324 @@
+/* Printed game programmes and the shared resource catalogue. */
+:is(.game-catalog, .resources-page) .wrap {
+  max-width: 1280px;
+  padding-inline: clamp(18px, 4.5vw, 44px);
+}
+
+.hall-mast, .res-head {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.55fr);
+  align-items: center;
+  gap: clamp(28px, 4.8vw, 76px);
+  padding-block: clamp(28px, 3.4vw, 52px);
+}
+.game-catalog .hall-mast h1, .res-head h1 {
+  margin: 0 0 18px;
+  color: var(--t-ink);
+  font: 700 clamp(42px, 5.1vw, 78px)/1.1 var(--serif);
+  letter-spacing: -.055em;
+  overflow-wrap: anywhere;
+}
+.game-catalog .hall-mast .sub, .res-intro {
+  max-width: 37em;
+  margin: 0;
+  color: var(--t-muted);
+  font: 15px/1.85 var(--sans);
+}
+.hall-mast .catalog-tools {
+  display: flex;
+  justify-content: flex-start;
+  gap: 18px;
+  margin-top: 24px;
+  color: var(--t-teal);
+}
+.catalog-tools > a {
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: .3em;
+}
+
+.hall-prints {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  height: clamp(245px, 24vw, 350px);
+}
+.hall-print {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #363045;
+  color: #fff8e8;
+  border: 1px solid var(--t-control);
+  border-radius: 3px;
+}
+/* Tiny previews keep the illustration in place during its first download. */
+.hall-print[href="#racing3d"] { --cover-preview: url("data:image/webp;base64,UklGRiYBAABXRUJQVlA4IBoBAABQBwCdASowABgAPslYpk2npKOiJWzI8BkJZgCdMwN9espQ/qjJxtmdSxZ6dwhjw0+KwjLeYYRpOiitaBFx5JaL67OAAPFtG85LmXcQvFuD9/LUQo6YXo2zZsN/wc8fgjMe6ZUQwjhkJTwbzzXhHfD613A3zRj1f2lt4lphISSPhTdzftL2Ukq0wmU+JSg+tqFeCDWUQNZyhOfzga9pnGkij7QhjtSgj3BcMlOMaAf5u8wxJM81BnBqFrvS4/zmxFSz/lvc73ydXsW6qSqb7iYvw3JqDU1DLq4rIF8s0tEKiFiE+RSb8BhR7scQCLvnXPyKFysWRljckAk7aa/5e9wkpxsTYusOkwbO4dE22xs5mln0daxiTWIAAAA="); }
+.hall-print[href="#zombie-survival"] { --cover-preview: url("data:image/webp;base64,UklGRiABAABXRUJQVlA4IBQBAACQBwCdASowABgAPq1Im0smJKKhurzIAMAViWYAtRsktV5/1MTHQnOclqdIh5Oymx6rCPB4KBlW8HmNm5oD5bq7lpoPagAA/tNi7mm2374Tosr1D2ThGYAI3w7F8g/H2GIPr65cgdKg7/V3vo2bGvl3SB4e08adMn6aCCgSuOWK5Wl1Sa9wg5lP4J37EoICwjwPk2hNBZ7l73y44si+nAuUbU9FQT0xUxR6lRHAG6Hl28xDOfET4h8qjymqYVisqR5TSyg3h4fXbD7eaK0ECeuNin8aymsjsIOPuOUkyU2MK8dCR4p3RruxUA4/Kbe07CfEPBxLt/Ska5vUIsLINv/UuUpEV49FEQ9DBPhGB4YCQKoWIAA="); }
+.hall-print[href="#vampire-survivors"] { --cover-preview: url("data:image/webp;base64,UklGRkwBAABXRUJQVlA4IEABAACwBgCdASowABgAPslUpEwnpKOiMBqoAPAZCUAYHDbcpQkpmZ++jVZk3ge5LRiP59y52Jwf6UAa2ntcm3B14AD+40Q3a0TmOM5fKLLF6KcIDmPrit0iTKuuizAUYs5HiVgp70m9/a6wij5i+OAOOvLvDpFeKyhbe94dMS8M4Yw1n72NGI0v0LVQtWWvsrefDH5cZxmDXWdQeTyl1pjH69EFmo/9r51vtBMjyjhLU70rJvxtsBss382f2GwveKMM8XQ9rz43dWdTNpjp6JPDDdY+f3zOSUhVInj+x/VVsdg1hoOAvdriD0Wuhxz2qCuJVEuUm4aeYtBY/gMeNkqlrcVdM/Kl0Gt+NXsUUizfoo3xmJaII+DnhUWANjerNaXSBKLOZPWZpH9ibnJk8O8/Uz8yL9hSKqYnSUO47kxhIeHgAA=="); }
+.res-window img { --cover-preview: url("data:image/webp;base64,UklGRlQBAABXRUJQVlA4IEgBAABwBwCdASowACAAPr1OoUsnJCMhtVgMAOAXiWQArDMy9lhMYFw0nipfNoa61nUatgj2G23VVA+nzp/mkzNBCvDsG+zYwAD+89knlZF0S+Rs5etlRv5oinNHrjzdlMV1rhiQBEBTZJREVoEfvnq6+4Ch6PvMrsOthuBeVmaTU98EmDAcXDzebK3xlZE/pKgtBPRoiMr+92pwMPntaIKg6xcSUdkXbv5fhYhMyOgiPXKfes+hkO4H79DWavKT91oGProUUEQscASjJUfIcHwi0+gHkHnOViZD4FU1hfDpbdRtwe0c5GB+5K9OjsscgifQfzadYFXJhBbyagP1V7aAg7R8ni4JookWXJzFJB4Wle6VhHx8LyZk7KS717kaQWS7Aa7uc9jGXGnffFUyDs4L5ioxBi7Vg8hXuRgMU5OlgRlP/Vw+9GM9d4AA"); }
+.hall-print, .res-window img {
+  background-image: var(--cover-preview);
+  background-size: cover;
+  background-position: center;
+}
+.res-window img { background-position: 60% 49%; }
+.hall-print:first-child { grid-row: span 2; }
+.hall-print img, .res-window img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hall-print::after {
+  content: "";
+  position: absolute;
+  inset: 20% 0 0;
+  z-index: 0;
+  background: linear-gradient(transparent 20%, rgb(29 22 37 / .86));
+  pointer-events: none;
+}
+.hall-print > span {
+  position: absolute;
+  z-index: 1;
+  bottom: 12px;
+  inset-inline: 14px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 9px;
+  color: #fff8e8;
+  font: 650 clamp(13px, 1.05vw, 17px)/1.35 var(--sans);
+  text-shadow: 0 1px 3px #291f29;
+}
+.hall-print:first-child > span {
+  font: 700 clamp(19px, 1.7vw, 27px)/1.25 var(--serif);
+}
+.hall-print > span::after { content: "↘"; flex: none; }
+.hall-print:hover > span { text-decoration: underline; text-underline-offset: .2em; }
+
+.hall-directory {
+  padding-block: 18px 16px;
+  border-top: 3px double var(--t-control);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+}
+.game-catalog h2 {
+  margin: 0 0 16px;
+  color: var(--t-ink);
+  font: 700 clamp(23px, 2.25vw, 35px)/1.35 var(--serif);
+}
+.hall-directory h2, .hall-directory .game-index { margin: 0; }
+.game-index[open] { flex-basis: 100%; }
+.hall-directory .game-index summary { color: var(--t-teal); font-weight: 650; }
+.game-index nav {
+  padding: 8px 14px;
+  border-inline-start: 2px solid var(--t-teal);
+}
+.game-catalog .grid { gap: 16px; }
+.game-catalog .game {
+  position: relative;
+  border-radius: 3px;
+  padding: clamp(18px, 2.1vw, 30px);
+  border-color: var(--t-edge);
+  border-top: 3px solid var(--t-teal);
+  background: var(--t-panel) url("/assets/art/tidal/grain.png?v=20261125-spaceport1");
+}
+.game-catalog .game:nth-child(4n + 2), .game-catalog .game:nth-child(4n + 3) {
+  border-top-color: var(--t-accent);
+}
+.game-catalog .game h3 {
+  margin-bottom: 10px;
+  font: 700 clamp(20px, 1.65vw, 26px)/1.38 var(--serif);
+  color: var(--t-ink);
+  overflow-wrap: anywhere;
+}
+.game-catalog .game .desc { font-size: 14px; color: var(--t-muted); }
+.game-catalog .game .meta { margin-bottom: 15px; gap: 5px 8px; }
+.game-catalog .game .badge, .game-catalog .thx .badge {
+  min-height: 0;
+  padding: 1px 7px;
+  border: 1px solid var(--t-edge);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--t-muted);
+  font: 11.5px/1.75 var(--sans);
+}
+.game-catalog .game .badge.g { border-color: var(--t-teal); color: var(--t-teal); }
+.game-catalog .game .acts {
+  border-top: 1px dashed var(--t-edge);
+  padding-top: 14px;
+  align-items: center;
+  gap: 8px 16px;
+}
+.game-catalog .acts .btn { min-height: 35px; }
+.game-catalog .acts .btn:not(.ok) {
+  border: none;
+  background: transparent;
+  padding-inline: 1px;
+  color: var(--t-teal);
+  text-decoration: underline;
+  text-underline-offset: .25em;
+}
+.game-catalog .game.soon {
+  gap: 4px;
+  border: 1px dashed var(--t-control);
+  background: transparent;
+  padding: 16px 22px;
+}
+.game-catalog .game.soon .meta { margin: 0; }
+.game-catalog .acct {
+  margin: 26px 0 0;
+  background: var(--t-wash);
+  border-radius: 3px;
+}
+.account-details { margin-top: 14px; padding-top: 0; border: 0; }
+.game-catalog #thanks { margin-block: 32px 10px; }
+.game-catalog .thanks { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+.game-catalog .thx {
+  border: 0;
+  border-top: 1px solid var(--t-control);
+  padding-inline: 0;
+  border-radius: 0;
+}
+
+.res-head {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  border-bottom: 3px double var(--t-control);
+}
+.res-head .intro-actions { margin-top: 20px; }
+.res-window {
+  min-width: 0;
+  height: clamp(200px, 19vw, 290px);
+  padding: 5px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-control);
+  border-radius: 3px 62px 3px 3px;
+}
+.res-window img { border-radius: 1px 56px 1px 1px; object-position: 60% 49%; }
+.resources-page .res-main { min-block-size: 100svh; }
+.res-head .res-act, .res-row .res-act {
+  border-radius: 3px;
+  font-weight: 650;
+  color: var(--t-teal);
+  border-color: var(--t-teal);
+}
+.res-head .res-act { background: var(--t-teal); color: var(--t-paper); }
+.res-head .res-act:hover { background: var(--t-ink); border-color: var(--t-ink); }
+.res-panel { padding-top: 22px; }
+.res-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px 22px;
+  padding: 14px;
+  border: 1px solid var(--t-edge);
+  border-radius: 3px;
+  background: var(--t-wash);
+}
+.res-search-wrap { position: relative; flex: 1 1 260px; }
+.res-search-wrap::before, .res-search-wrap::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  color: var(--t-muted);
+}
+.res-search-wrap::before {
+  left: 14px;
+  top: calc(50% - 7px);
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid;
+  border-radius: 50%;
+}
+.res-search-wrap::after {
+  left: 23px;
+  top: calc(50% + 4px);
+  width: 6px;
+  border-top: 1.5px solid;
+  transform: rotate(45deg);
+}
+.res-search {
+  min-height: 42px;
+  padding: 8px 12px 8px 37px;
+  border: 1px solid var(--t-control);
+  border-radius: 2px;
+  background: var(--t-panel);
+}
+.res-search:focus-visible { outline: 2px solid var(--t-teal); outline-offset: 2px; }
+.res-chips { min-block-size: 32px; gap: 6px; padding: 0; }
+.res-chip {
+  min-height: 32px;
+  padding: 3px 11px;
+  border: 1px solid var(--t-control);
+  border-radius: 20px;
+  color: var(--t-ink);
+}
+.res-chip[aria-pressed="true"] {
+  border-color: var(--t-ink);
+  background: var(--t-ink);
+  color: var(--t-paper);
+}
+.res-status, .res-offline { color: var(--t-muted); }
+.res-offline { margin-block: 8px 16px; border-color: var(--t-teal); }
+.res-list { margin-top: 17px; }
+.res-row, .res-row:last-child {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 9px 22px;
+  padding: 22px;
+  background: var(--t-panel) url("/assets/art/tidal/grain.png?v=20261125-spaceport1");
+  border: 1px solid var(--t-edge);
+  border-inline-start: 4px solid var(--t-teal);
+  border-radius: 3px;
+}
+.res-row + .res-row { margin-top: 10px; }
+.res-num {
+  color: var(--t-accent);
+  padding: 0;
+  font: italic 700 24px/1.45 var(--serif);
+}
+.res-title { font: 700 clamp(19px, 1.75vw, 26px)/1.45 var(--serif); }
+.res-desc { max-width: 75ch; font-size: 14px; }
+.res-kind { font-weight: 650; color: var(--t-teal); }
+.res-kind::before { border-color: currentColor; }
+.res-note { margin-top: 10px; }
+
+@media (max-width: 790px) {
+  .hall-mast, .res-head { grid-template-columns: 1fr; gap: 20px; padding-block: 23px; }
+  .hall-mast .catalog-tools { margin-top: 10px; }
+  .game-catalog .hall-mast h1, .res-head h1 { margin-bottom: 10px; }
+  .hall-prints { height: clamp(205px, 37vw, 285px); }
+  .res-window { height: clamp(150px, 28vw, 215px); }
+  .res-row, .res-row:last-child {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 7px 13px;
+    padding: 16px;
+  }
+  .res-action { grid-column: 2; }
+  .res-tools { grid-template-columns: 1fr; gap: 10px; }
+}
+@media (max-width: 540px) {
+  .hall-prints {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    height: 176px;
+    padding: 3px;
+    margin-inline: -3px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--t-edge) transparent;
+  }
+  .hall-print { flex: 0 0 78%; scroll-snap-align: center; }
+  .hall-print > span, .hall-print:first-child > span { font: 700 17px/1.35 var(--serif); }
+  .hall-directory { gap: 4px 14px; padding-block: 12px; }
+  .hall-directory .game-index { font-size: 13px; }
+  .res-intro, .game-catalog .hall-mast .sub { font-size: 14px; }
+  .res-tools { padding: 10px; }
+  .res-search-wrap { flex-basis: 100%; }
+}

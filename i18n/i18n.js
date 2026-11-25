@@ -154,7 +154,7 @@
      那时 currentScript 已经是 null，取不到 —— 静态站不搞聪明，写死常量最稳。
      2026-10-09：站点授权上线时漏跳了这个号，线上词典被缓存成 9/29 那份，
      新词条全部显示成 key（表现为"i18n 没生效"）。改词典**必须**同时跳这里。 */
-  var VER = '20261125navigation1';
+  var VER = '20261125-spaceport1';
 
   function loadAsync(code, cb) {
     var s = document.createElement('script');
@@ -210,7 +210,13 @@
       //    结果首次加载仍打到 CF 缓存的旧词典（实测线上一直显示旧词条 / 新键不生效）。
       document.write('<script src="' + BASE + cur + '.js' + (VER ? ('?v=' + VER) : '') + '"><\/script>');
       document.write('<script src="' + BASE + 'errors.js?v=' + VER + '"><\/script>');
-      document.addEventListener('DOMContentLoaded', ready);
+      // Static labels and the language picker must be painted before deferred
+      // account or page scripts, which may still be downloading.
+      document.addEventListener('readystatechange', function parsed() {
+        if (document.readyState !== 'interactive') return;
+        document.removeEventListener('readystatechange', parsed);
+        ready();
+      });
     } else {
       loadAsync(cur, ready);
     }
