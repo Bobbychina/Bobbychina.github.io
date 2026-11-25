@@ -186,6 +186,7 @@ I18N.define("en", {
   "games.link.okTitle": "Merged",
   "games.link.okP": "Arcade account <b>{name}</b> is now linked to this site account; no separate sign-in needed.",
   "games.h2.online": "Online games",
+  "games.catalog.jump": "Find a game by name",
   "games.h2.thanks": "Special thanks",
   "games.lexicon.title": "Lexicon Arena",
   "games.lexicon.desc": "Build crossing words on a shared board with nine letter tiles. Answer meaning questions and compete for HP and board points. Includes a tutorial, AI practice, custom rooms and ranked matches.",

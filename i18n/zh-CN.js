@@ -186,6 +186,7 @@ I18N.define("zh-CN", {
   "games.link.okTitle": "并好了",
   "games.link.okP": "游戏厅账号 <b>{name}</b> 已绑定到当前站点账号，以后进游戏厅不用再登。",
   "games.h2.online": "在线游戏",
+  "games.catalog.jump": "按名称找游戏",
   "games.h2.thanks": "特别鸣谢",
   "games.lexicon.title": "词锋对决 · Lexicon Arena",
   "games.lexicon.desc": "用 9 张字母牌在共享棋盘交叉拼词，再挑战词义，争夺生命与棋盘分。包含新手教程、人机练习、自定义房间和排位对战。",
