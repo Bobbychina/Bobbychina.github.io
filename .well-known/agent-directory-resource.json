@@ -1,0 +1,8 @@
+{
+  "resource": "https://bobbycn.cc/agent/directory",
+  "resource_name": "Bobbychina 公开站点与游戏目录",
+  "authorization_servers": ["https://bobbycn.cc"],
+  "scopes_supported": ["directory.read"],
+  "bearer_methods_supported": ["header"],
+  "resource_documentation": "https://bobbycn.cc/auth.md"
+}

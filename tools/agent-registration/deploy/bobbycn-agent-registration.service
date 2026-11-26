@@ -1,0 +1,31 @@
+[Unit]
+Description=Bobbycn public directory agent registration
+After=network.target
+
+[Service]
+DynamicUser=yes
+StateDirectory=bobbycn-agent-registration
+StateDirectoryMode=0700
+UMask=0077
+Environment=AGENT_REG_DB=/var/lib/bobbycn-agent-registration/registrations.sqlite3
+ExecStart=/usr/bin/python3 -B /opt/bobbycn-agent-registration/current/server.py
+Restart=on-failure
+RestartSec=3
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=128M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target
