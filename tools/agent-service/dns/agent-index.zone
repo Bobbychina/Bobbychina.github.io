@@ -1,0 +1,2 @@
+_index._agents.bobbycn.cc. 300 IN SVCB 1 bobbycn.cc. alpn="h2" port=443
+_index._agents.bobbycn.cc. 300 IN TXT "path=/.well-known/agent-directory"

@@ -1,0 +1,10 @@
+{
+  "name": "bobbycn-agent-service",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "cheerio": "1.0.0",
+    "negotiator": "1.0.0",
+    "node-html-markdown": "2.0.0"
+  }
+}

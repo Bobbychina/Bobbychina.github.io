@@ -1,0 +1,30 @@
+# Public pages may be indexed and used to answer user requests.
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Allow: /
+Disallow: /account/
+Disallow: /admin/
+Disallow: /chat/
+Disallow: /login/
+Disallow: /register/
+Disallow: /reset-password/
+Disallow: /verify-email/
+Disallow: /secret/
+Disallow: /api/auth/
+Disallow: /api/admin/
+Disallow: /api/chat/
+Disallow: /mail/
+Disallow: /oauth/
+Disallow: /api/user/
+
+# Training crawlers
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: CCBot
+User-agent: Bytespider
+User-agent: Meta-ExternalAgent
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+Disallow: /
+
+Sitemap: https://bobbycn.cc/sitemap.xml

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+  "name": "cc.bobbycn/directory",
+  "title": "Bobbychina public directory",
+  "version": "1.0.0",
+  "description": "Search public site sections and game previews by name or keyword.",
+  "websiteUrl": "https://bobbycn.cc/",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://bobbycn.cc/mcp",
+      "supportedProtocolVersions": [
+        "2025-11-25"
+      ]
+    }
+  ]
+}

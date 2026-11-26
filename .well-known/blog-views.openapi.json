@@ -1,0 +1,33 @@
+{
+  "openapi": "3.1.0",
+  "info": {"title": "潮汐太空港公开文章浏览数", "version": "1.0.0"},
+  "servers": [{"url": "https://bobbycn.cc"}],
+  "paths": {
+    "/api/blog/views": {
+      "get": {
+        "operationId": "getBlogViews",
+        "summary": "批量读取文章浏览数",
+        "parameters": [{
+          "name": "slugs",
+          "in": "query",
+          "description": "从公开文章 URL 取文章标识，以英文逗号连接，最多 200 项。",
+          "schema": {"type": "string"},
+          "example": "self-hosted-in-tokyo"
+        }],
+        "responses": {
+          "200": {
+            "description": "views 以文章标识为键，仅包含有计数记录的条目。",
+            "content": {"application/json": {"schema": {
+              "type": "object",
+              "required": ["views"],
+              "properties": {"views": {
+                "type": "object",
+                "additionalProperties": {"type": "integer", "minimum": 0}
+              }}
+            }}}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Bobbychina directory",
+  "description": "Look up public pages and game previews using Chinese or English keywords. Send an empty text part to list all entries.",
+  "version": "1.0.0",
+  "supportedInterfaces": [
+    {
+      "url": "https://bobbycn.cc/a2a",
+      "protocolBinding": "JSONRPC",
+      "protocolVersion": "1.0"
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false
+  },
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
+  "skills": [
+    {
+      "id": "search_site_directory",
+      "name": "Find public pages and games",
+      "description": "Search the public directory by keyword and return links to matching pages.",
+      "tags": [
+        "directory",
+        "games",
+        "navigation"
+      ],
+      "examples": [
+        "Minecraft",
+        "赛车",
+        "blog"
+      ]
+    }
+  ]
+}

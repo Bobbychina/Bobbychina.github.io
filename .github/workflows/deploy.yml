@@ -150,6 +150,11 @@ jobs:
           # ③ 收回权限：tar 包里可能带着 777/755 之外的模式
           sudo find /var/www/portal -type d -exec chmod 755 {} +
           sudo find /var/www/portal -type f -exec chmod 644 {} +
+          # The Markdown service mounts individual public HTML files read-only.
+          # Rebind them after tar replaces their inodes during a portal update.
+          if sudo docker container inspect bobbycn-agent-directory >/dev/null 2>&1; then
+            sudo docker restart bobbycn-agent-directory >/dev/null
+          fi
           echo "DEPLOYED files=$(sudo find /var/www/portal -type f | wc -l)"
           REMOTE
 

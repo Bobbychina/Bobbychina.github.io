@@ -1,0 +1,8 @@
+{
+  "resource": "https://bobbycn.cc",
+  "resource_name": "bobbycn.cc 站点身份",
+  "authorization_servers": ["https://bobbycn.cc"],
+  "scopes_supported": ["openid", "profile", "email"],
+  "bearer_methods_supported": ["header"],
+  "resource_documentation": "https://bobbycn.cc/auth.md"
+}

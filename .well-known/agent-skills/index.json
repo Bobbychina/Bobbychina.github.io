@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [{
+    "name": "read-blog-views",
+    "description": "按公开文章的链接查询潮汐太空港已记录的浏览数。",
+    "type": "skill-md",
+    "url": "/.well-known/agent-skills/read-blog-views/SKILL.md",
+    "digest": "sha256:d21f09fb19e09589f17c86f2968525d2d281b81cc80fddd5a89bb34971cfc3f1"
+  }]
+}

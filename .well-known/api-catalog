@@ -1,0 +1,23 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://bobbycn.cc/api/blog/views",
+      "service-desc": [
+        {"href": "https://bobbycn.cc/.well-known/blog-views.openapi.json", "type": "application/json"}
+      ],
+      "service-doc": [
+        {"href": "https://bobbycn.cc/.well-known/agent-skills/read-blog-views/SKILL.md", "type": "text/markdown"}
+      ]
+    },
+    {
+      "anchor": "https://bobbycn.cc/api/auth/identity/oauth/userinfo",
+      "service-doc": [
+        {"href": "https://bobbycn.cc/auth.md", "type": "text/markdown"}
+      ],
+      "service-meta": [
+        {"href": "https://bobbycn.cc/.well-known/oauth-authorization-server", "type": "application/json"},
+        {"href": "https://bobbycn.cc/.well-known/oauth-protected-resource", "type": "application/json"}
+      ]
+    }
+  ]
+}
