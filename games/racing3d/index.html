@@ -206,6 +206,7 @@
   #peerPanel [hidden]{display:none}
   #peerPanel textarea{resize:vertical;min-height:3em}
   #peerStatus,#netStatus{font-size:12px;line-height:1.55;color:#cad9ed;overflow-wrap:anywhere}
+  #peerRouteBadge{position:fixed;bottom:55px;left:12px;z-index:12;color:#fff;background:#172338;padding:4px 9px;border-radius:4px;font-size:12px;pointer-events:none}
   #btnNetExit{position:fixed;bottom:12px;left:12px;z-index:12;pointer-events:auto;display:none}
   #resLb{margin-top:10px;font-size:13.5px;color:#9db8d6;line-height:1.8}
   #resLb b{color:#ffe6a8}
@@ -298,7 +299,6 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
 <script src="/games/site-saves.js?v=20261021res1"></script>
 <script src="/games/account.js?v=20261021res1"></script>
 <script src="/mac-block.js"></script>
-<script defer src="/games/alan/online/vendor/peerjs.min.js"></script>
 </head>
 <body>
 
@@ -334,7 +334,8 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
   <div id="countdown"></div>
 </div>
 
-<button class="btn ghost sm" id="btnNetExit" type="button">退出对战</button>
+<span id="peerRouteBadge" hidden role="status"></span>
+  <button class="btn ghost sm" id="btnNetExit" type="button">退出对战</button>
 <div id="overlay" class="on">
   <div class="card" id="cardStart">
     <h1>极速椭圆</h1>
@@ -384,7 +385,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <div><kbd>Q</kbd><kbd>E</kbd><span>换车 · </span><kbd>R</kbd><span>重开</span></div>
     </div>
     </details><details class="race-settings" id="peerPanel"><summary>P2P 双人对战</summary>
-      <p class="sub">房主选好赛道和车型后创建房间，好友输入房间号加入。</p>
+      <p class="sub">房主选好赛道和车型后创建房间，好友输入房间号加入。直连失败时自动使用服务器中继。</p>
       <div id="peerNumberBox">
         <label class="net-fields">房间号<input id="peerNumber" aria-label="房间号" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6 位数字" autocomplete="off"></label>
         <div class="btnrow">
@@ -393,7 +394,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
           <button class="btn ghost sm" id="peerCopyNumber" type="button" hidden>复制房间号</button>
         </div>
       </div>
-      <details id="peerManual"><summary>手动连接</summary>
+      <details id="peerManual"><summary>手动直连</summary>
       <div class="net-fields">
         <label class="wide" id="peerOutLabel" hidden><span id="peerOutTitle">发给好友</span><textarea id="peerOut" readonly spellcheck="false"></textarea></label>
         <label class="wide" id="peerInLabel"><span id="peerInTitle">收到好友邀请？粘贴到这里</span><textarea id="peerIn" maxlength="32000" spellcheck="false" autocomplete="off"></textarea></label>
@@ -6145,6 +6146,9 @@ function peerControls() {
   if (!peerEl('peerPanel')) return;
   const room = PeerDuel.room;
   const numbered = !!room?.numbered;
+  const badge = peerEl('peerRouteBadge');
+  badge.hidden = !Net.inRace || !numbered;
+  badge.textContent = room?.route === 'relay' ? '服务器中继' : 'P2P 直连';
   peerEl('peerNumberBox').hidden = !!room && !numbered;
   peerEl('peerNumber').readOnly = !!room;
   peerEl('peerMakeRoom').hidden = peerEl('peerEnterRoom').hidden = !!room;
@@ -6170,7 +6174,7 @@ function peerClose() {
   clearTimeout(room.deadline);
   clearTimeout(room.disconnectTimer);
   room.channel?.close();
-  room.signal?.destroy();
+  room.socket?.close();
   room.pc?.close();
   peerEl('peerNumber').value = '';
   peerEl('peerIn').value = peerEl('peerOut').value = '';
@@ -6195,83 +6199,150 @@ function peerDeadline(room, ms, message) {
 }
 
 function peerSend(room, packet) {
+  if (room.numbered) {
+    const realtime = packet.type === 'input' || (packet.type === 'race' && packet.state === 'racing');
+    if (packet.type === 'input' || packet.type === 'race') packet.seq = ++room.seq;
+    if (realtime && room.route === 'direct' && !room.requestedRelay && room.channel?.readyState === 'open') {
+      if (room.channel.bufferedAmount > 65536) return false;
+      try { room.channel.send(JSON.stringify(packet)); return true; } catch { roomFallback(room); }
+    }
+    if (realtime && room.socket.bufferedAmount > 65536) return false;
+    return roomSend(room, { op: 'game', packet });
+  }
   if (room.channel?.readyState !== 'open') return false;
   if (packet.type === 'input' && room.channel.bufferedAmount > 8192) return false;
   try { room.channel.send(JSON.stringify(packet)); return true; }
   catch { peerEnd(room, '对战连接已断开。'); return false; }
 }
 
-// The signaling service reserves two IDs per room. Gameplay uses the RTC channel.
+// Numbered rooms use the portal socket for signaling and reliable race controls.
+// Only live input and racing snapshots use the direct channel when both peers have it.
+function roomSend(room, message) {
+  if (room.socket?.readyState !== WebSocket.OPEN) return false;
+  try { room.socket.send(JSON.stringify(message)); return true; }
+  catch { peerEnd(room, '与房间服务器的连接已断开。'); return false; }
+}
+
+function roomFallback(room) {
+  if (room !== PeerDuel.room || room.route === 'relay' || room.requestedRelay) return;
+  room.requestedRelay = true;
+  roomSend(room, { op: 'fallback' });
+}
+
+function roomWire(room, channel) {
+  if (channel.label !== 'oval-duel-v1' || room.channel || room.route === 'relay') { channel.close(); return; }
+  room.channel = channel;
+  channel.onopen = () => roomSend(room, { op: 'direct' });
+  channel.onerror = channel.onclose = () => roomFallback(room);
+  channel.onmessage = event => {
+    if (room !== PeerDuel.room || room.route !== 'direct') return;
+    try {
+      if (typeof event.data !== 'string' || event.data.length > 16000) throw new Error();
+      const packet = JSON.parse(event.data);
+      if (packet.type !== (room.role === 'host' ? 'input' : 'race')) throw new Error();
+      roomReceiveGame(room, packet);
+    } catch { peerEnd(room, '对手发送了无效的比赛数据。'); }
+  };
+}
+
+function roomReceiveGame(room, packet) {
+  // Control and gameplay packets can take different paths during a switchover.
+  if (packet.type === 'race' || packet.type === 'input') {
+    if (!Number.isSafeInteger(packet.seq) || packet.seq <= room.lastSeq) return;
+    room.lastSeq = packet.seq;
+  }
+  peerReceive(room, packet);
+}
+
+async function roomSignal(room, msg) {
+  if (room !== PeerDuel.room || room.requestedRelay || room.route) return;
+  try {
+    if (msg.op === 'paired') {
+      peerStatus('已找到对手，正在尝试直连…');
+      clearTimeout(room.deadline);
+      const pc = new RTCPeerConnection({ iceServers: [
+        { urls: 'stun:stun.cloudflare.com:3478' }, { urls: 'stun:stun.l.google.com:19302' }
+      ] });
+      room.pc = pc;
+      pc.onicecandidate = event => {
+        if (event.candidate && !room.route && !room.requestedRelay) roomSend(room, { op: 'signal', kind: 'candidate', value: event.candidate });
+      };
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') roomFallback(room);
+      };
+      pc.ondatachannel = e => roomWire(room, e.channel);
+      if (room.role === 'host') {
+        roomWire(room, pc.createDataChannel('oval-duel-v1'));
+        await pc.setLocalDescription(await pc.createOffer());
+        roomSend(room, { op: 'signal', kind: 'offer', value: pc.localDescription });
+      }
+    } else if (msg.kind === 'candidate') {
+      if (room.pc.remoteDescription) await room.pc.addIceCandidate(msg.value);
+      else room.pendingIce.push(msg.value);
+    } else {
+      const pc = room.pc;
+      await pc.setRemoteDescription(msg.value);
+      for (const candidate of room.pendingIce) await pc.addIceCandidate(candidate);
+      room.pendingIce.length = 0;
+      if (msg.kind === 'offer') {
+        await pc.setLocalDescription(await pc.createAnswer());
+        roomSend(room, { op: 'signal', kind: 'answer', value: pc.localDescription });
+      }
+    }
+  } catch { roomFallback(room); }
+}
+
+function roomRoute(room, route) {
+  if (!['direct','relay'].includes(route) || room.route === route) return;
+  const first = !room.route;
+  room.route = route;
+  if (route === 'relay') room.pc?.close();
+  const label = route === 'relay' ? '服务器中继' : 'P2P 直连';
+  peerControls();
+  if (first && room.role === 'host') peerSend(room, { type: 'lobby', track: room.track, model: room.model });
+  if (!first) {
+    peerStatus('连接已切换为' + label + '。');
+    if (Net.inRace) uiFlash('已切换到' + label, '继续比赛', '#8fe3ff', 2);
+  }
+}
+
 function peerOpenNumber(role) {
   if (Net.phase !== 'offline') return;
-  const host = role === 'host';
-  const field = peerEl('peerNumber');
+  const host = role === 'host', field = peerEl('peerNumber');
   const code = field.value.trim();
   if (!host && !/^\d{6}$/.test(code)) { peerStatus('请输入好友发来的 6 位房间号。'); field.focus(); return; }
-  if (!window.Peer || !window.RTCPeerConnection) { peerStatus('房间服务未加载，可刷新重试或展开手动连接。'); return; }
-  const room = { numbered: true, role, track: CFG.TRACK_MODE, model: CAR_CHOICE.now, ready: false };
+  const room = { numbered: true, role, track: CFG.TRACK_MODE, model: CAR_CHOICE.now, ready: false,
+    pendingIce: [], seq: 0, lastSeq: 0, route: '' };
   PeerDuel.room = room;
   Net.phase = 'connecting'; Net.id = role; Net.host = 'host';
   if (host) field.value = '';
-  netControls();
-  peerStatus(host ? '正在创建房间…' : '正在查找房间…');
-  const failed = () => peerEnd(room, '连接房间服务失败，可重试或展开手动连接。');
-  function register(attempt) {
-    room.number = host ? String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0') : code;
-    const prefix = 'bobbycn-oval-1-' + DUEL_RULES + '-' + room.number + '-';
-    const node = new window.Peer(prefix + role, { secure: true, config: { iceServers: [
-      { urls: 'stun:stun.cloudflare.com:3478' }, { urls: 'stun:stun.l.google.com:19302' }
-    ] } });
-    room.signal = node;
-    const current = () => room === PeerDuel.room && room.signal === node;
-    function wire(link) {
-      if (!current() || room.link || link.peer !== prefix + (host ? 'guest' : 'host') ||
-          link.label !== 'oval-duel-v1' || link.serialization !== 'raw' || !link.reliable) {
-        link.close(); return;
+  netControls(); peerStatus(host ? '正在创建房间…' : '正在查找房间…');
+  peerDeadline(room, 15000, '连接房间服务器超时。');
+  try { room.socket = new WebSocket('wss://bobbycn.cc/games/racing3d/relay'); }
+  catch { peerEnd(room, '无法连接房间服务器。'); return; }
+  const socket = room.socket;
+  let signaling = Promise.resolve();
+  socket.onopen = () => roomSend(room, { op: host ? 'create' : 'join', code, rules: DUEL_RULES });
+  socket.onerror = socket.onclose = () => peerEnd(room, '与房间服务器的连接已断开。');
+  socket.onmessage = event => {
+    if (room !== PeerDuel.room) return;
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.op === 'joined') {
+        field.value = msg.code; peerControls();
+        peerStatus(host ? '把房间号发给好友，等待加入。' : '已加入房间。');
+        peerDeadline(room, 600000, '房间等待超时。');
+      } else if (msg.op === 'paired' || msg.op === 'signal') {
+        signaling = signaling.then(() => roomSignal(room, msg));
+      } else if (msg.op === 'route') roomRoute(room, msg.route);
+      else if (msg.op === 'game') roomReceiveGame(room, msg.packet);
+      else if (msg.op === 'left') peerEnd(room, '对手已离开房间。');
+      else if (msg.op === 'error') {
+        const errors = { full: '房间已满。', missing: '找不到房间，请检查房间号和游戏版本。', busy: '服务器房间已满，请稍后再试。', version: '游戏版本不匹配。' };
+        peerEnd(room, errors[msg.reason] || '房间连接已结束，请重新加入。');
       }
-      room.link = link;
-      peerStatus('已找到对手，正在建立直连…');
-      peerDeadline(room, 35000, '双方网络未能建立直连，请换一个网络后重试。');
-      link.on('error', () => { if (current()) peerEnd(room, '对战直连失败。'); });
-      link.on('close', () => { if (current()) peerEnd(room, '对手已离开房间。'); });
-      link.on('open', () => {
-        if (!current()) return;
-        room.pc = link.peerConnection;
-        room.pc.addEventListener('connectionstatechange', () => {
-          clearTimeout(room.disconnectTimer);
-          if (room.pc.connectionState === 'disconnected') {
-            room.disconnectTimer = setTimeout(() => peerEnd(room, '对战连接已中断。'), 10000);
-          }
-          if (room.pc.connectionState === 'failed') peerEnd(room, '对战连接已中断。');
-        });
-        peerWire(room, link.dataChannel);
-      });
-    }
-    peerDeadline(room, 20000, '连接房间服务超时，请重试或展开手动连接。');
-    node.on('error', error => {
-      if (!current() || room.ready) return;
-      if (error.type === 'unavailable-id' && host && attempt < 4) { register(attempt + 1); return; }
-      if (error.type === 'unavailable-id' && !host) peerEnd(room, '房间已满。');
-      else if (error.type === 'peer-unavailable') peerEnd(room, '找不到房间，请核对房间号，并确认双方使用同一版本。');
-      else failed();
-    });
-    node.on('disconnected', () => { if (current() && !room.ready) failed(); });
-    node.on('connection', link => { if (host) wire(link); else link.close(); });
-    node.on('call', call => call.close());
-    node.on('open', () => {
-      if (!current()) return;
-      if (host) {
-        field.value = room.number;
-        peerControls();
-        peerStatus('把房间号发给好友，等待加入。');
-        peerDeadline(room, 10 * 60000, '房间等待超时，请重新创建。');
-      } else {
-        const link = node.connect(prefix + 'host', { label: 'oval-duel-v1', serialization: 'raw', reliable: true });
-        if (link) wire(link); else failed();
-      }
-    });
-  }
-  try { register(1); } catch { failed(); }
+    } catch { peerEnd(room, '房间数据无效，请刷新重试。'); }
+  };
 }
 
 function peerParseCode(type) {
@@ -6390,7 +6461,7 @@ function peerReceive(room, packet) {
     }
     clearTimeout(room.deadline);
     room.ready = true; Net.phase = 'lobby'; netControls();
-    peerStatus('已直连 · ' + TRACK_DEFS[room.track].name + ' · ' + (host ? '可以发车。' : '等待房主发车。'));
+    peerStatus((room.route === 'relay' ? '已连接 · 服务器中继 · ' : '已直连 · ') + TRACK_DEFS[room.track].name + ' · ' + (host ? '可以发车。' : '等待房主发车。'));
   } else if (host && packet.type === 'gridReady' && room.engine && !room.gridReady) {
     room.gridReady = true;
     clearTimeout(room.deadline);
@@ -6432,7 +6503,7 @@ function peerBroadcast(room) {
   const packet = room.engine.snapshot();
   packet.type = 'race'; packet.track = room.track; packet.countdown = room.countdown;
   packet.state = room.countdown > 0 ? 'countdown' : packet.cars.every(c => c.finished) ? 'finished' : 'racing';
-  if (room.channel.bufferedAmount > 65536 && packet.state !== 'finished') return;
+  if (!room.numbered && room.channel.bufferedAmount > 65536 && packet.state !== 'finished') return;
   if (!peerSend(room, packet)) return;
   netSnapshot(packet);
   room.finished = packet.state === 'finished';
