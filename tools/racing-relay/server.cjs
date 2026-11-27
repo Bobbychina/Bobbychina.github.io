@@ -24,7 +24,7 @@ function createRelay() {
     for (const ws of [room.host, room.guest]) send(ws, { op: 'route', route });
   }
   function admit(ws, msg) {
-    if (!['v4','classic-v1'].includes(msg.rules)) return reject(ws, 'version');
+    if (!['v4','classic-v1','trial1-v4','trial1-classic-v1'].includes(msg.rules)) return reject(ws, 'version');
     const role = msg.op === 'create' ? 'host' : msg.op === 'join' ? 'guest' : '';
     if (!role) return reject(ws, 'invalid');
     let room;
@@ -62,6 +62,12 @@ function createRelay() {
       if (room.route) return;
       if (++room.signals > 160 || !['candidate',host ? 'offer' : 'answer'].includes(msg.kind)) return reject(ws, 'invalid');
       send(other, { op: 'signal', kind: msg.kind, value: msg.value }); return;
+    }
+    if (room.rules.startsWith('trial1-')) {
+      const packet = msg.packet;
+      const types = host ? ['lobby','start','score','ack'] : ['ready','score','ack'];
+      if (msg.op !== 'game' || !room.route || !types.includes(packet?.type) || JSON.stringify(packet).length > 512) return reject(ws, 'invalid');
+      send(other, { op: 'game', packet }); return;
     }
     const allowed = host ? ['lobby','race'] : ['ready','gridReady','input'];
     if (msg.op !== 'game' || !room.route || !allowed.includes(msg.packet?.type)) return reject(ws, 'invalid');

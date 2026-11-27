@@ -10,7 +10,7 @@ test('private two-player rooms, agreed routes, failover and teardown', { timeout
   await once(server, 'listening');
   const clients = [];
   t.after(() => { clients.forEach(ws => ws.terminate()); server.close(); });
-  async function player(op, code) {
+  async function player(op, code, rules = 'classic-v1') {
     const ws = new WebSocket('ws://127.0.0.1:' + server.address().port + '/games/racing3d/relay', { origin: 'https://bobbycn.cc' });
     clients.push(ws);
     const packets = [], events = new (require('node:events').EventEmitter)();
@@ -18,7 +18,7 @@ test('private two-player rooms, agreed routes, failover and teardown', { timeout
     await once(ws, 'open');
     const send = msg => ws.send(JSON.stringify(msg));
     const next = async () => { if (!packets.length) await once(events, 'packet'); return packets.shift(); };
-    send({ op, code, rules: 'classic-v1' });
+    send({ op, code, rules });
     return { ws, send, next };
   }
   const a = await player('create');
@@ -36,4 +36,16 @@ test('private two-player rooms, agreed routes, failover and teardown', { timeout
   b.send({ op: 'game', packet: { type: 'race' } });
   assert.equal((await b.next()).reason, 'invalid'); assert.equal((await a.next()).op, 'left');
   const late = await player('join', code); assert.equal((await late.next()).reason, 'missing');
+  const racer = await player('create', undefined, 'trial1-classic-v1');
+  const trialCode = (await racer.next()).code;
+  const legacy = await player('join', trialCode);
+  assert.equal((await legacy.next()).reason, 'missing');
+  const challenger = await player('join', trialCode, 'trial1-classic-v1');
+  await challenger.next(); await challenger.next(); await racer.next();
+  racer.send({ op: 'fallback' }); await racer.next(); await challenger.next();
+  const score = { type: 'score', total: 63000, best: 20000, speed: 185, laps: 3 };
+  challenger.send({ op: 'game', packet: score });
+  assert.deepEqual((await racer.next()).packet, score);
+  racer.send({ op: 'game', packet: { type: 'race' } });
+  assert.equal((await racer.next()).reason, 'invalid');
 });
