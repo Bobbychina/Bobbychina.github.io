@@ -197,6 +197,16 @@
     border-radius:9px;color:#eaf6ff;background:rgba(10,20,34,.75);
     border:1px solid rgba(150,200,255,.28);outline:none}
   #lbForm input:focus{border-color:rgba(140,240,255,.7)}
+  .net-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+  .net-fields label{display:grid;gap:4px;color:#c5d4e7;font-size:12px}
+  .net-fields .wide{grid-column:1/-1}
+  .net-fields textarea,.net-fields input{min-width:0;width:100%;box-sizing:border-box;background:#09121e;color:#fff;
+    border:1px solid #42516a;border-radius:3px;padding:8px;font:inherit}
+  .btn:disabled,.tbtn:disabled,.cbtn:disabled{opacity:.45;cursor:not-allowed;filter:saturate(.3)}
+  #peerPanel [hidden]{display:none}
+  #peerPanel textarea{resize:vertical;min-height:3em}
+  #peerStatus,#netStatus{font-size:12px;line-height:1.55;color:#cad9ed;overflow-wrap:anywhere}
+  #btnNetExit{position:fixed;bottom:12px;left:12px;z-index:12;pointer-events:auto;display:none}
   #resLb{margin-top:10px;font-size:13.5px;color:#9db8d6;line-height:1.8}
   #resLb b{color:#ffe6a8}
   #lbHud{font-size:12.5px;color:#8fb2d8;margin-top:6px;letter-spacing:.4px}
@@ -323,6 +333,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
   <div id="countdown"></div>
 </div>
 
+<button class="btn ghost sm" id="btnNetExit" type="button">退出对战</button>
 <div id="overlay" class="on">
   <div class="card" id="cardStart">
     <h1>极速椭圆</h1>
@@ -371,6 +382,21 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <div><kbd>1</kbd>~<kbd>9</kbd><kbd>0</kbd><span>切赛道 (或 <kbd>T</kbd> 循环)</span></div>
       <div><kbd>Q</kbd><kbd>E</kbd><span>换车 · </span><kbd>R</kbd><span>重开</span></div>
     </div>
+    </details><details class="race-settings" id="peerPanel"><summary>P2P 双人对战</summary>
+      <p class="sub">房主选好赛道和车型后创建邀请。两位车手使用同款车，由房主发车。</p>
+      <div class="net-fields">
+        <label class="wide" id="peerOutLabel" hidden><span id="peerOutTitle">发给好友</span><textarea id="peerOut" readonly spellcheck="false"></textarea></label>
+        <label class="wide" id="peerInLabel"><span id="peerInTitle">收到好友邀请？粘贴到这里</span><textarea id="peerIn" maxlength="32000" spellcheck="false" autocomplete="off"></textarea></label>
+      </div>
+      <div class="btnrow">
+        <button class="btn sm" type="button" id="peerCreate">创建邀请</button>
+        <button class="btn ghost sm" type="button" id="peerJoin">加入邀请</button>
+        <button class="btn ghost sm" type="button" id="peerCopy" hidden>复制给好友</button>
+        <button class="btn sm" type="button" id="peerAccept" hidden>连接对手</button>
+        <button class="btn sm" type="button" id="peerStart" hidden>房主发车</button>
+        <button class="btn ghost sm" type="button" id="peerLeave" hidden>退出对战</button>
+      </div>
+      <p id="peerStatus" role="status">无需启动房间服务器。</p>
     </details><div class="btnrow">
       <button class="btn" id="btnStart">开 始 比 赛</button>
       <button class="btn ghost sm" id="btnBoard"><span data-i18n="racing.panel.title">🏆 官方排行榜</span></button>
@@ -5172,6 +5198,7 @@ async function onlineFetchBoard(trackId) {
 
 /** 提交一圈成绩（要登录云账号）；单圈毫秒数越小越好 */
 async function onlineSubmit(run) {
+  if (Net.inRace) return { ok: false, err: 'multiplayer' };
   const tid = onlineTrackId();
   const lap = Math.round(run.lap * 1000);
   const total = Math.round(run.total * 1000);
@@ -5379,6 +5406,7 @@ function onlineTogglePanel(force) {
 
 /** 比赛结束后：自动把这一局的最好单圈传上去（没登录就提示一句） */
 async function onlineAfterRace() {
+  if (Net.inRace) { document.getElementById('resLb').textContent = '本局成绩仅在对战房间显示。'; return; }
   const line = document.getElementById('resLb');
   const p = G.player;
   const tid = onlineTrackId();
@@ -5897,6 +5925,453 @@ function ghostOnTrackChange() {
   onlineRenderGhostPick();
 }
 
+/* Shared by the WebSocket server and the browser hosting a P2P race.
+ * The caller selects the track and builds its data before creating the grid. */
+function createRoomEngine(track, model, players) {
+  const cars = players.map((player, i) => {
+    const car = createVehicle({ name: player.name, color: player.color, model });
+    const row = Math.floor(i / 2), col = i % 2;
+    placeVehicle(car, -(8 + row * CFG.GRID_GAP + (col ? CFG.GRID_GAP * 0.45 : 0)),
+      col ? CFG.GRID_SIDE : -CFG.GRID_SIDE);
+    car.id = player.id;
+    car.nextSplit = 0;
+    car.lapStartTime = 0;
+    car.finishPos = 0;
+    return car;
+  });
+  let raceTime = 0;
+  let finishCount = 0;
+  const laps = TRACK_DEFS[track].laps;
+  const dt = CFG.FIXED_DT;
+
+  function step(inputs) {
+    const crossings = [];
+    raceTime += dt;
+    for (const car of cars) {
+      if (car.finished || car.disconnected) continue;
+      const input = inputs.get(car.id) || {};
+      car.throttle = input.accel ? 1 : 0;
+      car.brake = input.brake ? 1 : 0;
+      car.steerInput = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+      car.driftKey = !!input.drift;
+      const before = car.prog;
+      stepVehicle(car, dt);
+      if (car.prog >= car.nextSplit) {
+        const moved = car.prog - before;
+        const fraction = moved > 0 ? Math.max(0, Math.min(1, (car.nextSplit - before) / moved)) : 1;
+        crossings.push({ car, time: raceTime - dt + fraction * dt });
+      }
+    }
+    resolveCarCollisions(cars.filter(car => !car.finished && !car.disconnected), dt);
+    crossings.sort((a, b) => a.time - b.time);
+    for (const { car, time } of crossings) {
+      if (car.nextSplit === 0) {
+        car.lapStartTime = time;
+        car.nextSplit = TRACK.len;
+      } else {
+        const lapTime = time - car.lapStartTime;
+        car.lapStartTime = time;
+        car.lastLap = lapTime;
+        if (!car.bestLap || lapTime < car.bestLap) car.bestLap = lapTime;
+        car.lap++;
+        car.nextSplit += TRACK.len;
+        if (car.lap >= laps) {
+          car.finished = true;
+          car.finishTime = time;
+          car.finishPos = ++finishCount;
+        }
+      }
+    }
+  }
+
+  function snapshot() {
+    const standings = cars.slice().sort((a, b) => {
+      if (!!a.disconnected !== !!b.disconnected) return a.disconnected ? 1 : -1;
+      if (a.finished !== b.finished) return a.finished ? -1 : 1;
+      return a.finished ? a.finishPos - b.finishPos : b.prog - a.prog;
+    });
+    const fields = ['id', 'name', 'color', 'model', 'x', 'y', 'z', 'yaw', 'vx', 'vz', 'vy',
+      'speed', 'vLong', 'vLat', 'yawRate', 'steer', 'throttle', 'brake', 'slip', 'lat', 't',
+      'prog', 'lastS', '_ringIdx', 'onKerb', 'airborne', 'slopePitch', 'wheelSpin', 'drifting',
+      'lap', 'nextSplit', 'lapStartTime', 'lastLap', 'bestLap', 'topSpeed', 'finished',
+      'finishTime', 'finishPos', 'disconnected'];
+    return { time: raceTime, laps, cars: standings.map((car, i) => {
+      const result = { pos: i + 1 };
+      for (const field of fields) result[field] = car[field];
+      return result;
+    }) };
+  }
+
+  return { cars, dt, step, snapshot, track, model, trackLength: TRACK.len };
+}
+
+const Net = { phase: 'offline', id: '', inRace: false, sendAcc: 0 };
+function netControls() {
+  document.getElementById('btnStart').disabled = Net.phase !== 'offline';
+  document.getElementById('btnNetExit').style.display = Net.inRace ? 'block' : 'none';
+  peerControls();
+}
+function netDisconnect() {
+  peerClose();
+  Net.phase = 'offline'; Net.inRace = false; Net.id = ''; Net.sendAcc = 0;
+  if (Net.originalHint !== undefined) document.getElementById('hint').innerHTML = Net.originalHint;
+  netControls();
+}
+function netExitToMenu(reason) {
+  netDisconnect(); G.state = 'intro';
+  KEY.accel = KEY.brake = KEY.left = KEY.right = KEY.drift = false;
+  setupRace(); camReset(G.player); uiLoadBest(); peerStatus(reason);
+  uiFlash(reason, '', '#ffd76a', 2);
+}
+
+function netStartScene(message) {
+  Net.phase = 'syncing';
+  if (CFG.TRACK_MODE !== message.track) selectTrack(message.track);
+  else setupRace();
+  for (let i = 0; i < G.cars.length; i++) if (G.cars[i].group) scene.remove(G.cars[i].group);
+  G.cars = message.cars.map(function (s) {
+    const car = createVehicle({ name: s.name, color: s.color, model: s.model });
+    car.netId = s.id;
+    newCarVisual(car, s.color);
+    return car;
+  });
+  G.player = G.cars.find(function (c) { return c.netId === Net.id; });
+  if (!G.player) { netExitToMenu('未收到你的赛车。'); return false; }
+  G.ai = []; G.finishOrder = []; G.cdShown = -1;
+  CFG.RACE_LAPS = message.laps;
+  Net.inRace = true; Net.phase = 'race'; Net.sendAcc = 0; Net.resultStamp = '';
+  const hint = document.getElementById('hint');
+  if (hint) {
+    Net.originalHint = hint.innerHTML;
+    hint.textContent = 'W/S 油门与刹车 · A/D 转向 · 空格 漂移 · 联机无法暂停';
+  }
+  G.state = 'countdown'; G.accum = 0; G.raceTime = 0;
+  KEY.accel = KEY.brake = KEY.left = KEY.right = KEY.drift = false;
+  uiShowCard(null); CAM.ready = false; netControls();
+  return true;
+}
+
+function netSnapshot(message) {
+  if (!Array.isArray(message.cars) || !TRACK_DEFS[message.track]) return;
+  if (!Net.inRace && !netStartScene(message)) return;
+  G.raceTime = message.time;
+  if (message.state === 'countdown') {
+    G.state = 'countdown';
+    const n = Math.max(1, Math.ceil(message.countdown));
+    if (G.cdShown !== n) { G.cdShown = n; uiCountdown(String(n), '#ffffff'); }
+  } else if (G.state !== 'finished') {
+    if (G.state === 'countdown') uiCountdown('GO!', '#7dffb0');
+    G.state = 'racing';
+  }
+  const fields = ['y', 'vx', 'vz', 'vy', 'speed', 'vLong', 'vLat', 'yawRate', 'steer', 'throttle', 'brake',
+    'slip', 'lat', 't', 'prog', 'lastS', '_ringIdx', 'onKerb', 'airborne', 'slopePitch', 'wheelSpin',
+    'drifting', 'lap', 'nextSplit', 'lapStartTime', 'lastLap', 'bestLap', 'topSpeed', 'finished',
+    'finishTime', 'finishPos', 'pos', 'disconnected'];
+  for (let i = 0; i < message.cars.length; i++) {
+    const s = message.cars[i];
+    const car = G.cars.find(function (c) { return c.netId === s.id; });
+    if (!car) continue;
+    const first = !car._netSeen;
+    car._netSeen = true;
+    if (car === G.player) {
+      const distance = Math.hypot(car.x - s.x, car.z - s.z);
+      const blend = first || distance > 3 ? 1 : 0.5;
+      car.x = lerp(car.x, s.x, blend); car.z = lerp(car.z, s.z, blend);
+      car.yaw = wrapPi(car.yaw + wrapPi(s.yaw - car.yaw) * blend);
+    } else {
+      car._netTarget = s;
+      if (first) { car.x = s.x; car.z = s.z; car.yaw = s.yaw; }
+    }
+    for (let j = 0; j < fields.length; j++) if (s[fields[j]] !== undefined) car[fields[j]] = s[fields[j]];
+  }
+  G.finishOrder = G.cars.filter(function (c) { return c.finished; })
+    .sort(function (a, b) { return a.finishPos - b.finishPos; });
+  if (G.player.finished) {
+    const stamp = G.finishOrder.length + ':' + G.cars.filter(function (c) { return c.disconnected; }).length + ':' + message.state;
+    if (G.state !== 'finished') finishRace();
+    else if (stamp !== Net.resultStamp) showResults();
+    Net.resultStamp = stamp;
+  }
+}
+
+function netStep(dt) {
+  if (!Net.inRace || !G.player) return;
+  if (PeerDuel.room && PeerDuel.room.role === 'host') { peerHostStep(dt); return; }
+  Net.sendAcc += dt;
+  if (Net.sendAcc >= 0.05) {
+    Net.sendAcc %= 0.05;
+    const packet = { type: 'input', input: { accel: KEY.accel, brake: KEY.brake, left: KEY.left,
+      right: KEY.right, drift: KEY.drift } };
+    if (PeerDuel.room) peerSend(PeerDuel.room, packet);
+  }
+  if (G.state === 'racing' && !G.player.finished) {
+    G.raceTime += dt;
+    playerControl(G.player);
+    stepVehicle(G.player, dt);
+  }
+  for (let i = 0; i < G.cars.length; i++) {
+    const car = G.cars[i], target = car._netTarget;
+    if (car === G.player || !target) continue;
+    car.x = damp(car.x, target.x, 12, dt); car.z = damp(car.z, target.z, 12, dt);
+    car.yaw = wrapPi(car.yaw + wrapPi(target.yaw - car.yaw) * (1 - Math.exp(-12 * dt)));
+  }
+}
+
+
+/* Native WebRTC with out-of-band signaling so the single-file game can host a duel. */
+const PeerDuel = { room: null };
+const DUEL_PLAYERS = [
+  { id: 'host', name: '房主', color: 0xf39038 },
+  { id: 'guest', name: '挑战者', color: 0x36bded }
+];
+const DUEL_VERSION = 'OVAL1';
+const peerEl = id => document.getElementById(id);
+function peerStatus(text) { peerEl('peerStatus').textContent = text; }
+
+function peerControls() {
+  if (!peerEl('peerPanel')) return;
+  const room = PeerDuel.room;
+  const waitingAnswer = room?.role === 'host' && room.stage === 'offer';
+  const outbound = !!room && !!peerEl('peerOut').value && !room.ready;
+  peerEl('peerOutLabel').hidden = peerEl('peerCopy').hidden = !outbound;
+  peerEl('peerCreate').hidden = peerEl('peerJoin').hidden = !!room;
+  peerEl('peerCreate').disabled = peerEl('peerJoin').disabled = Net.phase !== 'offline';
+  peerEl('peerLeave').hidden = !room;
+  peerEl('peerInLabel').hidden = !!room && !waitingAnswer;
+  peerEl('peerInTitle').textContent = waitingAnswer ? '粘贴好友发回的应答' : '收到好友邀请？粘贴到这里';
+  peerEl('peerAccept').hidden = !waitingAnswer;
+  peerEl('peerStart').hidden = !(room?.role === 'host' && room.ready && !Net.inRace);
+}
+
+function peerClose() {
+  const room = PeerDuel.room;
+  if (!room) return;
+  PeerDuel.room = null;
+  clearTimeout(room.deadline);
+  clearTimeout(room.disconnectTimer);
+  room.channel?.close();
+  room.pc.close();
+  peerEl('peerIn').value = peerEl('peerOut').value = '';
+  peerStatus('已退出对战。');
+}
+
+function peerEnd(room, message) {
+  if (room !== PeerDuel.room) return;
+  if (Net.inRace && G.state === 'finished') {
+    for (const car of G.cars) if (car !== G.player && !car.finished) car.disconnected = true;
+    showResults();
+    peerClose();
+    uiFlash(message, '', '#ffd76a', 2);
+  } else if (Net.inRace) netExitToMenu(message);
+  else netDisconnect();
+  peerStatus(message);
+}
+
+function peerDeadline(room, ms, message) {
+  clearTimeout(room.deadline);
+  room.deadline = setTimeout(() => peerEnd(room, message), ms);
+}
+
+function peerSend(room, packet) {
+  if (room.channel?.readyState !== 'open') return false;
+  if (packet.type === 'input' && room.channel.bufferedAmount > 8192) return false;
+  try { room.channel.send(JSON.stringify(packet)); return true; }
+  catch { peerEnd(room, '对战连接已断开。'); return false; }
+}
+
+function peerParseCode(type) {
+  const text = peerEl('peerIn').value.trim();
+  try {
+    const [version, rules, id, kind, encoded, extra] = text.split('.');
+    if (version !== DUEL_VERSION || rules !== btoa('classic-v1') ||
+        !/^[a-f0-9]{24}$/.test(id) || type !== kind || extra !== undefined ||
+        (type === 'answer' && id !== PeerDuel.room?.id)) throw new Error();
+    const sdp = atob(encoded);
+    if (!sdp.startsWith('v=0') || !sdp.includes('m=application') || sdp.includes('m=audio') || sdp.includes('m=video')) throw new Error();
+    return { id, description: { type, sdp } };
+  } catch {
+    peerStatus(type === 'offer' ? '邀请无效，请复制同版本游戏生成的完整邀请。' : '应答无效，请粘贴这次邀请对应的完整应答。');
+    return null;
+  }
+}
+
+async function peerPublishCode(room) {
+  const pc = room.pc;
+  // STUN can be unreachable on a LAN. A gathered host candidate still allows local play.
+  if (pc.iceGatheringState !== 'complete') await new Promise(resolve => {
+    const done = () => { clearTimeout(timer); pc.removeEventListener('icegatheringstatechange', update); resolve(); };
+    const update = () => { if (pc.iceGatheringState === 'complete') done(); };
+    const timer = setTimeout(done, 6500);
+    pc.addEventListener('icegatheringstatechange', update);
+    update();
+  });
+  if (room !== PeerDuel.room || room.ready) return;
+  const desc = pc.localDescription;
+  if (!desc.sdp.includes('a=candidate:')) throw new Error('未取得可用网络地址，请检查网络后重试。');
+  peerEl('peerOut').value = [DUEL_VERSION, btoa('classic-v1'), room.id, desc.type, btoa(desc.sdp)].join('.');
+  const host = room.role === 'host';
+  room.stage = host ? 'offer' : 'connecting';
+  peerEl('peerOutTitle').textContent = host ? '邀请 · 发给好友' : '应答 · 发回房主';
+  peerStatus(host ? '把邀请发给好友，收到应答后粘贴并点击「连接对手」。' : '把应答发回房主，保持此页打开。');
+  peerControls();
+}
+
+async function peerOpen(role) {
+  if (Net.phase !== 'offline') return;
+  if (!window.RTCPeerConnection) { peerStatus('当前浏览器无法使用 WebRTC，请使用支持 WebRTC 的浏览器。'); return; }
+  const offer = role === 'guest' ? peerParseCode('offer') : null;
+  if (role === 'guest' && !offer) return;
+  let room;
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }, { urls: 'stun:stun.l.google.com:19302' }] });
+    const id = offer?.id || Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+    room = { pc, role, id, track: CFG.TRACK_MODE, model: CAR_CHOICE.now, stage: 'gathering', ready: false };
+    PeerDuel.room = room;
+    Net.phase = 'connecting'; Net.id = role; Net.host = 'host';
+    peerEl('peerIn').value = ''; netControls(); peerStatus('正在收集直连地址…');
+    peerDeadline(room, 180000, '邀请已过期，请重新创建。');
+    pc.onconnectionstatechange = () => {
+      clearTimeout(room.disconnectTimer);
+      if (pc.connectionState === 'disconnected') {
+        room.disconnectTimer = setTimeout(() => peerEnd(room, '对手的网络连接已中断。'), 10000);
+      }
+      if (pc.connectionState === 'failed') peerEnd(room, '直连失败。请换一个网络，再重新创建邀请。');
+    };
+    if (offer) {
+      pc.ondatachannel = event => peerWire(room, event.channel);
+      await pc.setRemoteDescription(offer.description);
+      await pc.setLocalDescription(await pc.createAnswer());
+    } else {
+      peerWire(room, pc.createDataChannel('oval-duel-v1'));
+      await pc.setLocalDescription(await pc.createOffer());
+    }
+    await peerPublishCode(room);
+  } catch (error) {
+    const message = '创建连接失败：' + error.message;
+    if (room) peerEnd(room, message); else peerStatus(message);
+  }
+}
+
+async function peerAccept() {
+  const room = PeerDuel.room;
+  if (room?.stage !== 'offer') return;
+  const answer = peerParseCode('answer');
+  if (!answer) return;
+  room.stage = 'connecting'; peerControls(); peerStatus('正在连接对手…');
+  try {
+    await room.pc.setRemoteDescription(answer.description);
+    if (room === PeerDuel.room && !room.ready) peerDeadline(room, 30000, '直连超时。请换一个网络，再重新创建邀请。');
+  } catch { peerEnd(room, '无法使用这个应答，请重新创建邀请。'); }
+}
+
+function peerWire(room, channel) {
+  if (room !== PeerDuel.room || room.channel || channel.label !== 'oval-duel-v1') { channel.close(); return; }
+  room.channel = channel;
+  channel.onclose = channel.onerror = () => peerEnd(room, '对手已离开或连接已断开。');
+  channel.onopen = () => {
+    if (room !== PeerDuel.room) return;
+    if (room.role === 'host') peerSend(room, { type: 'lobby', track: room.track, model: room.model });
+  };
+  channel.onmessage = event => {
+    if (room !== PeerDuel.room) return;
+    try {
+      if (typeof event.data !== 'string' || event.data.length > 16000) throw new Error();
+      peerReceive(room, JSON.parse(event.data));
+    } catch { peerEnd(room, '对战数据无效，请确认双方使用相同版本。'); }
+  };
+}
+
+function peerReceive(room, packet) {
+  const host = room.role === 'host';
+  if (!room.ready) {
+    if (host) {
+      if (packet.type !== 'ready') throw new Error();
+    } else {
+      if (packet.type !== 'lobby' || !Object.hasOwn(TRACK_DEFS, packet.track) || !Object.hasOwn(CAR_SPECS, packet.model)) throw new Error();
+      room.track = packet.track; room.model = packet.model;
+      if (!peerSend(room, { type: 'ready' })) return;
+    }
+    clearTimeout(room.deadline);
+    room.ready = true; Net.phase = 'lobby'; netControls();
+    peerStatus('已直连 · ' + TRACK_DEFS[room.track].name + ' · ' + (host ? '可以发车。' : '等待房主发车。'));
+  } else if (host && packet.type === 'gridReady' && room.engine && !room.gridReady) {
+    room.gridReady = true;
+    clearTimeout(room.deadline);
+  } else if (host && packet.type === 'input' && room.engine) {
+    const input = packet.input;
+    if (!input || !['accel','brake','left','right','drift'].every(k => typeof input[k] === 'boolean')) throw new Error();
+    room.inputs.set('guest', input);
+    room.inputAt = performance.now();
+  } else if (!host && packet.type === 'race') {
+    if (packet.track !== room.track || packet.laps !== TRACK_DEFS[room.track].laps ||
+        !['countdown','racing','finished'].includes(packet.state) || !Number.isFinite(packet.countdown) ||
+        !Number.isFinite(packet.time) || !Array.isArray(packet.cars) || packet.cars.length !== 2) throw new Error();
+    for (const player of DUEL_PLAYERS) {
+      const car = packet.cars.find(c => c.id === player.id);
+      if (!car || car.model !== room.model || !['x','y','z','yaw','prog','speed','pos','lap','finishTime'].every(k => Number.isFinite(car[k]))) throw new Error();
+      for (const [key, value] of Object.entries(car)) {
+        if (['model','name','id'].includes(key)) continue;
+        if (typeof value !== 'boolean' && !(Number.isFinite(value) && Math.abs(value) < 1e9)) throw new Error();
+      }
+      car.name = player.name; car.color = player.color;
+    }
+    const first = !Net.inRace;
+    netSnapshot(packet);
+    if (first) peerSend(room, { type: 'gridReady' });
+  } else throw new Error();
+}
+
+function peerStart() {
+  const room = PeerDuel.room;
+  if (room?.role !== 'host' || !room.ready || Net.inRace) return;
+  room.engine = createRoomEngine(room.track, room.model, DUEL_PLAYERS);
+  room.inputs = new Map([['host', KEY]]);
+  room.countdown = 3; room.tick = 0;
+  peerDeadline(room, 30000, '对手载入赛道超时。');
+  peerBroadcast(room);
+}
+
+function peerBroadcast(room) {
+  const packet = room.engine.snapshot();
+  packet.type = 'race'; packet.track = room.track; packet.countdown = room.countdown;
+  packet.state = room.countdown > 0 ? 'countdown' : packet.cars.every(c => c.finished) ? 'finished' : 'racing';
+  if (room.channel.bufferedAmount > 65536 && packet.state !== 'finished') return;
+  if (!peerSend(room, packet)) return;
+  netSnapshot(packet);
+  room.finished = packet.state === 'finished';
+}
+
+function peerHostStep(dt) {
+  const room = PeerDuel.room;
+  if (!room.gridReady || room.finished) return;
+  if (room.countdown > 0) room.countdown = Math.max(0, room.countdown - dt);
+  else {
+    if (performance.now() - room.inputAt > 750) room.inputs.delete('guest');
+    room.engine.step(room.inputs);
+  }
+  // Local visuals follow the authoritative cars every step, even between broadcasts.
+  if (++room.tick % 6 === 0) peerBroadcast(room);
+  if (room !== PeerDuel.room) return;
+  for (const state of room.engine.cars) {
+    const car = G.cars.find(c => c.netId === state.id);
+    car.x = state.x; car.y = state.y; car.z = state.z; car.yaw = state.yaw;
+  }
+}
+
+function peerBindUI() {
+  peerEl('peerCreate').onclick = () => peerOpen('host');
+  peerEl('peerJoin').onclick = () => peerOpen('guest');
+  peerEl('peerAccept').onclick = peerAccept;
+  peerEl('peerStart').onclick = peerStart;
+  peerEl('peerLeave').onclick = () => { netDisconnect(); };
+  peerEl('peerCopy').onclick = async () => {
+    const field = peerEl('peerOut');
+    try { await navigator.clipboard.writeText(field.value); peerStatus('已复制，请发给好友。'); }
+    catch { field.focus(); field.select(); peerStatus('已选中，请使用系统复制命令。'); }
+  };
+}
+
+
 /* ===== 80_main.js ===== */
 /* ===========================================================================
  * 80_main.js —— 场景/灯光/输入/比赛流程/主循环
@@ -5931,6 +6406,7 @@ function typingInField() {
 function bindInput() {
   window.addEventListener('keydown', function (e) {
     if (typingInField()) return;
+    if (e.target.closest?.('#peerPanel') && (e.code === 'Enter' || e.code === 'Space')) return;
     /* 数字键 1~9 + 0 => 第 10 条赛道 (数量按 TRACK_DEFS 自动伸缩) */
     const dm = /^(?:Digit([1-9])|Digit0)$/.exec(e.code);
     if (dm) {
@@ -6047,6 +6523,9 @@ function bindInput() {
     })(dbtns[i]);
   }
   /* 官方排行榜的按钮/面板（站点模式下才有内容，单文件模式会显示"本地模式"提示） */
+  peerBindUI();
+  document.getElementById('btnNetExit').onclick = () => netExitToMenu('已退出对战。');
+  netControls();
   onlineBindUI();
   onlineRenderGhostPick();      // 幽灵对手选择器（关 / 我的最佳 / 榜上前 3 名）
 }
@@ -6064,6 +6543,7 @@ function disposeGroup(g) {
 
 /** 切换赛道: 重建赛道数据 + 世界几何 + 重新发车 (车辆模型/贴图全部复用, 不重载) */
 function selectTrack(mode) {
+  if (Net.phase !== 'offline' && Net.phase !== 'syncing') { peerStatus('请先退出对战再修改比赛设置。'); return; }
   if (!TRACK_DEFS[mode]) return;
   CFG.TRACK_MODE = mode;
   buildTrackData();                                  // 重建中心线/曲率/AI速度曲线
@@ -6113,6 +6593,7 @@ function newCarVisual(v, color) {
 
 /* ------------------------------ 换车 (只换外观, 物理与赛道不变) ------------------------------ */
 function selectCar(id) {
+  if (Net.phase !== 'offline' && Net.phase !== 'syncing') { peerStatus('请先退出对战再修改比赛设置。'); return; }
   if (!CAR_GEO[id]) return;
   CAR_CHOICE.now = id;
   const p = G.player;
@@ -6170,6 +6651,7 @@ function updateDiffPickUI() {
 
 /** AI 档位即时生效，切入或退出无对手时重建车阵 */
 function selectDiff(id) {
+  if (Net.phase !== 'offline' && Net.phase !== 'syncing') { peerStatus('请先退出对战再修改比赛设置。'); return; }
   if (!DIFF_DEFS[id]) return;
   const rebuildGrid = (CFG.AI_DIFFICULTY === 'none') !== (id === 'none');
   CFG.AI_DIFFICULTY = id;
@@ -6255,6 +6737,7 @@ function setupRace() {
 }
 
 function startRace() {
+  if (Net.phase !== 'offline') { peerStatus('请由房主发车，或退出对战后开始单人比赛。'); return; }
   uiShowCard(null);
   G.state = 'countdown';
   G.countdownT = CFG.COUNTDOWN;
@@ -6264,6 +6747,7 @@ function startRace() {
 }
 
 function restartRace() {
+  if (Net.phase !== 'offline') { peerStatus('请由房主发车，或退出对战后开始单人比赛。'); return; }
   setupRace();
   startRace();
 }
@@ -6272,6 +6756,7 @@ function restartRace() {
     结算页与暂停页都能按 M/点按钮, 直接回到开场卡片换赛道/换车/改难度, 不用刷新 */
 function backToMenu() {
   if (G.state !== 'finished' && G.state !== 'paused' && G.state !== 'intro') return;
+  if (Net.phase !== 'offline') netDisconnect();
   G.state = 'intro';
   setupRace();                 // 重新摆车 + 计时清零 + 内部已显示开场卡片
   camReset(G.player);
@@ -6283,6 +6768,7 @@ function backToMenu() {
 }
 
 function togglePause(force) {
+  if (Net.inRace) { uiFlash('对战中无法暂停', '可以退出对战', '#ffd76a', 1.5); return; }
   const want = (force === undefined) ? (G.state === 'racing' || G.state === 'countdown') : force;
   if (want && (G.state === 'racing' || G.state === 'countdown')) {
     G.stateBefore = G.state;
@@ -6340,7 +6826,11 @@ function updateLap(car) {
 
 function updateRanking() {
   const arr = G.cars.slice();
-  arr.sort(function (a, b) { return b.prog - a.prog; });
+  arr.sort(function (a, b) {
+    if (Net.inRace && a.finished !== b.finished) return a.finished ? -1 : 1;
+    if (Net.inRace && a.finished) return a.finishPos - b.finishPos;
+    return b.prog - a.prog;
+  });
   for (let i = 0; i < arr.length; i++) arr[i].pos = i + 1;
   /* 玩家冲线后冻结其名次, 不再被冷却圈影响 */
   if (G.player.finished && G.player.finishPos) G.player.pos = G.player.finishPos;
@@ -6377,7 +6867,8 @@ function showResults() {
     let badge = 'b-plain';
     if (i === 0) badge = 'b-gold'; else if (i === 1) badge = 'b-silver'; else if (i === 2) badge = 'b-bronze';
     let gap;
-    if (c === winner) gap = '—';
+    if (c.disconnected) gap = '已退出';
+    else if (c === winner) gap = '—';
     else if (c.finished && winner.finished) gap = fmtDelta(c.finishTime - winner.finishTime);
     else gap = '落后 ' + Math.max(0, Math.round(winner.prog - c.prog)) + ' m';
     const swatch = '#' + ('000000' + c.color.toString(16)).slice(-6);
@@ -6391,7 +6882,7 @@ function showResults() {
   UI.e.resBody.innerHTML = html;
   /* 跟幽灵的对比（选了幽灵对手才有）—— 这就是"那时候我跑得真快"的地方 */
   if (UI.e.resGhost) {
-    if (Ghost.play && Ghost.play.lapMs > 0 && p.bestLap > 0) {
+    if (!Net.inRace && Ghost.play && Ghost.play.lapMs > 0 && p.bestLap > 0) {
       const d = Math.round(p.bestLap * 1000) - Ghost.play.lapMs;
       const who = Ghost.play.name || '幽灵';
       UI.e.resGhost.innerHTML = d <= 0
@@ -6408,6 +6899,7 @@ function showResults() {
 
 /* ------------------------------ 模拟 ------------------------------ */
 function simulate(dt) {
+  if (Net.inRace) { netStep(dt); return; }
   /* 玩家冲线后 AI 仍在继续跑, 因此比赛时钟必须继续走 */
   if (G.state !== 'racing' && G.state !== 'finished') return;
   G.raceTime += dt;
@@ -6429,6 +6921,7 @@ function simulate(dt) {
 
 /* 倒计时推进 (与物理步长无关, 用真实 dt) */
 function stepCountdown(dt) {
+  if (Net.inRace) return;
   if (G.state !== 'countdown') return;
   G.countdownT -= dt;
   const el = CFG.COUNTDOWN - G.countdownT;
