@@ -384,8 +384,8 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <div><kbd>1</kbd>~<kbd>9</kbd><kbd>0</kbd><span>切赛道 (或 <kbd>T</kbd> 循环)</span></div>
       <div><kbd>Q</kbd><kbd>E</kbd><span>换车 · </span><kbd>R</kbd><span>重开</span></div>
     </div>
-    </details><details class="race-settings" id="peerPanel"><summary>P2P 双人对战</summary>
-      <p class="sub">房主选好赛道和车型后创建房间，好友输入房间号加入。直连失败时自动使用服务器中继。</p>
+    </details><details class="race-settings" id="peerPanel"><summary>双人计时赛</summary>
+      <p class="sub">房主选赛道和车型，好友输入房间号加入。各自在本机跑完相同圈数，按总用时排名。</p>
       <div id="peerNumberBox">
         <label class="net-fields">房间号<input id="peerNumber" aria-label="房间号" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6 位数字" autocomplete="off"></label>
         <div class="btnrow">
@@ -5054,7 +5054,7 @@ function uiUpdate(car, state, raceTime, position, totalCars) {
   else if (state === 'racing' && car.lapStartTime > 0) cur = raceTime - car.lapStartTime;
   e.cur.textContent = fmtTime(cur);
   e.last.textContent = fmtTime(car.lastLap);
-  e.pos.textContent = position + ' / ' + totalCars;
+  e.pos.textContent = Net.inRace && PeerDuel.room ? '计时赛' : position + ' / ' + totalCars;
   e.race.textContent = fmtTime(raceTime);
 
   let gear;
@@ -5938,86 +5938,6 @@ function ghostOnTrackChange() {
   onlineRenderGhostPick();
 }
 
-/* Shared by the WebSocket server and the browser hosting a P2P race.
- * The caller selects the track and builds its data before creating the grid. */
-function createRoomEngine(track, model, players) {
-  const cars = players.map((player, i) => {
-    const car = createVehicle({ name: player.name, color: player.color, model });
-    const row = Math.floor(i / 2), col = i % 2;
-    placeVehicle(car, -(8 + row * CFG.GRID_GAP + (col ? CFG.GRID_GAP * 0.45 : 0)),
-      col ? CFG.GRID_SIDE : -CFG.GRID_SIDE);
-    car.id = player.id;
-    car.nextSplit = 0;
-    car.lapStartTime = 0;
-    car.finishPos = 0;
-    return car;
-  });
-  let raceTime = 0;
-  let finishCount = 0;
-  const laps = TRACK_DEFS[track].laps;
-  const dt = CFG.FIXED_DT;
-
-  function step(inputs) {
-    const crossings = [];
-    raceTime += dt;
-    for (const car of cars) {
-      if (car.finished || car.disconnected) continue;
-      const input = inputs.get(car.id) || {};
-      car.throttle = input.accel ? 1 : 0;
-      car.brake = input.brake ? 1 : 0;
-      car.steerInput = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-      car.driftKey = !!input.drift;
-      const before = car.prog;
-      stepVehicle(car, dt);
-      if (car.prog >= car.nextSplit) {
-        const moved = car.prog - before;
-        const fraction = moved > 0 ? Math.max(0, Math.min(1, (car.nextSplit - before) / moved)) : 1;
-        crossings.push({ car, time: raceTime - dt + fraction * dt });
-      }
-    }
-    resolveCarCollisions(cars.filter(car => !car.finished && !car.disconnected), dt);
-    crossings.sort((a, b) => a.time - b.time);
-    for (const { car, time } of crossings) {
-      if (car.nextSplit === 0) {
-        car.lapStartTime = time;
-        car.nextSplit = TRACK.len;
-      } else {
-        const lapTime = time - car.lapStartTime;
-        car.lapStartTime = time;
-        car.lastLap = lapTime;
-        if (!car.bestLap || lapTime < car.bestLap) car.bestLap = lapTime;
-        car.lap++;
-        car.nextSplit += TRACK.len;
-        if (car.lap >= laps) {
-          car.finished = true;
-          car.finishTime = time;
-          car.finishPos = ++finishCount;
-        }
-      }
-    }
-  }
-
-  function snapshot() {
-    const standings = cars.slice().sort((a, b) => {
-      if (!!a.disconnected !== !!b.disconnected) return a.disconnected ? 1 : -1;
-      if (a.finished !== b.finished) return a.finished ? -1 : 1;
-      return a.finished ? a.finishPos - b.finishPos : b.prog - a.prog;
-    });
-    const fields = ['id', 'name', 'color', 'model', 'x', 'y', 'z', 'yaw', 'vx', 'vz', 'vy',
-      'speed', 'vLong', 'vLat', 'yawRate', 'steer', 'throttle', 'brake', 'slip', 'lat', 't',
-      'prog', 'lastS', '_ringIdx', 'onKerb', 'airborne', 'slopePitch', 'wheelSpin', 'drifting',
-      'lap', 'nextSplit', 'lapStartTime', 'lastLap', 'bestLap', 'topSpeed', 'finished',
-      'finishTime', 'finishPos', 'disconnected'];
-    return { time: raceTime, laps, cars: standings.map((car, i) => {
-      const result = { pos: i + 1 };
-      for (const field of fields) result[field] = car[field];
-      return result;
-    }) };
-  }
-
-  return { cars, dt, step, snapshot, track, model, trackLength: TRACK.len };
-}
-
 const Net = { phase: 'offline', id: '', inRace: false, sendAcc: 0 };
 function netControls() {
   document.getElementById('btnStart').disabled = Net.phase !== 'offline';
@@ -6037,108 +5957,10 @@ function netExitToMenu(reason) {
   uiFlash(reason, '', '#ffd76a', 2);
 }
 
-function netStartScene(message) {
-  Net.phase = 'syncing';
-  if (CFG.TRACK_MODE !== message.track) selectTrack(message.track);
-  else setupRace();
-  for (let i = 0; i < G.cars.length; i++) if (G.cars[i].group) scene.remove(G.cars[i].group);
-  G.cars = message.cars.map(function (s) {
-    const car = createVehicle({ name: s.name, color: s.color, model: s.model });
-    car.netId = s.id;
-    newCarVisual(car, s.color);
-    return car;
-  });
-  G.player = G.cars.find(function (c) { return c.netId === Net.id; });
-  if (!G.player) { netExitToMenu('未收到你的赛车。'); return false; }
-  G.ai = []; G.finishOrder = []; G.cdShown = -1;
-  CFG.RACE_LAPS = message.laps;
-  Net.inRace = true; Net.phase = 'race'; Net.sendAcc = 0; Net.resultStamp = '';
-  const hint = document.getElementById('hint');
-  if (hint) {
-    Net.originalHint = hint.innerHTML;
-    hint.textContent = 'W/S 油门与刹车 · A/D 转向 · 空格 漂移 · 联机无法暂停';
-  }
-  G.state = 'countdown'; G.accum = 0; G.raceTime = 0;
-  KEY.accel = KEY.brake = KEY.left = KEY.right = KEY.drift = false;
-  uiShowCard(null); CAM.ready = false; netControls();
-  return true;
-}
-
-function netSnapshot(message) {
-  if (!Array.isArray(message.cars) || !TRACK_DEFS[message.track]) return;
-  if (!Net.inRace && !netStartScene(message)) return;
-  G.raceTime = message.time;
-  if (message.state === 'countdown') {
-    G.state = 'countdown';
-    const n = Math.max(1, Math.ceil(message.countdown));
-    if (G.cdShown !== n) { G.cdShown = n; uiCountdown(String(n), '#ffffff'); }
-  } else if (G.state !== 'finished') {
-    if (G.state === 'countdown') uiCountdown('GO!', '#7dffb0');
-    G.state = 'racing';
-  }
-  const fields = ['y', 'vx', 'vz', 'vy', 'speed', 'vLong', 'vLat', 'yawRate', 'steer', 'throttle', 'brake',
-    'slip', 'lat', 't', 'prog', 'lastS', '_ringIdx', 'onKerb', 'airborne', 'slopePitch', 'wheelSpin',
-    'drifting', 'lap', 'nextSplit', 'lapStartTime', 'lastLap', 'bestLap', 'topSpeed', 'finished',
-    'finishTime', 'finishPos', 'pos', 'disconnected'];
-  for (let i = 0; i < message.cars.length; i++) {
-    const s = message.cars[i];
-    const car = G.cars.find(function (c) { return c.netId === s.id; });
-    if (!car) continue;
-    const first = !car._netSeen;
-    car._netSeen = true;
-    if (car === G.player) {
-      const distance = Math.hypot(car.x - s.x, car.z - s.z);
-      const blend = first || distance > 3 ? 1 : 0.5;
-      car.x = lerp(car.x, s.x, blend); car.z = lerp(car.z, s.z, blend);
-      car.yaw = wrapPi(car.yaw + wrapPi(s.yaw - car.yaw) * blend);
-    } else {
-      car._netTarget = s;
-      if (first) { car.x = s.x; car.z = s.z; car.yaw = s.yaw; }
-    }
-    for (let j = 0; j < fields.length; j++) if (s[fields[j]] !== undefined) car[fields[j]] = s[fields[j]];
-  }
-  G.finishOrder = G.cars.filter(function (c) { return c.finished; })
-    .sort(function (a, b) { return a.finishPos - b.finishPos; });
-  if (G.player.finished) {
-    const stamp = G.finishOrder.length + ':' + G.cars.filter(function (c) { return c.disconnected; }).length + ':' + message.state;
-    if (G.state !== 'finished') finishRace();
-    else if (stamp !== Net.resultStamp) showResults();
-    Net.resultStamp = stamp;
-  }
-}
-
-function netStep(dt) {
-  if (!Net.inRace || !G.player) return;
-  if (PeerDuel.room && PeerDuel.room.role === 'host') { peerHostStep(dt); return; }
-  Net.sendAcc += dt;
-  if (Net.sendAcc >= 0.05) {
-    Net.sendAcc %= 0.05;
-    const packet = { type: 'input', input: { accel: KEY.accel, brake: KEY.brake, left: KEY.left,
-      right: KEY.right, drift: KEY.drift } };
-    if (PeerDuel.room) peerSend(PeerDuel.room, packet);
-  }
-  if (G.state === 'racing' && !G.player.finished) {
-    G.raceTime += dt;
-    playerControl(G.player);
-    stepVehicle(G.player, dt);
-  }
-  for (let i = 0; i < G.cars.length; i++) {
-    const car = G.cars[i], target = car._netTarget;
-    if (car === G.player || !target) continue;
-    car.x = damp(car.x, target.x, 12, dt); car.z = damp(car.z, target.z, 12, dt);
-    car.yaw = wrapPi(car.yaw + wrapPi(target.yaw - car.yaw) * (1 - Math.exp(-12 * dt)));
-  }
-}
-
-
 /* Native WebRTC with out-of-band signaling so the single-file game can host a duel. */
 const PeerDuel = { room: null };
-const DUEL_PLAYERS = [
-  { id: 'host', name: '房主', color: 0xf39038 },
-  { id: 'guest', name: '挑战者', color: 0x36bded }
-];
-const DUEL_VERSION = 'OVAL1';
-const DUEL_RULES = 'classic-v1';
+const DUEL_VERSION = 'OVAL-TT1';
+const DUEL_RULES = 'trial1-classic-v1';
 const peerEl = id => document.getElementById(id);
 function peerStatus(text) { peerEl('peerStatus').textContent = text; }
 
@@ -6148,7 +5970,7 @@ function peerControls() {
   const numbered = !!room?.numbered;
   const badge = peerEl('peerRouteBadge');
   badge.hidden = !Net.inRace || !numbered;
-  badge.textContent = room?.route === 'relay' ? '服务器中继' : 'P2P 直连';
+  badge.textContent = room?.gone ? '本地计时 · 对手离线' : room?.remoteScore ? '对手已完赛' : '本地计时';
   peerEl('peerNumberBox').hidden = !!room && !numbered;
   peerEl('peerNumber').readOnly = !!room;
   peerEl('peerMakeRoom').hidden = peerEl('peerEnterRoom').hidden = !!room;
@@ -6170,6 +5992,9 @@ function peerControls() {
 function peerClose() {
   const room = PeerDuel.room;
   if (!room) return;
+  if (room.localScore && !room.acked && !room.gone && room.numbered) roomSend(room, { op: 'game', packet: room.localScore });
+  if (room.oldHeader !== undefined) UI.e.resBody.closest('table').querySelector('thead th:last-child').textContent = room.oldHeader;
+  clearTimeout(room.scoreTimer);
   PeerDuel.room = null;
   clearTimeout(room.deadline);
   clearTimeout(room.disconnectTimer);
@@ -6183,13 +6008,15 @@ function peerClose() {
 
 function peerEnd(room, message) {
   if (room !== PeerDuel.room) return;
-  if (Net.inRace && G.state === 'finished') {
-    for (const car of G.cars) if (car !== G.player && !car.finished) car.disconnected = true;
-    showResults();
-    peerClose();
-    uiFlash(message, '', '#ffd76a', 2);
-  } else if (Net.inRace) netExitToMenu(message);
-  else netDisconnect();
+  if (Net.inRace) {
+    if (room.gone) return;
+    room.gone = true;
+    clearTimeout(room.scoreTimer);
+    room.channel?.close(); room.socket?.close(); room.pc?.close();
+    peerControls();
+    if (room.localScore) trialResults(room);
+    else uiFlash('对手连接已断开', '可以继续本地计时', '#ffd76a', 2);
+  } else netDisconnect();
   peerStatus(message);
 }
 
@@ -6200,23 +6027,18 @@ function peerDeadline(room, ms, message) {
 
 function peerSend(room, packet) {
   if (room.numbered) {
-    const realtime = packet.type === 'input' || (packet.type === 'race' && packet.state === 'racing');
-    if (packet.type === 'input' || packet.type === 'race') packet.seq = ++room.seq;
-    if (realtime && room.route === 'direct' && !room.requestedRelay && room.channel?.readyState === 'open') {
-      if (room.channel.bufferedAmount > 65536) return false;
+    if (packet.type === 'score' && room.route === 'direct' && !room.requestedRelay && room.channel?.readyState === 'open') {
       try { room.channel.send(JSON.stringify(packet)); return true; } catch { roomFallback(room); }
     }
-    if (realtime && room.socket.bufferedAmount > 65536) return false;
     return roomSend(room, { op: 'game', packet });
   }
   if (room.channel?.readyState !== 'open') return false;
-  if (packet.type === 'input' && room.channel.bufferedAmount > 8192) return false;
   try { room.channel.send(JSON.stringify(packet)); return true; }
   catch { peerEnd(room, '对战连接已断开。'); return false; }
 }
 
 // Numbered rooms use the portal socket for signaling and reliable race controls.
-// Only live input and racing snapshots use the direct channel when both peers have it.
+// Final scores can travel directly. The portal socket also acknowledges scores and provides fallback.
 function roomSend(room, message) {
   if (room.socket?.readyState !== WebSocket.OPEN) return false;
   try { room.socket.send(JSON.stringify(message)); return true; }
@@ -6224,7 +6046,7 @@ function roomSend(room, message) {
 }
 
 function roomFallback(room) {
-  if (room !== PeerDuel.room || room.route === 'relay' || room.requestedRelay) return;
+  if (room !== PeerDuel.room || room.gone || room.route === 'relay' || room.requestedRelay) return;
   room.requestedRelay = true;
   roomSend(room, { op: 'fallback' });
 }
@@ -6239,19 +6061,10 @@ function roomWire(room, channel) {
     try {
       if (typeof event.data !== 'string' || event.data.length > 16000) throw new Error();
       const packet = JSON.parse(event.data);
-      if (packet.type !== (room.role === 'host' ? 'input' : 'race')) throw new Error();
-      roomReceiveGame(room, packet);
+      if (packet.type !== 'score') throw new Error();
+      peerReceive(room, packet);
     } catch { peerEnd(room, '对手发送了无效的比赛数据。'); }
   };
-}
-
-function roomReceiveGame(room, packet) {
-  // Control and gameplay packets can take different paths during a switchover.
-  if (packet.type === 'race' || packet.type === 'input') {
-    if (!Number.isSafeInteger(packet.seq) || packet.seq <= room.lastSeq) return;
-    room.lastSeq = packet.seq;
-  }
-  peerReceive(room, packet);
 }
 
 async function roomSignal(room, msg) {
@@ -6312,7 +6125,7 @@ function peerOpenNumber(role) {
   const code = field.value.trim();
   if (!host && !/^\d{6}$/.test(code)) { peerStatus('请输入好友发来的 6 位房间号。'); field.focus(); return; }
   const room = { numbered: true, role, track: CFG.TRACK_MODE, model: CAR_CHOICE.now, ready: false,
-    pendingIce: [], seq: 0, lastSeq: 0, route: '' };
+    pendingIce: [], route: '' };
   PeerDuel.room = room;
   Net.phase = 'connecting'; Net.id = role; Net.host = 'host';
   if (host) field.value = '';
@@ -6335,7 +6148,7 @@ function peerOpenNumber(role) {
       } else if (msg.op === 'paired' || msg.op === 'signal') {
         signaling = signaling.then(() => roomSignal(room, msg));
       } else if (msg.op === 'route') roomRoute(room, msg.route);
-      else if (msg.op === 'game') roomReceiveGame(room, msg.packet);
+      else if (msg.op === 'game') peerReceive(room, msg.packet);
       else if (msg.op === 'left') peerEnd(room, '对手已离开房间。');
       else if (msg.op === 'error') {
         const errors = { full: '房间已满。', missing: '找不到房间，请检查房间号和游戏版本。', busy: '服务器房间已满，请稍后再试。', version: '游戏版本不匹配。' };
@@ -6461,69 +6274,109 @@ function peerReceive(room, packet) {
     }
     clearTimeout(room.deadline);
     room.ready = true; Net.phase = 'lobby'; netControls();
-    peerStatus((room.route === 'relay' ? '已连接 · 服务器中继 · ' : '已直连 · ') + TRACK_DEFS[room.track].name + ' · ' + (host ? '可以发车。' : '等待房主发车。'));
-  } else if (host && packet.type === 'gridReady' && room.engine && !room.gridReady) {
-    room.gridReady = true;
-    clearTimeout(room.deadline);
-  } else if (host && packet.type === 'input' && room.engine) {
-    const input = packet.input;
-    if (!input || !['accel','brake','left','right','drift'].every(k => typeof input[k] === 'boolean')) throw new Error();
-    room.inputs.set('guest', input);
-    room.inputAt = performance.now();
-  } else if (!host && packet.type === 'race') {
-    if (packet.track !== room.track || packet.laps !== TRACK_DEFS[room.track].laps ||
-        !['countdown','racing','finished'].includes(packet.state) || !Number.isFinite(packet.countdown) ||
-        !Number.isFinite(packet.time) || !Array.isArray(packet.cars) || packet.cars.length !== 2) throw new Error();
-    for (const player of DUEL_PLAYERS) {
-      const car = packet.cars.find(c => c.id === player.id);
-      if (!car || car.model !== room.model || !['x','y','z','yaw','prog','speed','pos','lap','finishTime'].every(k => Number.isFinite(car[k]))) throw new Error();
-      for (const [key, value] of Object.entries(car)) {
-        if (['model','name','id'].includes(key)) continue;
-        if (typeof value !== 'boolean' && !(Number.isFinite(value) && Math.abs(value) < 1e9)) throw new Error();
-      }
-      car.name = player.name; car.color = player.color;
-    }
-    const first = !Net.inRace;
-    netSnapshot(packet);
-    if (first) peerSend(room, { type: 'gridReady' });
+    peerStatus('已连接 · ' + TRACK_DEFS[room.track].name + ' · ' + (host ? '可以发车。' : '等待房主发车。'));
+    return;
+  }
+  if (packet.type === 'start' && !host && !Net.inRace) { trialGrid(room); return; }
+  if (!Net.inRace) throw new Error();
+  if (packet.type === 'ack' && room.localScore) {
+    room.acked = true; clearTimeout(room.scoreTimer);
+  } else if (packet.type === 'score') {
+    const { total, best, speed, laps } = packet;
+    if (![total,best,speed,laps].every(Number.isSafeInteger) || laps !== CFG.RACE_LAPS ||
+        best <= 0 || total < best || total > 86400000 || speed < 0 || speed > 2000) throw new Error();
+    if (!room.remoteScore) room.remoteScore = { total, best, speed, laps };
+    peerSend(room, { type: 'ack' }); peerControls();
   } else throw new Error();
+  if (room.localScore) trialResults(room);
 }
 
 function peerStart() {
   const room = PeerDuel.room;
   if (room?.role !== 'host' || !room.ready || Net.inRace) return;
-  room.engine = createRoomEngine(room.track, room.model, DUEL_PLAYERS);
-  room.inputs = new Map([['host', KEY]]);
-  room.countdown = 3; room.tick = 0;
-  peerDeadline(room, 30000, '对手载入赛道超时。');
-  peerBroadcast(room);
+  if (peerSend(room, { type: 'start' })) trialGrid(room);
 }
 
-function peerBroadcast(room) {
-  const packet = room.engine.snapshot();
-  packet.type = 'race'; packet.track = room.track; packet.countdown = room.countdown;
-  packet.state = room.countdown > 0 ? 'countdown' : packet.cars.every(c => c.finished) ? 'finished' : 'racing';
-  if (!room.numbered && room.channel.bufferedAmount > 65536 && packet.state !== 'finished') return;
-  if (!peerSend(room, packet)) return;
-  netSnapshot(packet);
-  room.finished = packet.state === 'finished';
+function trialGrid(room) {
+  Net.phase = 'syncing';
+  if (CFG.TRACK_MODE !== room.track) selectTrack(room.track);
+  for (const car of G.cars) if (car.group) scene.remove(car.group);
+  const player = createVehicle({ name: '你', color: PLAYER.COLOR, model: room.model });
+  newCarVisual(player, PLAYER.COLOR);
+  placeVehicle(player, -8, 0); resetCarRaceState(player);
+  if (Ghost.mesh) Ghost.mesh.visible = false;
+  G.cars = [player]; G.player = player; G.ai = []; G.finishOrder = [];
+  CFG.RACE_LAPS = trackDef().laps;
+  G.raceTime = 0; G.accum = 0; G.countdownT = CFG.COUNTDOWN; G.cdShown = -1;
+  G.state = 'countdown'; Net.inRace = true; Net.phase = 'race';
+  KEY.accel = KEY.brake = KEY.left = KEY.right = KEY.drift = false;
+  CAM.ready = false; camReset(player); updateRanking(); netControls(); uiShowCard(null);
 }
 
-function peerHostStep(dt) {
-  const room = PeerDuel.room;
-  if (!room.gridReady || room.finished) return;
-  if (room.countdown > 0) room.countdown = Math.max(0, room.countdown - dt);
-  else {
-    if (performance.now() - room.inputAt > 750) room.inputs.delete('guest');
-    room.engine.step(room.inputs);
+// Each racer owns their car. Use elapsed local time so a slow frame or a delayed
+// message cannot shorten a lap. Interpolate the crossing within the physics step.
+function trialStep(room, dt) {
+  if (G.state !== 'racing') return;
+  const car = G.player, before = car.prog, previousTime = G.raceTime;
+  G.raceTime = (performance.now() - room.startedAt) / 1000;
+  playerControl(car);
+  stepVehicle(car, dt);
+  if (car.prog < car.nextSplit) return;
+  const fraction = car.prog > before ? clamp((car.nextSplit - before) / (car.prog - before), 0, 1) : 1;
+  const at = previousTime + (G.raceTime - previousTime) * fraction;
+  if (car.nextSplit > 0) {
+    car.lastLap = at - car.lapStartTime;
+    car.bestLap = car.bestLap > 0 ? Math.min(car.bestLap, car.lastLap) : car.lastLap;
+    car.lap++;
   }
-  // Local visuals follow the authoritative cars every step, even between broadcasts.
-  if (++room.tick % 6 === 0) peerBroadcast(room);
-  if (room !== PeerDuel.room) return;
-  for (const state of room.engine.cars) {
-    const car = G.cars.find(c => c.netId === state.id);
-    car.x = state.x; car.y = state.y; car.z = state.z; car.yaw = state.yaw;
+  car.lapStartTime = at; car.nextSplit += TRACK.len;
+  if (car.lap < CFG.RACE_LAPS) { uiBanner('第 ' + (car.lap + 1) + ' 圈', '#8fe3ff'); return; }
+  car.finished = true; car.finishTime = at; G.raceTime = at;
+  G.finishOrder = [car]; G.state = 'finished';
+  room.localScore = { type: 'score', total: Math.round(at * 1000), best: Math.max(1, Math.round(car.bestLap * 1000)),
+    speed: Math.round(car.topSpeed * 3.6), laps: car.lap };
+  if (!room.gone) {
+    peerSend(room, room.localScore);
+    if (room.numbered) {
+      room.scoreTimer = setTimeout(() => {
+        if (!room.acked && !room.gone && room === PeerDuel.room) roomSend(room, { op: 'game', packet: room.localScore });
+      }, 1800);
+    }
   }
+  trialResults(room); uiShowCard('result');
+}
+
+function trialTime(ms) {
+  return Math.floor(ms / 60000) + ':' + String(Math.floor(ms / 1000) % 60).padStart(2, '0') +
+    '.' + String(ms % 1000).padStart(3, '0');
+}
+
+function trialResults(room) {
+  const mine = room.localScore, other = room.remoteScore, e = UI.e;
+  const tied = other && mine.total === other.total;
+  const position = !other ? '—' : tied ? '并列第 1' : mine.total < other.total ? '第 1' : '第 2';
+  e.resTitle.textContent = !other ? '你已完赛' : tied ? '平局' : mine.total < other.total ? '你赢了' : '对手获胜';
+  e.resPos.textContent = position; e.resTotal.textContent = trialTime(mine.total);
+  e.resBest.textContent = trialTime(mine.best); e.resTop.textContent = mine.speed + ' km/h';
+  e.resSub.textContent = trackDef().name + ' · ' + CFG.RACE_LAPS + ' 圈 · 按本地总用时排名';
+  const header = e.resBody.closest('table').querySelector('thead th:last-child');
+  if (room.oldHeader === undefined) room.oldHeader = header.textContent;
+  header.textContent = '总用时';
+  e.resBody.replaceChildren();
+  const rows = [{ name: '你', score: mine }, { name: '对手', score: other }];
+  if (other && other.total < mine.total) rows.reverse();
+  rows.forEach(({ name, score }, i) => {
+    const row = e.resBody.insertRow();
+    if (name === '你') row.className = 'me';
+    for (const value of [other ? (tied ? '并列 1' : String(i + 1)) : '—', name,
+        score ? trialTime(score.best) : '—', score ? trialTime(score.total) : room.gone ? '未收到成绩' : '等待完赛']) {
+      row.insertCell().textContent = value;
+    }
+  });
+  e.resGhost.textContent = '';
+  peerEl('resLb').textContent = other && room.acked ? '双方成绩已同步。' : room.gone ?
+    (room.acked ? '对手已离开房间。' : '连接已断开，本机成绩已保留在本页。') :
+    room.acked ? '对手已收到你的成绩，等待对方完赛。' : '正在同步你的成绩…';
 }
 
 function peerBindUI() {
@@ -7074,7 +6927,7 @@ function showResults() {
 
 /* ------------------------------ 模拟 ------------------------------ */
 function simulate(dt) {
-  if (Net.inRace) { netStep(dt); return; }
+  if (Net.inRace) { trialStep(PeerDuel.room, dt); return; }
   /* 玩家冲线后 AI 仍在继续跑, 因此比赛时钟必须继续走 */
   if (G.state !== 'racing' && G.state !== 'finished') return;
   G.raceTime += dt;
@@ -7096,7 +6949,6 @@ function simulate(dt) {
 
 /* 倒计时推进 (与物理步长无关, 用真实 dt) */
 function stepCountdown(dt) {
-  if (Net.inRace) return;
   if (G.state !== 'countdown') return;
   G.countdownT -= dt;
   const el = CFG.COUNTDOWN - G.countdownT;
@@ -7111,6 +6963,7 @@ function stepCountdown(dt) {
     else if (show === 0) uiCountdown('GO!', '#7dffb0');
   }
   if (G.countdownT <= 0) {
+    if (Net.inRace && PeerDuel.room) PeerDuel.room.startedAt = performance.now();
     G.state = 'racing';
     G.raceTime = 0;
     for (let i = 0; i < G.cars.length; i++) G.cars[i].lapStartTime = 0;
