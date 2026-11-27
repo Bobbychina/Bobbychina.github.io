@@ -1383,7 +1383,7 @@ I18N.define("zh-CN", {
   "racing.copy.946d6408df76": "官方榜：<b>第 ",
   "racing.copy.5e09162b9094": " 名</b> · 单圈 ",
   "racing.copy.3f8a42709b93": " <button class=\"btn ghost\" id=\"btnResLbShow\" style=\"padding:4px 10px;margin-left:6px\">看完整榜</button>",
-  "racing.copy.bb14b9b91745": " <button class=\"btn ghost\" id=\"btnResLbRetry\" style=\"padding:4px 10px;margin-left:6px\">重试 / 看榜</button>",
+  "racing.copy.bb14b9b91745": " <button class=\"btn ghost\" id=\"btnResLbRetry\" style=\"padding:4px 10px;margin-left:6px\">重试上传</button>",
   "racing.copy.6c4569278e5b": "不跟幽灵跑",
   "racing.copy.b47f76f085f5": "只有 5 台 AI",
   "racing.copy.98f2efdc1cb0": "我的最佳",

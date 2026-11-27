@@ -5418,9 +5418,13 @@ async function onlineAfterRace() {
     }
   } else {
     line.innerHTML = '<span class="dim">' + String(Online.lastSubmit || r.err || siteText("cloud.copy.219481a6dde7","上传失败")).slice(0, 90) + '</span>' +
-      siteText("racing.copy.bb14b9b91745"," <button class=\"btn ghost\" id=\"btnResLbRetry\" style=\"padding:4px 10px;margin-left:6px\">重试 / 看榜</button>");
+      siteText("racing.copy.bb14b9b91745"," <button class=\"btn ghost\" id=\"btnResLbRetry\" style=\"padding:4px 10px;margin-left:6px\">重试上传</button>");
     const b = document.getElementById('btnResLbRetry');
-    if (b) b.addEventListener('click', function () { onlineTogglePanel(true); }, false);
+    if (b) b.addEventListener('click', function () {
+      if (tid !== onlineTrackId() || p !== G.player) return;
+      b.disabled = true;
+      return onlineAfterRace();
+    }, { once: true });
   }
 }
 

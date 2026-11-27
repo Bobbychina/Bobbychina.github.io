@@ -1383,7 +1383,7 @@ I18N.define("en", {
   "racing.copy.946d6408df76": "Official leaderboard: #<b>",
   "racing.copy.5e09162b9094": " · Lap time </b>",
   "racing.copy.3f8a42709b93": " <button class=\"btn ghost\" id=\"btnResLbShow\" style=\"padding:4px 10px;margin-left:6px\">View full leaderboard</button>",
-  "racing.copy.bb14b9b91745": " <button class=\"btn ghost\" id=\"btnResLbRetry\" style=\"padding:4px 10px;margin-left:6px\">Retry / View leaderboard</button>",
+  "racing.copy.bb14b9b91745": " <button class=\"btn ghost\" id=\"btnResLbRetry\" style=\"padding:4px 10px;margin-left:6px\">Retry upload</button>",
   "racing.copy.6c4569278e5b": "No ghost opponent",
   "racing.copy.b47f76f085f5": "Only 5 AI drivers",
   "racing.copy.98f2efdc1cb0": "My best",
