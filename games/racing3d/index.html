@@ -326,7 +326,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
 <div id="overlay" class="on">
   <div class="card" id="cardStart">
     <h1>极速椭圆</h1>
-    <p class="sub"><b>10 条赛道</b> · <b>9 款车型</b> · 5 位对手 · 当前 <b id="trackName">椭圆极速环</b></p>
+    <p class="sub"><b>10 条赛道</b> · <b>9 款车型</b> · <span id="aiOpponentSummary">5 位对手</span> · 当前 <b id="trackName">椭圆极速环</b></p>
     <div class="tracks">
       <button class="tbtn on" data-track="oval">椭圆极速环<span>210 × 132 m 椭圆 · 两个高速长弯</span></button>
       <button class="tbtn" data-track="circuit">三连回头弯赛道<span>3 个 U 型回头弯 + 3 个直角弯</span></button>
@@ -359,6 +359,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <button class="dbtn" data-diff="easy">休 闲<i>慢半拍 · 不漂移</i></button>
       <button class="dbtn on" data-diff="normal">标 准<i>走线 + 漂移</i></button>
       <button class="dbtn" data-diff="hard">硬 核<i>更快 · 抢线更凶</i></button>
+      <button class="dbtn" data-diff="none">无对手<i>独自跑圈</i></button>
     </div>
     </details><details class="race-settings"><summary>驾驶指南 · 键盘操作</summary><div class="keys">
       <div><kbd>W</kbd><span>加速 (油门)</span></div>
@@ -372,7 +373,6 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
     </div>
     </details><div class="btnrow">
       <button class="btn" id="btnStart">开 始 比 赛</button>
-      <button class="btn ghost sm" id="btnSolo" type="button">无 AI 对手</button>
       <button class="btn ghost sm" id="btnBoard"><span data-i18n="racing.panel.title">🏆 官方排行榜</span></button>
     </div>
     <div id="lbHud"></div>
@@ -5900,7 +5900,6 @@ function ghostOnTrackChange() {
 let renderer = null, scene = null, camera = null, sunLight = null;
 
 const G = {
-  solo: false,
   cars: [], ai: [], player: null,
   state: 'intro',                    // intro | countdown | racing | finished | paused
   countdownT: 0, cdShown: -1,
@@ -6011,8 +6010,6 @@ function bindInput() {
   const b4 = document.getElementById('btnMenu');
   const b5 = document.getElementById('btnMenu2');
   if (b1) b1.addEventListener('click', function () { startRace(); }, false);
-  const soloButton = document.getElementById('btnSolo');
-  if (soloButton) soloButton.addEventListener('click', function () { startRace(true); }, false);
   if (b2) b2.addEventListener('click', function () { restartRace(); }, false);
   if (b3) b3.addEventListener('click', function () { togglePause(false); }, false);
   if (b4) b4.addEventListener('click', function () { backToMenu(); }, false);
@@ -6145,12 +6142,20 @@ function updateCarPickUI() {
 const DIFF_DEFS = {
   easy: { name: '休闲', desc: 'AI 慢半拍 · 不漂移 · 刹车早' },
   normal: { name: '标准', desc: 'AI 会走内线也会漂移，正常速度' },
-  hard: { name: '硬核', desc: 'AI 更快 · 抢线更凶 · 刹车更晚' }
+  hard: { name: '硬核', desc: 'AI 更快 · 抢线更凶 · 刹车更晚' },
+  none: { name: '无对手', desc: '赛道上只有你的车' }
 };
 const DIFF_KEY = 'racing3d.diff';
 
 function updateDiffPickUI() {
   const def = DIFF_DEFS[CFG.AI_DIFFICULTY] || DIFF_DEFS.normal;
+  const solo = CFG.AI_DIFFICULTY === 'none';
+  const summary = document.getElementById('aiOpponentSummary');
+  if (summary) summary.textContent = solo ? '无对手' : '5 位对手';
+  for (const id of ['ghostState', 'ghostPick']) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = solo ? 'none' : '';
+  }
   const btns = document.querySelectorAll('.dbtn');
   for (let i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('on', btns[i].getAttribute('data-diff') === CFG.AI_DIFFICULTY);
@@ -6162,10 +6167,15 @@ function updateDiffPickUI() {
   if (UI.e.diffDesc) UI.e.diffDesc.textContent = def.desc;
 }
 
-/** 换档: aiControl() 每帧读 aiTune(), 所以当场生效, 不用重发车 */
+/** AI 档位即时生效，切入或退出无对手时重建车阵 */
 function selectDiff(id) {
   if (!DIFF_DEFS[id]) return;
+  const rebuildGrid = (CFG.AI_DIFFICULTY === 'none') !== (id === 'none');
   CFG.AI_DIFFICULTY = id;
+  if (rebuildGrid) {
+    setupRace();
+    camReset(G.player);
+  }
   try { window.localStorage.setItem(DIFF_KEY, id); } catch (err) { /* file:// 下可能被拒绝 */ }
   updateDiffPickUI();
   uiFlash('AI 难度: ' + DIFF_DEFS[id].name, DIFF_DEFS[id].desc, '#ffd98a', 1.6);
@@ -6212,7 +6222,8 @@ function setupRace() {
   G.player = p;
 
   /* AI: 5 台车各用一种车型 (配色沿用原设定) */
-  const aiCount = G.solo ? 0 : CFG.AI_COUNT;
+  const solo = CFG.AI_DIFFICULTY === 'none';
+  const aiCount = solo ? 0 : CFG.AI_COUNT;
   for (let i = 0; i < aiCount; i++) {
     const v = createVehicle({
       name: CFG.AI_NAMES[i], color: CFG.AI_COLORS[i], isAI: true, skill: CFG.AI_SKILLS[i],
@@ -6224,12 +6235,12 @@ function setupRace() {
   }
 
   /* 发车顺序: 最快的 AI 在杆位, 玩家第 5 位发车 (既有挑战又追得上) */
-  const grid = G.solo ? [p] : [G.ai[0], G.ai[1], G.ai[2], G.ai[3], G.player, G.ai[4]];
+  const grid = solo ? [p] : [G.ai[0], G.ai[1], G.ai[2], G.ai[3], G.player, G.ai[4]];
   G.cars = grid;
   for (let i = 0; i < grid.length; i++) {
     const row = (i / 2) | 0, col = i % 2;
     const s = -(8 + row * CFG.GRID_GAP + (col ? CFG.GRID_GAP * 0.45 : 0));
-    const lat = G.solo ? 0 : (col ? CFG.GRID_SIDE : -CFG.GRID_SIDE);
+    const lat = solo ? 0 : (col ? CFG.GRID_SIDE : -CFG.GRID_SIDE);
     placeVehicle(grid[i], s, lat);
     resetCarRaceState(grid[i]);
     syncCarVisual(grid[i], 0.016);
@@ -6242,11 +6253,7 @@ function setupRace() {
   onlineRenderGhostPick();
 }
 
-function startRace(solo = false) {
-  if (G.solo !== solo) {
-    G.solo = solo;
-    setupRace();
-  }
+function startRace() {
   uiShowCard(null);
   G.state = 'countdown';
   G.countdownT = CFG.COUNTDOWN;
@@ -6257,7 +6264,7 @@ function startRace(solo = false) {
 
 function restartRace() {
   setupRace();
-  startRace(G.solo);
+  startRace();
 }
 
 /** 回主菜单 (2026-09-23 修: 跑完一局只能刷新页面才能换图):
@@ -6265,7 +6272,6 @@ function restartRace() {
 function backToMenu() {
   if (G.state !== 'finished' && G.state !== 'paused' && G.state !== 'intro') return;
   G.state = 'intro';
-  G.solo = false;
   setupRace();                 // 重新摆车 + 计时清零 + 内部已显示开场卡片
   camReset(G.player);
   updateTrackPickUI();
@@ -6414,7 +6420,7 @@ function simulate(dt) {
   if (G.player.nextSplit > 0 && !G.player.finished) {
     const lapT = G.raceTime - G.player.lapStartTime;
     ghostSample(dt, G.player, lapT);
-    if (!G.solo) ghostUpdate(dt, lapT);
+    if (CFG.AI_DIFFICULTY !== 'none') ghostUpdate(dt, lapT);
   } else if (Ghost.mesh) {
     Ghost.mesh.visible = false;      // 还没过起点线（发车格上）先别显示
   }
