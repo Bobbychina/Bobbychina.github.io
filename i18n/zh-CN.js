@@ -1333,7 +1333,7 @@ I18N.define("zh-CN", {
   "racing.copy.26402c28c2c2": "连不上排行榜后端：",
   "racing.copy.8ec8e5e0476c": "连不上排行榜后端",
   "racing.copy.677bec35a667": "官方榜还没开（云后端还没更新到这条赛道），先在本机纪录里跑；过一会儿再刷新试试",
-  "racing.copy.db02b959fa0b": "刚提交过（60 秒冷却），稍后再来",
+  "racing.copy.db02b959fa0b": "刚提交过（15 秒冷却），稍后再来",
   "racing.copy.0624060009ba": "这个来源不被排行榜接受（换站点域名打开试试）",
   "racing.copy.a44d7c84ef67": "读排行榜失败",
   "racing.copy.f8628b92cadc": "正在读排行榜…",

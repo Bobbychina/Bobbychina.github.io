@@ -5140,7 +5140,7 @@ function onlineErrText(r) {
     /* 站点已经上线、云后端还没更新时就是这个码 —— 说清楚"不是你的问题，等一会儿" */
     return siteText("racing.copy.677bec35a667","官方榜还没开（云后端还没更新到这条赛道），先在本机纪录里跑；过一会儿再刷新试试");
   }
-  if (code === 'cooldown') return siteText("racing.copy.db02b959fa0b","刚提交过（60 秒冷却），稍后再来");
+  if (code === 'cooldown') return siteText("racing.copy.db02b959fa0b","刚提交过（15 秒冷却），稍后再来");
   if (code === 'origin_not_allowed') return siteText("racing.copy.0624060009ba","这个来源不被排行榜接受（换站点域名打开试试）");
   if (code === 'bad_data') return '幽灵数据格式或大小不符合服务器要求，请更新游戏后重试';
   if (code === 'bad_lap') return '幽灵圈速不符合服务器要求';

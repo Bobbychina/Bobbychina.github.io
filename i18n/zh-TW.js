@@ -1333,7 +1333,7 @@ I18N.define("zh-TW", {
   "racing.copy.26402c28c2c2": "連不上排行榜後端：",
   "racing.copy.8ec8e5e0476c": "連不上排行榜後端",
   "racing.copy.677bec35a667": "官方榜還沒開（云後端還沒更新到這條賽道），先在本機紀錄里跑；過一會兒再刷新試試",
-  "racing.copy.db02b959fa0b": "剛提交過（60 秒冷卻），稍後再來",
+  "racing.copy.db02b959fa0b": "剛提交過（15 秒冷卻），稍後再來",
   "racing.copy.0624060009ba": "這個來源不被排行榜接受（換站點域名打開試試）",
   "racing.copy.a44d7c84ef67": "讀排行榜失敗",
   "racing.copy.f8628b92cadc": "正在讀排行榜…",

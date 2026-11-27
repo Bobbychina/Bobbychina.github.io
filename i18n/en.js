@@ -1333,7 +1333,7 @@ I18N.define("en", {
   "racing.copy.26402c28c2c2": "Cannot reach the leaderboard backend: ",
   "racing.copy.8ec8e5e0476c": "Cannot reach the leaderboard backend",
   "racing.copy.677bec35a667": "The official leaderboard is not available for this track yet. Local records still work. Try refreshing later.",
-  "racing.copy.db02b959fa0b": "Submitted recently. Wait for the 60-second cooldown.",
+  "racing.copy.db02b959fa0b": "Submitted recently. Wait for the 15-second cooldown.",
   "racing.copy.0624060009ba": "The leaderboard does not accept this origin. Open the game from the site.",
   "racing.copy.a44d7c84ef67": "Could not read the leaderboard",
   "racing.copy.f8628b92cadc": "Loading leaderboard…",
