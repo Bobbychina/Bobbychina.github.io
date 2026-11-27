@@ -1,0 +1,11 @@
+{
+  "name": "oval-room-relay",
+  "version": "2.0.0",
+  "dependencies": {
+    "ws": "8.21.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true
+}

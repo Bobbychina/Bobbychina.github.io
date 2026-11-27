@@ -1,0 +1,36 @@
+name: Deploy racing relay
+on:
+  push:
+    branches: [main]
+    paths: ['tools/racing-relay/**', '.github/workflows/racing-relay.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: racing-relay
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test room and relay protocol
+        working-directory: tools/racing-relay
+        run: npm ci --ignore-scripts && node --test test.cjs
+      - name: Install on portal server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -T 10 -H "$DEPLOY_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          remote=(ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST")
+          tar -C tools/racing-relay -czf - Dockerfile server.cjs package.json package-lock.json route.conf install.sh |
+            "${remote[@]}" "set -eu; dir=\$(mktemp -d); cd \"\$dir\"; tar -xzf -; sudo bash install.sh '$GITHUB_SHA'"
