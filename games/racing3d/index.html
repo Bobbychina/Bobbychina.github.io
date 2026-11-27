@@ -5472,7 +5472,8 @@ function onlineRenderGhostPick() {
   const st = document.getElementById('ghostState');
   if (st) {
     const anyGhost = list.length > 0;
-    st.textContent = siteText("racing.copy.90c4aba52114","幽灵对手：") + (Ghost.state || (Ghost.pick === 'off' ? siteText("racing.copy.3fe6825b6f50","不跟幽灵跑（AI 照常）") : Ghost.pick)) +
+    const offLabel = CFG.AI_DIFFICULTY === 'none' ? '不跟幽灵跑' : siteText("racing.copy.3fe6825b6f50","不跟幽灵跑（AI 照常）");
+    st.textContent = siteText("racing.copy.90c4aba52114","幽灵对手：") + (Ghost.state || (Ghost.pick === 'off' ? offLabel : Ghost.pick)) +
       (anyGhost && Ghost.pick === 'off' ? siteText("racing.copy.de5a69f343a3"," · 榜上的名字带「有幽灵」的才能选中") : '');
   }
 }
@@ -6143,7 +6144,7 @@ const DIFF_DEFS = {
   easy: { name: '休闲', desc: 'AI 慢半拍 · 不漂移 · 刹车早' },
   normal: { name: '标准', desc: 'AI 会走内线也会漂移，正常速度' },
   hard: { name: '硬核', desc: 'AI 更快 · 抢线更凶 · 刹车更晚' },
-  none: { name: '无对手', desc: '赛道上只有你的车' }
+  none: { name: '无对手', desc: '无 AI 车辆 · 可选幽灵' }
 };
 const DIFF_KEY = 'racing3d.diff';
 
@@ -6152,10 +6153,6 @@ function updateDiffPickUI() {
   const solo = CFG.AI_DIFFICULTY === 'none';
   const summary = document.getElementById('aiOpponentSummary');
   if (summary) summary.textContent = solo ? '无对手' : '5 位对手';
-  for (const id of ['ghostState', 'ghostPick']) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = solo ? 'none' : '';
-  }
   const btns = document.querySelectorAll('.dbtn');
   for (let i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('on', btns[i].getAttribute('data-diff') === CFG.AI_DIFFICULTY);
@@ -6420,7 +6417,7 @@ function simulate(dt) {
   if (G.player.nextSplit > 0 && !G.player.finished) {
     const lapT = G.raceTime - G.player.lapStartTime;
     ghostSample(dt, G.player, lapT);
-    if (CFG.AI_DIFFICULTY !== 'none') ghostUpdate(dt, lapT);
+    ghostUpdate(dt, lapT);
   } else if (Ghost.mesh) {
     Ghost.mesh.visible = false;      // 还没过起点线（发车格上）先别显示
   }
