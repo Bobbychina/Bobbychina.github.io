@@ -298,6 +298,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
 <script src="/games/site-saves.js?v=20261021res1"></script>
 <script src="/games/account.js?v=20261021res1"></script>
 <script src="/mac-block.js"></script>
+<script defer src="/games/alan/online/vendor/peerjs.min.js"></script>
 </head>
 <body>
 
@@ -383,7 +384,16 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <div><kbd>Q</kbd><kbd>E</kbd><span>换车 · </span><kbd>R</kbd><span>重开</span></div>
     </div>
     </details><details class="race-settings" id="peerPanel"><summary>P2P 双人对战</summary>
-      <p class="sub">房主选好赛道和车型后创建邀请。两位车手使用同款车，由房主发车。</p>
+      <p class="sub">房主选好赛道和车型后创建房间，好友输入房间号加入。</p>
+      <div id="peerNumberBox">
+        <label class="net-fields">房间号<input id="peerNumber" aria-label="房间号" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6 位数字" autocomplete="off"></label>
+        <div class="btnrow">
+          <button class="btn sm" id="peerMakeRoom" type="button">创建房间</button>
+          <button class="btn ghost sm" id="peerEnterRoom" type="button">加入房间</button>
+          <button class="btn ghost sm" id="peerCopyNumber" type="button" hidden>复制房间号</button>
+        </div>
+      </div>
+      <details id="peerManual"><summary>手动连接</summary>
       <div class="net-fields">
         <label class="wide" id="peerOutLabel" hidden><span id="peerOutTitle">发给好友</span><textarea id="peerOut" readonly spellcheck="false"></textarea></label>
         <label class="wide" id="peerInLabel"><span id="peerInTitle">收到好友邀请？粘贴到这里</span><textarea id="peerIn" maxlength="32000" spellcheck="false" autocomplete="off"></textarea></label>
@@ -393,10 +403,12 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
         <button class="btn ghost sm" type="button" id="peerJoin">加入邀请</button>
         <button class="btn ghost sm" type="button" id="peerCopy" hidden>复制给好友</button>
         <button class="btn sm" type="button" id="peerAccept" hidden>连接对手</button>
+      </div></details>
+      <div class="btnrow">
         <button class="btn sm" type="button" id="peerStart" hidden>房主发车</button>
         <button class="btn ghost sm" type="button" id="peerLeave" hidden>退出对战</button>
       </div>
-      <p id="peerStatus" role="status">无需启动房间服务器。</p>
+      <p id="peerStatus" role="status">创建房间，或输入好友的房间号。</p>
     </details><div class="btnrow">
       <button class="btn" id="btnStart">开 始 比 赛</button>
       <button class="btn ghost sm" id="btnBoard"><span data-i18n="racing.panel.title">🏆 官方排行榜</span></button>
@@ -6125,12 +6137,20 @@ const DUEL_PLAYERS = [
   { id: 'guest', name: '挑战者', color: 0x36bded }
 ];
 const DUEL_VERSION = 'OVAL1';
+const DUEL_RULES = 'classic-v1';
 const peerEl = id => document.getElementById(id);
 function peerStatus(text) { peerEl('peerStatus').textContent = text; }
 
 function peerControls() {
   if (!peerEl('peerPanel')) return;
   const room = PeerDuel.room;
+  const numbered = !!room?.numbered;
+  peerEl('peerNumberBox').hidden = !!room && !numbered;
+  peerEl('peerNumber').readOnly = !!room;
+  peerEl('peerMakeRoom').hidden = peerEl('peerEnterRoom').hidden = !!room;
+  peerEl('peerMakeRoom').disabled = peerEl('peerEnterRoom').disabled = Net.phase !== 'offline';
+  peerEl('peerCopyNumber').hidden = !(numbered && room.role === 'host' && peerEl('peerNumber').value);
+  peerEl('peerManual').hidden = numbered;
   const waitingAnswer = room?.role === 'host' && room.stage === 'offer';
   const outbound = !!room && !!peerEl('peerOut').value && !room.ready;
   peerEl('peerOutLabel').hidden = peerEl('peerCopy').hidden = !outbound;
@@ -6150,7 +6170,9 @@ function peerClose() {
   clearTimeout(room.deadline);
   clearTimeout(room.disconnectTimer);
   room.channel?.close();
-  room.pc.close();
+  room.signal?.destroy();
+  room.pc?.close();
+  peerEl('peerNumber').value = '';
   peerEl('peerIn').value = peerEl('peerOut').value = '';
   peerStatus('已退出对战。');
 }
@@ -6177,6 +6199,79 @@ function peerSend(room, packet) {
   if (packet.type === 'input' && room.channel.bufferedAmount > 8192) return false;
   try { room.channel.send(JSON.stringify(packet)); return true; }
   catch { peerEnd(room, '对战连接已断开。'); return false; }
+}
+
+// The signaling service reserves two IDs per room. Gameplay uses the RTC channel.
+function peerOpenNumber(role) {
+  if (Net.phase !== 'offline') return;
+  const host = role === 'host';
+  const field = peerEl('peerNumber');
+  const code = field.value.trim();
+  if (!host && !/^\d{6}$/.test(code)) { peerStatus('请输入好友发来的 6 位房间号。'); field.focus(); return; }
+  if (!window.Peer || !window.RTCPeerConnection) { peerStatus('房间服务未加载，可刷新重试或展开手动连接。'); return; }
+  const room = { numbered: true, role, track: CFG.TRACK_MODE, model: CAR_CHOICE.now, ready: false };
+  PeerDuel.room = room;
+  Net.phase = 'connecting'; Net.id = role; Net.host = 'host';
+  if (host) field.value = '';
+  netControls();
+  peerStatus(host ? '正在创建房间…' : '正在查找房间…');
+  const failed = () => peerEnd(room, '连接房间服务失败，可重试或展开手动连接。');
+  function register(attempt) {
+    room.number = host ? String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0') : code;
+    const prefix = 'bobbycn-oval-1-' + DUEL_RULES + '-' + room.number + '-';
+    const node = new window.Peer(prefix + role, { secure: true, config: { iceServers: [
+      { urls: 'stun:stun.cloudflare.com:3478' }, { urls: 'stun:stun.l.google.com:19302' }
+    ] } });
+    room.signal = node;
+    const current = () => room === PeerDuel.room && room.signal === node;
+    function wire(link) {
+      if (!current() || room.link || link.peer !== prefix + (host ? 'guest' : 'host') ||
+          link.label !== 'oval-duel-v1' || link.serialization !== 'raw' || !link.reliable) {
+        link.close(); return;
+      }
+      room.link = link;
+      peerStatus('已找到对手，正在建立直连…');
+      peerDeadline(room, 35000, '双方网络未能建立直连，请换一个网络后重试。');
+      link.on('error', () => { if (current()) peerEnd(room, '对战直连失败。'); });
+      link.on('close', () => { if (current()) peerEnd(room, '对手已离开房间。'); });
+      link.on('open', () => {
+        if (!current()) return;
+        room.pc = link.peerConnection;
+        room.pc.addEventListener('connectionstatechange', () => {
+          clearTimeout(room.disconnectTimer);
+          if (room.pc.connectionState === 'disconnected') {
+            room.disconnectTimer = setTimeout(() => peerEnd(room, '对战连接已中断。'), 10000);
+          }
+          if (room.pc.connectionState === 'failed') peerEnd(room, '对战连接已中断。');
+        });
+        peerWire(room, link.dataChannel);
+      });
+    }
+    peerDeadline(room, 20000, '连接房间服务超时，请重试或展开手动连接。');
+    node.on('error', error => {
+      if (!current() || room.ready) return;
+      if (error.type === 'unavailable-id' && host && attempt < 4) { register(attempt + 1); return; }
+      if (error.type === 'unavailable-id' && !host) peerEnd(room, '房间已满。');
+      else if (error.type === 'peer-unavailable') peerEnd(room, '找不到房间，请核对房间号，并确认双方使用同一版本。');
+      else failed();
+    });
+    node.on('disconnected', () => { if (current() && !room.ready) failed(); });
+    node.on('connection', link => { if (host) wire(link); else link.close(); });
+    node.on('call', call => call.close());
+    node.on('open', () => {
+      if (!current()) return;
+      if (host) {
+        field.value = room.number;
+        peerControls();
+        peerStatus('把房间号发给好友，等待加入。');
+        peerDeadline(room, 10 * 60000, '房间等待超时，请重新创建。');
+      } else {
+        const link = node.connect(prefix + 'host', { label: 'oval-duel-v1', serialization: 'raw', reliable: true });
+        if (link) wire(link); else failed();
+      }
+    });
+  }
+  try { register(1); } catch { failed(); }
 }
 
 function peerParseCode(type) {
@@ -6268,10 +6363,11 @@ function peerWire(room, channel) {
   if (room !== PeerDuel.room || room.channel || channel.label !== 'oval-duel-v1') { channel.close(); return; }
   room.channel = channel;
   channel.onclose = channel.onerror = () => peerEnd(room, '对手已离开或连接已断开。');
-  channel.onopen = () => {
+  const opened = () => {
     if (room !== PeerDuel.room) return;
     if (room.role === 'host') peerSend(room, { type: 'lobby', track: room.track, model: room.model });
   };
+  channel.addEventListener('open', opened);
   channel.onmessage = event => {
     if (room !== PeerDuel.room) return;
     try {
@@ -6279,6 +6375,7 @@ function peerWire(room, channel) {
       peerReceive(room, JSON.parse(event.data));
     } catch { peerEnd(room, '对战数据无效，请确认双方使用相同版本。'); }
   };
+  if (channel.readyState === 'open') opened();
 }
 
 function peerReceive(room, packet) {
@@ -6359,6 +6456,13 @@ function peerHostStep(dt) {
 }
 
 function peerBindUI() {
+  peerEl('peerMakeRoom').onclick = () => peerOpenNumber('host');
+  peerEl('peerEnterRoom').onclick = () => peerOpenNumber('guest');
+  peerEl('peerCopyNumber').onclick = async () => {
+    const field = peerEl('peerNumber');
+    try { await navigator.clipboard.writeText(field.value); peerStatus('已复制房间号。'); }
+    catch { field.focus(); field.select(); peerStatus('房间号已选中，请复制。'); }
+  };
   peerEl('peerCreate').onclick = () => peerOpen('host');
   peerEl('peerJoin').onclick = () => peerOpen('guest');
   peerEl('peerAccept').onclick = peerAccept;
