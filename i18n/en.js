@@ -1408,7 +1408,7 @@ I18N.define("en", {
   "racing.panel.speed": "Top speed",
   "racing.panel.refresh": "Refresh",
   "racing.panel.close": "Close (L)",
-  "racing.panel.hint": "Rankings use <b>lap time</b>: lower is better. Each track has a board. Anyone can view it; submitting requires an arcade cloud account.",
+  "racing.panel.hint": "The remaster has separate boards for each track and car. Viewing is public; sign in to submit. Legacy records stay separate.",
   "common.error.network": "Network error. Check your connection and try again.",
   "home.hosted.label": "HOSTED",
   "home.hosted.title": "Hosted for others",

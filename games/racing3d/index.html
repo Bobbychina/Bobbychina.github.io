@@ -197,6 +197,15 @@
     border-radius:9px;color:#eaf6ff;background:rgba(10,20,34,.75);
     border:1px solid rgba(150,200,255,.28);outline:none}
   #lbForm input:focus{border-color:rgba(140,240,255,.7)}
+  .net-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+  .net-fields label{display:grid;gap:4px;color:#c5d4e7;font-size:12px}
+  .net-fields .wide{grid-column:1/-1}
+  .net-fields input{min-width:0;width:100%;box-sizing:border-box;background:#09121e;color:#fff;
+    border:1px solid #42516a;border-radius:3px;padding:8px;font:inherit}
+  .btn:disabled,.tbtn:disabled,.cbtn:disabled{opacity:.45;cursor:not-allowed;filter:saturate(.3)}
+  #netStatus{font-size:12px;line-height:1.55;color:#cad9ed;overflow-wrap:anywhere}
+  #btnNetExit{position:fixed;bottom:12px;left:12px;z-index:12;pointer-events:auto;display:none}
+  @media(max-width:500px){.net-fields{grid-template-columns:1fr}.net-fields .wide{grid-column:auto}}
   #resLb{margin-top:10px;font-size:13.5px;color:#9db8d6;line-height:1.8}
   #resLb b{color:#ffe6a8}
   #lbHud{font-size:12.5px;color:#8fb2d8;margin-top:6px;letter-spacing:.4px}
@@ -294,6 +303,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
 <div id="loading"><div class="spin"></div><div>正在生成赛道与车辆…</div></div>
 
 <div id="hud">
+  <button class="btn ghost sm" id="btnNetExit" type="button">退出联机</button>
   <div class="panel tl">
     <div class="row"><span class="lbl">圈　数</span><span class="val mono" id="lapText">0 / 3</span></div>
     <div class="sep"></div>
@@ -314,7 +324,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
     <div id="gearText">READY</div>
     <div id="hint">
       <kbd>W</kbd>加速 <kbd>S</kbd>刹车/倒车 <kbd>A</kbd><kbd>D</kbd>转向 ·
-      <kbd>空格</kbd>漂移(可微调) · <kbd>L</kbd>排行榜 · <kbd>R</kbd>重开 · <kbd>Esc</kbd>暂停
+      <kbd>空格</kbd>手刹 · <kbd>L</kbd>排行榜 · <kbd>R</kbd>重开 · <kbd>Esc</kbd>暂停
     </div>
   </div>
 
@@ -326,7 +336,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
 <div id="overlay" class="on">
   <div class="card" id="cardStart">
     <h1>极速椭圆</h1>
-    <p class="sub"><b>10 条赛道</b> · <b>9 款车型</b> · 5 位对手 · 当前 <b id="trackName">椭圆极速环</b></p>
+    <p class="sub"><b>10 条赛道</b> · <b>9 款车型</b> · <b id="opponentSummary">5 台 AI 对手</b> · 当前 <b id="trackName">椭圆极速环</b></p>
     <div class="tracks">
       <button class="tbtn on" data-track="oval">椭圆极速环<span>210 × 132 m 椭圆 · 两个高速长弯</span></button>
       <button class="tbtn" data-track="circuit">三连回头弯赛道<span>3 个 U 型回头弯 + 3 个直角弯</span></button>
@@ -337,7 +347,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <button class="tbtn" data-track="jumps">跳台峡谷<span>4 个跳台 · 真的会飞出去再落地</span></button>
       <button class="tbtn" data-track="skyway">云端高架<span>爬升到 20 m 高空 · 落差跳台</span></button>
       <button class="tbtn" data-track="ice">冰湖竞速<span>抓地 55% · 长滑漂移 · 宽弯高速</span></button>
-      <button class="tbtn" data-track="kart">小巷卡丁<span>12 m 窄路 · 连续 90° 弯 · 3 圈</span></button>
+      <button class="tbtn" data-track="kart">小巷卡丁<span>12 m 窄路 · 连续 90° 弯 · 2 圈</span></button>
     </div>
     <p class="sub" id="trackDesc" style="font-size:12px;opacity:.8;margin-top:2px">210 × 132 m 椭圆 · 两个高速长弯</p>
     <details class="race-settings"><summary>车库与比赛设置 · 换车 / 难度 / 幽灵</summary><div class="cars">
@@ -352,12 +362,18 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <button class="cbtn" data-car="hyper">电动超跑<i>超跑</i></button>
     </div>
     <p class="sub" id="carDesc" style="font-size:12px;opacity:.8;margin-top:5px">现实马路上常见的双门轿车造型</p>
-    <p class="sub" style="font-size:12px;opacity:.8;margin-top:7px">AI 难度 <b id="diffName">标准</b> · <span id="diffDesc">会走内线也会漂移，正常速度</span></p>
+    <label class="race-option">对手设置
+      <select id="opponentMode">
+        <option value="ai">5 台 AI 对手</option>
+        <option value="solo">无 AI 对手 · 纯净自己跑</option>
+      </select>
+    </label>
+    <p class="sub" style="font-size:12px;opacity:.8;margin-top:7px">AI 难度 <b id="diffName">标准</b> · <span id="diffDesc">选择走线，寻找超车机会</span></p>
     <p class="sub" id="ghostState" style="font-size:12px;opacity:.8;margin-top:7px">幽灵对手：不跟幽灵跑（AI 照常）</p>
     <div class="diffs" id="ghostPick"></div>
     <div class="diffs">
-      <button class="dbtn" data-diff="easy">休 闲<i>慢半拍 · 不漂移</i></button>
-      <button class="dbtn on" data-diff="normal">标 准<i>走线 + 漂移</i></button>
+      <button class="dbtn" data-diff="easy">休 闲<i>反应较慢 · 刹车早</i></button>
+      <button class="dbtn on" data-diff="normal">标 准<i>走线 + 超车</i></button>
       <button class="dbtn" data-diff="hard">硬 核<i>更快 · 抢线更凶</i></button>
     </div>
     </details><details class="race-settings"><summary>驾驶指南 · 键盘操作</summary><div class="keys">
@@ -365,17 +381,30 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <div><kbd>S</kbd><span>刹车 / 倒车</span></div>
       <div><kbd>A</kbd><span>向左转向</span></div>
       <div><kbd>D</kbd><span>向右转向</span></div>
-      <div><kbd>空格</kbd><span>漂移 (轻点贴弯 · 长按大甩尾)</span></div>
+      <div><kbd>空格</kbd><span>手刹（抓地降低，注意反打）</span></div>
       <div><kbd>C</kbd><span>切换相机视角</span></div>
       <div><kbd>1</kbd>~<kbd>9</kbd><kbd>0</kbd><span>切赛道 (或 <kbd>T</kbd> 循环)</span></div>
       <div><kbd>Q</kbd><kbd>E</kbd><span>换车 · </span><kbd>R</kbd><span>重开</span></div>
     </div>
+    </details><details class="race-settings"><summary>真人联机 · 房间竞速</summary>
+      <div class="net-fields">
+        <label class="wide">房间服务器地址<input id="netAddress" placeholder="ws://127.0.0.1:8787/race" autocomplete="url"></label>
+        <label>车手名<input id="netName" maxlength="18" value="车手" autocomplete="nickname"></label>
+        <label>房间码<input id="netCode" maxlength="6" placeholder="加入时填写" autocomplete="off"></label>
+      </div>
+      <div class="btnrow">
+        <button class="btn sm" id="btnNetCreate" type="button">创建房间</button>
+        <button class="btn ghost sm" id="btnNetJoin" type="button">加入房间</button>
+        <button class="btn sm" id="btnNetStart" type="button" disabled>房主发车</button>
+        <button class="btn ghost sm" id="btnNetLeave" type="button" disabled>离开房间</button>
+      </div>
+      <p id="netStatus" role="status">同一房间使用房主选择的赛道和车型；至少 2 位车手。需先启动房间服务器。</p>
     </details><div class="btnrow">
       <button class="btn" id="btnStart">开 始 比 赛</button>
       <button class="btn ghost sm" id="btnBoard"><span data-i18n="racing.panel.title">🏆 官方排行榜</span></button>
     </div>
     <div id="lbHud"></div>
-    <p class="sub" style="font-size:12px;opacity:.75">提示：入弯按住<b>空格</b>漂移（轻点=贴弯小漂 · 长按=大角度甩尾），松开后会继续保持一小段滑行</p>
+    <p class="sub" style="font-size:12px;opacity:.75">提示：先刹车再入弯；<b>空格</b>为手刹，侧滑时松开并反打方向。</p>
   </div>
 
   <div class="card" id="cardResult" style="display:none">
@@ -412,7 +441,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
       <button class="btn ghost sm" id="btnLbRefresh" data-i18n="racing.panel.refresh">刷新</button>
       <button class="btn sm" id="btnLbClose" data-i18n="racing.panel.close">关 闭 (L)</button>
     </div>
-    <p class="sub" style="font-size:12px;opacity:.7" data-i18n-html="racing.panel.hint">排行榜按单圈排名；看榜不用登录，提交需要云账号。</p>
+    <p class="sub" style="font-size:12px;opacity:.7" data-i18n-html="racing.panel.hint">新版按赛道和车型分榜；看榜无需登录，上榜需要账号。旧版成绩独立保留。</p>
   </div>
 
   <div class="card" id="cardPause" style="display:none">
@@ -450,6 +479,7 @@ kbd{background:#1c2b40;color:#d4e5f8;border-color:#42516a;border-radius:2px;box-
  * =========================================================================== */
 
 const CFG = {
+  PHYSICS_VERSION: 'v4',
 
   /* ======================= 赛道尺寸 ======================= */
   TRACK_MODE: 'oval',       // 当前赛道: 见 20_track.js 的 TRACK_DEFS (oval/circuit/dirt/city/dune/alpine)
@@ -487,6 +517,7 @@ const CFG = {
   CAR: {
     LENGTH: 4.34,           // 车长 (沿 Z)
     WIDTH: 1.86,            // 车宽 (沿 X)
+    COLLISION_HEIGHT: 1.6,  // 车体碰撞高度；起跳后不与明显位于下方的车相撞
     WHEELBASE: 2.62,        // 轴距
     TRACK_W: 1.58,          // 轮距 (左右轮中心距)
     WHEEL_R: 0.335,         // 车轮半径
@@ -494,7 +525,8 @@ const CFG = {
 
     /* ---- 动力与制动 ---- */
     MAX_SPEED: 62,          // 极速 m/s (≈223 km/h)
-    ENGINE_ACCEL: 11.5,     // 满油门低速加速度 m/s² (2026-09-23: 15→11.5, 0-100 从 2.4s 拉到 ~3.3s)
+    ENGINE_ACCEL: 13.5,     // 满油门低速加速度 m/s²
+    CORNER_POWER_MIN: 0.88, // 键盘满舵时保留动力，避免抓地上限把油门吃掉
     BRAKE_DECEL: 12.0,      // 刹车减速度 m/s² (2026-09-23: 24→12, 100-0 从 15m 拉到 ~31m, 刹车才有节奏)
     REVERSE_ACCEL: 7.0,     // 倒车加速度 m/s²
     MAX_REVERSE: 14,        // 最高倒车速度 m/s
@@ -518,54 +550,12 @@ const CFG = {
     GRIP_STIFF: 6.0,        // 侧向抓地刚度 1/s: 小滑移角按比例柔和修正(有"轮胎咬地"的过程),
                             // 到抓地上限才转硬限幅；0 = 旧版"瞬间吸附"(没有重量感)
 
-    /* ---- 漂移 (QQ飞车式手感: 丝滑、可控、不向外甩、不掉速) ----
-       漂移时不再用"低抓地 + 大横摆"去模拟甩尾(那样必然往外飘),
-       而是直接控制【运动方向】按转向速率旋转, 车头只比运动方向多一个受限的漂移角:
-         · 运动方向 = 玩家方向盘控制 => 车永远顺着弯走, 不会往外滑
-         · 漂移角 ≤ DRIFT_SLIP_MAX  => 看着在漂, 但绝不会转过头飞出去
-         · 速度大小只受温和阻力影响 => 保留速度感
-       防"猛甩头": 方向盘输入先做插值缓冲(DRIFT_STEER_SMOOTH),
-                   漂移角/转向速率都按加速度逐步逼近(DRIFT_SLIP_RATE / DRIFT_TURN_ACC),
-                   任何角度都不会突变.                                            */
-    DRIFT_MIN_SPEED: 7.0,     // 进入漂移的最低前进速度 m/s (门槛很低, 轻点即入弯)
-
-    /* —— 轻点 / 长按 两种档位 (按住时间决定, 平滑升降级不跳变) —— */
-    DRIFT_HOLD_TIME: 0.35,    // 按住超过该时长开始从"轻点档"升级为"长按档" s
-    DRIFT_LEVEL_RATE: 1.8,    // 档位升级/降级速率 1/s (约 0.55s 平滑过渡完)
-    /* 轻点档: 贴弯/过弯 —— 角度适中、建立快、松键后继续保持滑行 */
-    DRIFT_SLIP_LIGHT: 0.26,   // 轻点档漂移角上限 rad(≈15°)
-    DRIFT_SLIP_FOLLOW_LIGHT: 6.5, // 轻点档漂移角建立速率(自然频率): 快速"咬住"弯道
-    DRIFT_TURN_MUL_LIGHT: 1.20,   // 轻点档转向能力倍率
-    /* 长按档: 过回头弯 —— 车尾大幅外甩、车头少转 => 漂移角很大但"慢慢甩出来" */
-    DRIFT_SLIP_MAX: 0.60,     // 长按档漂移角上限 rad(≈34°) 车尾甩得很开
-    DRIFT_SLIP_FOLLOW: 3.4,   // 长按档漂移角建立速率(自然频率): 慢 => 车头不猛转
-    DRIFT_TURN_MUL: 1.65,     // 长按档转向能力倍率 (2026-09-23: 1.80→1.65 试过 1.35,
-                              //   实测轨迹曲率收益 1.35 时只剩 +4%(漂移变装饰), 1.65 约 +25~35% 最健康)
-
-    /* —— 松开漂移键后的"持续滑行" (QQ飞车: 松手不会立刻回正) —— */
-    DRIFT_COAST_TIME: 0.70,   // 松键后继续保持滑行漂移的时间 s
-    DRIFT_COAST_TURN: 0.55,   // 滑行期间保留的转向能力比例 (仍可用方向键微调轨迹)
-
-    /* —— 防外抛 (漂移时始终沿弯道走, 不会因为方向回中而直着冲出去) —— */
-    DRIFT_BASE_KEEP: 0.50,    // 方向盘回中时保留的转向能力比例 (0 = 关闭该保护)
-    DRIFT_BASE_ZONE: 0.45,    // 只在 |方向|<该值 时叠基础转向 (满舵/反打区间完全不受影响)
-
-    /* —— 平滑参数 (二阶临界阻尼: 速度从 0 平滑建立, 全程无突变) —— */
-    DRIFT_STEER_SMOOTH: 4.5,  // 漂移中方向盘输入的插值缓冲速率 1/s (0->满舵约0.22s)
-    DRIFT_TURN_FOLLOW: 5.5,   // 漂移转向速率的自然频率 (大=更灵敏, 小=更柔和)
-    DRIFT_TURN_MAX: 1.25,     // 漂移转向速率上限 rad/s (防止低速时原地打转)
-    DRIFT_TURN_REF: 9.0,      // 计算转向能力时的速度下限 m/s
-    DRIFT_DRAG: 0.0,          // 漂移附加阻力 m/s² (2026-09-23: 1.1 → 0, 站长反馈"漂移像踩了刹车")
-    DRIFT_HOLD_ACC: 2.5,      // 漂移"保速"回补加速度 m/s²: 速度掉到入漂速度以下时往上补,
-                              // 上限就是入漂速度 => 掉速被抹平, 但变不成加速器(没法刷极速)
-    DRIFT_BRAKE_MUL: 0.55,    // 漂移中刹车效果倍率 (漂移时点刹更柔和)
-    DRIFT_EXIT_ALIGN: 2.8,    // 松开漂移键后"运动方向对齐车头"的速率 rad/s (柔和回正)
-    DRIFT_EXIT_TIME: 0.55,    // 回正过程持续时长 s
-    DRIFT_BOOST_MIN_TIME: 0.28, // 漂移时长超过该值才给"小喷"(防止连点刷加速)
-    DRIFT_BOOST_ACC: 4.5,     // 出弯小喷加速度 m/s²
-    DRIFT_BOOST_TIME_K: 0.30, // 小喷时长 = 漂移时长 × 该系数
-    DRIFT_BOOST_MAX_T: 0.85,  // 小喷最长时长 s
-    DRIFT_BOOST_CAP: 0.98,    // 小喷最多把速度顶到极速的该比例
+    /* ---- 手刹与轮胎滑移 ---- */
+    DRIFT_MIN_SPEED: 7.0,    // 手刹只在向前行驶时起作用
+    HANDBRAKE_GRIP: 0.64,   // 手刹时保留的侧向抓地比例
+    HANDBRAKE_YAW: 1.12,    // 车头响应上限
+    HANDBRAKE_DRAG: 0.45,   // 手刹的额外滚动阻力 m/s²
+    HANDBRAKE_SLIP_DRAG: 0.08,
     WALL_MARGIN: 0.02       // 车体到护栏的碰撞余量
   },
 
@@ -630,10 +620,6 @@ const CFG = {
   AI_AIM_MARGIN: 4.2,       // 切弯心时离路缘留多少米 (太小会压草/撞墙)
   AI_LINE_BONUS: 0.06,      // 走线比中心线短 => 等效抓地加成 (0.18 = 弯速 +9%)
   AI_BRAKE_BONUS: 0.05,     // 刹车点可以再晚一点
-  AI_DRIFT_KAP: 1 / 75,     // 前方曲率大于这个值(半径 < 75m)时, AI 也按漂移键过弯
-                            // (2026-09-23: 1/45 → 1/75 —— 漂移不再掉速后, 参考司机在更多弯里用了漂移,
-                            //   AI 只在发夹弯漂移就跟不上了; AI 漂移时转向需求已按 turnMul 除回来, 更安全)
-  AI_DRIFT_MIN_SPEED: 22,   // 低于这个速度就不用漂移了
   AI_DIFFICULTY: 'normal',  // 'easy' 休闲 | 'normal' 标准 | 'hard' 硬核 (开场界面可切)
   AI_LINE_ERR: 1.6,         // AI 走线误差幅度 m (基准; 再乘难度 noiseMul => 看起来像人在修方向)
   /* 难度档 (2026-09-24 v3 重排): skill 整体节奏 / aimMul 切弯心力度 / drift 是否漂移 /
@@ -643,7 +629,7 @@ const CFG = {
     normal: { skill: 1.00, aimMul: 1.00, drift: true, brakeMul: 1.00, steerMul: 1.00, noiseMul: 1.00, launch: 0.85 },
     hard: { skill: 1.07, aimMul: 1.25, drift: true, brakeMul: 1.12, steerMul: 1.12, noiseMul: 0.45, launch: 1.00 }
   },
-  AI_BRAKE: 17.0,           // AI 刹车减速度 m/s²
+  AI_BRAKE: 9.0,            // 留出弯中共享抓地与反应时间的制动余量
   AI_VMIN: 15.0,            // AI 最低目标速度 m/s
   AI_LOOKAHEAD_BASE: 6.5,   // 前视距离基础值 m
   AI_LOOKAHEAD_SPEED: 0.42, // 前视距离随速度增加系数
@@ -742,7 +728,6 @@ const CAR_SPEC_FIELDS = {
   STEER_MAX_LOW: 'STEER', STEER_MAX_HIGH: 'STEER',
   YAW_ACCEL: 'YAW', YAW_ACCEL_HIGH: 'YAW',
   BRAKE_DECEL: 'BRAKE',
-  DRIFT_TURN_MUL: 'DRIFT', DRIFT_TURN_MUL_LIGHT: 'DRIFT',
   ROLL_RESIST: 'ROLL'
 };
 
@@ -3621,12 +3606,8 @@ function createCar(color, modelId) {
  * 40_physics.js —— 车辆物理
  *  · 常规行驶: 自行车模型求横摆角速度 + 轮胎抓地上限 => 高速转向变"沉", 低速灵活
  *              速度矢量与车头解耦 => 真实惯性 / 推头
- *  · 漂移(QQ飞车式): 直接控制"运动方向"按转向速率旋转, 车头只多一个受限漂移角
- *              => 顺着弯走不往外飘 / 方向盘可连续微调 / 松键快速回正 / 几乎不掉速
- *    防甩头三件套:
- *      ① 方向盘插值缓冲 steerSmooth: 按键输入不直接作用到车头, 而是逐步靠拢
- *      ② 轻点/长按两档 driftLevel: 按住越久漂移角越大, 升降级都是平滑过渡
- *      ③ 漂移角/转向速率都按"加速度"逼近: 任何角度都不突变
+ *  · 手刹: 降低横向抓地，保留惯性，滑移和速度损失由轮胎受力产生。
+ *  · 加速、制动与转弯共享抓地，低抓地路面会延长刹车距离。
  *  · 护栏碰撞: 车体多采样点投影到赛道坐标, 法向回弹 + 切向摩擦, 绝不穿模
  * =========================================================================== */
 
@@ -3718,11 +3699,7 @@ function stepVehicle(car, dt) {
   const spdAbs = Math.abs(vLong);
   const speed = hypot2(car.vx, car.vz);
 
-  /* =====================================================================
-   * 0. 漂移状态机 (QQ飞车式)
-   *    按住 = 漂移中; 松开后不立刻回正, 而是继续"滑行"一小段(仍可打方向微调),
-   *    滑行结束才真正退出并给小喷. 这样轻点手刹就能贴弯, 长按就能大甩尾.
-   * ===================================================================== */
+  /* 空中与地面分别积分，地面分支使用同一套轮胎受力。 */
   if (car.airborne) {
     /* ==================== 空中分支 (跳台/高架起飞后) ====================
        空中没有抓地: 方向盘几乎无效(只留一点姿态微调), 速度只吃风阻,
@@ -3738,229 +3715,70 @@ function stepVehicle(car, dt) {
     car.driftSlip = 0; car.driftSlipVel = 0; car.driftTurn = 0; car.driftTurnVel = 0;
     car.throttle = car.throttle || 0;
   } else {
-  const wantDrift = !!car.driftKey && vLong > C.DRIFT_MIN_SPEED;
-  if (wantDrift && !car.drifting) {
-    /* 入弯: 完全继承当前姿态(漂移角/转向速率), 方向盘缓冲从 0 开始建立
-       => 漂移角与转向速率都是"逐步长出来"的, 不会一按就猛甩头 */
-    car.drifting = true;
-    car.driftTime = 0;
-    car.driftCoast = 0;
-    car.driftTurn = car.yawRate;
-    car.driftTurnVel = 0;
-    car.driftSlip = clampMag(wrapPi(car.yaw - Math.atan2(car.vx, car.vz)), C.DRIFT_SLIP_MAX);
-    car.driftSlipVel = 0;
-    car.driftLevel = 0;
-    /* 关键(修外抛①): 方向盘缓冲直接继承当前输入, 不要再从 0 慢慢涨.
-       否则入漂瞬间"转向目标"会掉到 0, 车会先直着冲出去一小段 => 外抛。 */
-    car.steerSmooth = clamp(car.steerInput, -1, 1);
-    car.driftDir = sign(car.steerInput) || sign(car.yawRate) || 1;
-    car.alignTimer = 0;
-    car.boostTimer = 0;
-    /* 漂移"保速"基准: 入漂那一刻的速度 (2026-09-23, 见下面的回补逻辑) */
-    car.driftHoldV = Math.hypot(car.vx, car.vz);
-  } else if (car.drifting) {
-    if (wantDrift) {
-      car.driftCoast = 0;                    // 按住时取消滑行倒计时
-    } else {
-      if (car.driftCoast <= 0) car.driftCoast = C.DRIFT_COAST_TIME;   // 刚松开 => 进入滑行
-      car.driftCoast -= dt;
-      if (car.driftCoast <= 0) {
-        /* 滑行结束, 真正退出漂移: 记录小喷并交给常规物理平滑接管
-           关键: 把"车头角速度 = 转向速率 + 漂移角速度"完整交出去,
-           否则漂移角速度会在退出瞬间凭空消失 => 车头一顿(弹跳) */
-        car.drifting = false;
-        car.yawRate = car.driftTurn + car.driftSlipVel;
-        car.alignTimer = C.DRIFT_EXIT_TIME;
-        car.boostTimer = (car.driftTime > C.DRIFT_BOOST_MIN_TIME)
-          ? Math.min(C.DRIFT_BOOST_MAX_T, car.driftTime * C.DRIFT_BOOST_TIME_K) : 0;
-        car.driftTime = 0;
-        car.driftSlipVel = 0;
-      }
-    }
+  // The handbrake reduces rear grip; velocity is never rotated or boosted for free.
+  const handbrake = !!car.driftKey && vLong > C.DRIFT_MIN_SPEED;
+  car.drifting = handbrake;
+  car.driftTime = handbrake ? car.driftTime + dt : 0;
+  car.driftCoast = 0;
+  car.boostTimer = 0;
+  car.alignTimer = 0;
+
+  const sf = clamp(spdAbs / C.STEER_SPEED_REF, 0, 1);
+  const maxSteer = lerp(C.STEER_MAX_LOW, C.STEER_MAX_HIGH, sf);
+  const rateLow = car.steerInput === 0 ? C.STEER_RETURN : C.STEER_RATE;
+  const rateHigh = car.steerInput === 0 ? C.STEER_RETURN : C.STEER_RATE_HIGH;
+  car.steer = approach(car.steer, clamp(car.steerInput, -1, 1) * maxSteer,
+    lerp(rateLow, rateHigh, sf) * dt);
+
+  const surface = TRACK.grip || 1;
+  const lowSpeedGrip = spdAbs < C.LAT_SNAP
+    ? lerp(C.LAT_ACC_LOW / C.LAT_ACC, 1, spdAbs / C.LAT_SNAP) : 1;
+  const tireLimit = C.LAT_ACC * surface * lowSpeedGrip;
+  const slideStyle = (C.MUL && C.MUL.DRIFT) || 1;
+  const handbrakeGrip = clamp(C.HANDBRAKE_GRIP / slideStyle, 0.48, 0.8);
+  const lateralLimit = tireLimit * (handbrake ? handbrakeGrip : 1);
+  const yawGeo = (vLong / C.WHEELBASE) * Math.tan(car.steer);
+  const yawLimit = tireLimit * (handbrake ? C.HANDBRAKE_YAW : 1) / Math.max(speed, 4.5);
+  const yawAcc = lerp(C.YAW_ACCEL, C.YAW_ACCEL_HIGH, clamp(spdAbs / C.YAW_ACCEL_REF, 0, 1));
+  car.yawRate = approach(car.yawRate, clampMag(yawGeo, yawLimit), yawAcc * dt);
+
+  // A tire cannot provide full braking and cornering force simultaneously.
+  const latNeed = vLat * C.GRIP_STIFF;
+  const latCmd = clampMag(latNeed, lateralLimit);
+  const cornerLoad = clamp(Math.max(Math.abs(latCmd), Math.abs(vLong * car.yawRate)) /
+    Math.max(tireLimit, 0.1), 0, 0.95);
+  const longitudinalGrip = Math.sqrt(1 - cornerLoad * cornerLoad);
+  // Steering saturates quickly on a keyboard; keep useful drive power at the limit.
+  const driveGrip = lerp(1, C.CORNER_POWER_MIN, cornerLoad * cornerLoad);
+  let aLong = 0;
+  if (car.throttle > 0) {
+    aLong += C.ENGINE_ACCEL * car.throttle * driveGrip *
+      (1 - 0.72 * clamp(vLong / C.MAX_SPEED, 0, 1));
   }
-
-  if (car.drifting) {
-    /* ==================== 漂移分支 ==================== */
-    car.driftTime += dt;
-
-    /* --- A. 方向盘插值缓冲: 输入不会直接作用到车头, 而是逐步靠拢 --- */
-    car.steerSmooth = approach(car.steerSmooth, clamp(car.steerInput, -1, 1),
-      C.DRIFT_STEER_SMOOTH * dt);
-
-    /* --- B. 轻点/长按 档位 + 松键滑行衰减 --- */
-    car.driftLevel = approach(car.driftLevel,
-      (car.driftTime >= C.DRIFT_HOLD_TIME ? 1 : 0), C.DRIFT_LEVEL_RATE * dt);
-    const slipMax = lerp(C.DRIFT_SLIP_LIGHT, C.DRIFT_SLIP_MAX, car.driftLevel);
-    const slipWn = lerp(C.DRIFT_SLIP_FOLLOW_LIGHT, C.DRIFT_SLIP_FOLLOW, car.driftLevel);
-    const turnMul = lerp(C.DRIFT_TURN_MUL_LIGHT, C.DRIFT_TURN_MUL, car.driftLevel);
-    /* 滑行阶段: 漂移角平滑收回到 0(车头逐渐顺正), 但保留大部分转向能力
-       => "松手不会立刻回正, 还能用方向键微调轨迹" */
-    let slipScale = 1, turnScale = 1;
-    if (car.driftCoast > 0) {
-      const k = clamp(car.driftCoast / C.DRIFT_COAST_TIME, 0, 1);
-      slipScale = smoothstep(k);
-      turnScale = C.DRIFT_COAST_TURN + (1 - C.DRIFT_COAST_TURN) * k;
-    }
-
-    /* 前轮视觉转角 (随方向盘, 同样带缓冲) */
-    const sfD = clamp(spdAbs / C.STEER_SPEED_REF, 0, 1);
-    car.steer = approach(car.steer, car.steerSmooth * lerp(C.STEER_MAX_LOW, C.STEER_MAX_HIGH, sfD),
-      C.STEER_RATE * dt);
-
-    /* 从当前世界速度反推"运动方向 + 速度大小"
-       (每步反推 => 撞护栏/撞车造成的方向与减速都被完整保留) */
-    let vAng = Math.atan2(car.vx, car.vz);
-    let sp = speed;
-
-    /* --- 纵向: 只有温和阻力, 速度几乎不掉 --- */
-    let aLong = 0;
-    if (car.throttle > 0) {
-      aLong += C.ENGINE_ACCEL * car.throttle * (1 - 0.72 * clamp(vLong / C.MAX_SPEED, 0, 1));
-    }
-    if (car.brake > 0) aLong -= C.BRAKE_DECEL * car.brake * C.DRIFT_BRAKE_MUL;
-    if (car.throttle === 0 && car.brake === 0) {
-      aLong -= sign(vLong) * Math.min(C.COAST_BRAKE * 0.55, Math.abs(vLong) / Math.max(dt, 1e-4));
-    }
-    aLong -= C.DRAG * vLong * Math.abs(vLong);
-    const rrD = Math.min(C.ROLL_RESIST + C.DRIFT_DRAG, Math.abs(vLong) / Math.max(dt, 1e-4));
-    aLong -= sign(vLong) * rrD;
-    if (car.onKerb) {
-      aLong -= sign(vLong) * Math.min(PHYS.KERB_DRAG, Math.abs(vLong) / Math.max(dt, 1e-4));
-    }
-    /* --- 漂移"保速"(2026-09-23 站长反馈: 漂移不该像踩刹车) ---
-       漂移中额外阻力归零(DRIFT_DRAG=0), 并且速度掉到"入漂速度"以下时按 DRIFT_HOLD_ACC
-       往上补(踩刹车时除外) —— 一次漂移进出速度基本持平。
-       上限就是入漂速度(全程取最大值), 所以它补的是"漂移过程中掉的那部分",
-       不能把车推到比入漂更快 => 不是加速器, 也没法在直线上来回点漂移刷极速。 */
-    if (sp > car.driftHoldV) car.driftHoldV = sp;      // 漂移中本身加速了就抬高基准
-    if (C.DRIFT_HOLD_ACC > 0 && car.brake === 0 && Math.abs(car.driftTurn) > 0.10 &&
-      sp < car.driftHoldV - 0.05 && vLong > 0) {
-      aLong += Math.min(C.DRIFT_HOLD_ACC, (car.driftHoldV - sp) / Math.max(dt, 1e-4));
-    }
-    sp = Math.max(0, sp + aLong * dt);
-
-    /* --- C. 转向: 漂移转向能力高于普通抓地 => 弯更小; 由缓冲后的方向盘连续可调
-           二阶临界阻尼滤波: 加速度由"位置误差 - 当前速度"决定,
-           速度从 0 开始平滑建立, 位置/速度/加速度全部连续 => 不会有任何弹跳
-           修外抛②: 只在"方向盘接近回中(|steerSmooth|<0.45)"时才叠一个沿漂移方向的基础转向,
-           保证漂移中松手也继续沿弯道走; 满舵与反打区间与原逻辑逐位一致, 手感不变 --- */
-    /* 漂移转向能力同样吃路面抓地(冰上漂移要更早入弯) */
-    const turnMax = Math.min(C.DRIFT_TURN_MAX,
-      C.LAT_ACC * (TRACK.grip || 1) * turnMul / Math.max(sp, C.DRIFT_TURN_REF));
-    if (Math.abs(car.steerInput) > 0.15) car.driftDir = sign(car.steerInput);
-    let turnCmd = car.steerSmooth * turnMax;
-    const sAbs = Math.abs(car.steerSmooth);
-    if (sAbs < C.DRIFT_BASE_ZONE) {
-      const w = 1 - sAbs / C.DRIFT_BASE_ZONE;
-      turnCmd = lerp(turnCmd, car.driftDir * turnMax * C.DRIFT_BASE_KEEP, w * w);
-    }
-    const turnTarget = turnCmd * turnScale;
-    const wnT = C.DRIFT_TURN_FOLLOW;
-    car.driftTurnVel += (wnT * wnT * (turnTarget - car.driftTurn) - 2 * wnT * car.driftTurnVel) * dt;
-    car.driftTurn += car.driftTurnVel * dt;
-    car.driftTurn = clampMag(car.driftTurn, C.DRIFT_TURN_MAX * 1.2);   // 限幅兜底
-    vAng = wrapPi(vAng + car.driftTurn * dt);
-
-    /* --- D. 漂移角(车尾外甩幅度): 上限封死 => 绝不往外飘失控
-           长按档用较小的自然频率 => 车尾是"慢慢甩出来"的, 车头不会猛转 --- */
-    const slipTarget = car.steerSmooth * slipMax * slipScale;
-    const wnS = slipWn;
-    car.driftSlipVel += (wnS * wnS * (slipTarget - car.driftSlip) - 2 * wnS * car.driftSlipVel) * dt;
-    car.driftSlip += car.driftSlipVel * dt;
-    car.driftSlip = clampMag(car.driftSlip, slipMax * 1.02 + 0.01);    // 限幅兜底
-    car.yaw = wrapPi(vAng + car.driftSlip);
-    car.yawRate = car.driftTurn;
-
-    /* --- 合成世界速度 / 推位置 (速度大小不变 => 保留速度感) --- */
-    car.vx = Math.sin(vAng) * sp;
-    car.vz = Math.cos(vAng) * sp;
-    car.x += car.vx * dt;
-    car.z += car.vz * dt;
-
-  } else {
-    /* ==================== 常规分支 (与原逻辑完全一致) ==================== */
-
-    /* 0.5 出弯回正: 保持速度大小, 快速把"运动方向"转到车头方向
-       (不用摩擦去消横向速度, 所以回正过程几乎不掉速) */
-    if (car.alignTimer > 0) {
-      car.alignTimer -= dt;
-      const spA = hypot2(car.vx, car.vz);
-      let vA = Math.atan2(car.vx, car.vz);
-      vA = wrapPi(vA + clampMag(wrapPi(car.yaw - vA), C.DRIFT_EXIT_ALIGN * dt));
-      car.vx = Math.sin(vA) * spA;
-      car.vz = Math.cos(vA) * spA;
-      vLong = car.vx * fx + car.vz * fz;
-      vLat = car.vx * rx + car.vz * rz;
-    }
-
-    /* ---------- 1. 转向角: 车速越高, 允许的最大转角越小 ---------- */
-    const sf = clamp(spdAbs / C.STEER_SPEED_REF, 0, 1);
-    const maxSteer = lerp(C.STEER_MAX_LOW, C.STEER_MAX_HIGH, sf);
-    const steerTarget = car.steerInput * maxSteer;
-    /* 方向盘转速也随速度变慢（2026-09-23）: 低速打得快(灵活), 高速打不快(沉稳),
-       否则高速一按方向键车头瞬间满舵 => "神经质、没重量" */
-    const rateLow = (car.steerInput === 0 ? C.STEER_RETURN : C.STEER_RATE);
-    const rateHi = (car.steerInput === 0 ? C.STEER_RETURN : C.STEER_RATE_HIGH);
-    const steerRate = lerp(rateLow, rateHi, sf) * dt;
-    car.steer = approach(car.steer, steerTarget, steerRate);
-
-    /* ---------- 2. 横摆角速度: 几何上限 与 抓地上限 取小 ---------- */
-    /* 路面抓地系数(冰面 0.55): 冰上侧向极限直接砍半 => 真的会滑, 得提前打方向 */
-    const surfGrip = TRACK.grip || 1;
-    const latAccGrip = C.LAT_ACC * surfGrip *
-      (spdAbs < C.LAT_SNAP ? lerp(C.LAT_ACC_LOW / C.LAT_ACC, 1, spdAbs / C.LAT_SNAP) : 1);
-    const yawGeo = (vLong / C.WHEELBASE) * Math.tan(car.steer);
-    /* 横摆"建立速度"同样随速度递减（2026-09-23）: 高速时车身要靠悬挂/轮胎逐步建立转向,
-       需要一个可感知的过渡时间 => 转向有重量、有过程感; 低速仍然干脆利落 */
-    const yawAcc = lerp(C.YAW_ACCEL, C.YAW_ACCEL_HIGH, clamp(spdAbs / C.YAW_ACCEL_REF, 0, 1));
-    car.yawRate = approach(car.yawRate, clampMag(yawGeo, C.LAT_ACC / Math.max(speed, 4.5)),
-      yawAcc * dt);
-
-    /* ---------- 3. 纵向受力 ---------- */
-    let aLong = 0;
-    if (car.throttle > 0) {
-      aLong += C.ENGINE_ACCEL * car.throttle * (1 - 0.72 * clamp(vLong / C.MAX_SPEED, 0, 1));
-    }
-    if (car.brake > 0) {
-      if (vLong > 0.6) aLong -= C.BRAKE_DECEL * car.brake;
-      else if (vLong > -C.MAX_REVERSE) aLong -= C.REVERSE_ACCEL * car.brake;
-    }
-    if (car.throttle === 0 && car.brake === 0) {
-      const cb = Math.min(C.COAST_BRAKE, Math.abs(vLong) / Math.max(dt, 1e-4));
-      aLong -= sign(vLong) * cb;
-    }
-    /* 出弯小喷 (QQ飞车式) */
-    if (car.boostTimer > 0) {
-      car.boostTimer -= dt;
-      if (vLong < C.MAX_SPEED * C.DRIFT_BOOST_CAP) aLong += C.DRIFT_BOOST_ACC;
-    }
-    aLong -= C.DRAG * vLong * Math.abs(vLong);
-    const rr = Math.min(C.ROLL_RESIST, Math.abs(vLong) / Math.max(dt, 1e-4));
-    aLong -= sign(vLong) * rr;
-    if (car.onKerb) {
-      const kd = Math.min(PHYS.KERB_DRAG, Math.abs(vLong) / Math.max(dt, 1e-4));
-      aLong -= sign(vLong) * kd;
-    }
-    vLong += aLong * dt;
-
-    /* ---------- 4. 侧向抓地: 轮胎"先柔后刚"地把横滑拉回来 ----------
-       旧版是 vLat -= clampMag(vLat, latAccGrip*dt)：任何横滑都在一帧内被削掉 →
-       车像被吸在轨道上, 没有重量转移、也感觉不到轮胎在咬地。
-       现在小滑移角按 GRIP_STIFF 比例柔和修正（横滑能"存"住一点点, 车身会真的侧倾着走），
-       只有当需要的侧向力超过抓地上限时才变成硬限幅（此时就是推头/滑出去的临界点）。 */
-    const latNeed = vLat * C.GRIP_STIFF;                 // 按刚度算"需要多少侧向加速度"
-    const latCmd = clampMag(latNeed, latAccGrip);
-    vLat -= latCmd * dt;
-
-    /* ---------- 5. 用"旧车头"合成世界速度 => 速度矢量滞后车头 ---------- */
-    car.vx = fx * vLong + rx * vLat;
-    car.vz = fz * vLong + rz * vLat;
-
-    /* ---------- 6. 更新车头 & 位置 ---------- */
-    car.yaw = wrapPi(car.yaw + car.yawRate * dt);
-    car.x += car.vx * dt;
-    car.z += car.vz * dt;
+  if (car.brake > 0) {
+    if (vLong > 0.6) aLong -= C.BRAKE_DECEL * Math.min(1, surface) * longitudinalGrip * car.brake;
+    else if (vLong > -C.MAX_REVERSE) aLong -= C.REVERSE_ACCEL * car.brake;
   }
+  if (car.throttle === 0 && car.brake === 0) {
+    aLong -= sign(vLong) * Math.min(C.COAST_BRAKE, Math.abs(vLong) / Math.max(dt, 1e-4));
+  }
+  aLong -= C.DRAG * vLong * Math.abs(vLong);
+  const rolling = C.ROLL_RESIST + (handbrake ? C.HANDBRAKE_DRAG + Math.abs(vLat) * C.HANDBRAKE_SLIP_DRAG : 0);
+  aLong -= sign(vLong) * Math.min(rolling, Math.abs(vLong) / Math.max(dt, 1e-4));
+  if (car.onKerb) {
+    aLong -= sign(vLong) * Math.min(PHYS.KERB_DRAG, Math.abs(vLong) / Math.max(dt, 1e-4));
+  }
+  vLong += aLong * dt;
+  vLat -= latCmd * dt;
+
+  car.vx = fx * vLong + rx * vLat;
+  car.vz = fz * vLong + rz * vLat;
+  car.yaw = wrapPi(car.yaw + car.yawRate * dt);
+  car.x += car.vx * dt;
+  car.z += car.vz * dt;
+  car.driftSlip = Math.atan2(vLat, Math.max(Math.abs(vLong), 0.5));
+  car.driftTurn = car.yawRate;
+
   }   /* ← 空中分支 / 地面分支 的分界 (见第 0 节) */
 
   /* ---------- 7. 赛道坐标 / 进度 ---------- */
@@ -4054,6 +3872,8 @@ function resolveWall(car, dt) {
   const fx = Math.sin(car.yaw), fz = Math.cos(car.yaw);
   const rx = -fz, rz = fx;
   const lim = PHYS.WALL_LIMIT;
+  // The furthest corner is under 2.5 m from the centre; leave margin for curvature.
+  if (Math.abs(car.lat) + 4 < lim) return;
   let pen = 0, side = 0, pt = 0;
   const hint = car._ringIdx;
   for (let i = 0; i < 8; i++) {
@@ -4104,6 +3924,7 @@ function resolveCarCollisions(cars, dt) {
     const arx = -afz, arz = afx;
     for (let j = i + 1; j < cars.length; j++) {
       const B = cars[j];
+      if (Math.abs(A.y - B.y) > CFG.CAR.COLLISION_HEIGHT) continue;
       const dx0 = B.x - A.x, dz0 = B.z - A.z;
       if (dx0 * dx0 + dz0 * dz0 > broad * broad) continue;
 
@@ -4561,6 +4382,25 @@ function aiTune() {
   return CFG.AI_TUNE[CFG.AI_DIFFICULTY] || CFG.AI_TUNE.normal;
 }
 
+function aiPassLane(car, opponent, cars, laneLimit) {
+  const sideGap = CFG.CAR.WIDTH + 0.8;
+  const scanAhead = Math.max(10, car.speed * 0.45);
+  let choice = null;
+  for (const side of [-1, 1]) {
+    const lane = clamp(opponent.lat + side * CFG.AI_AVOID_DODGE, -laneLimit, laneLimit);
+    if (Math.abs(lane - opponent.lat) < sideGap) continue;
+    const blocked = cars.some(function (other) {
+      if (other === car || other === opponent || other.finished) return false;
+      const ds = other.prog - car.prog;
+      return ds > -8 && ds < scanAhead && Math.abs(other.lat - lane) < sideGap;
+    });
+    if (blocked) continue;
+    const score = -Math.abs(lane - car.lat) + (car.passTimer > 0 && side === car.passSide ? 2 : 0);
+    if (!choice || score > choice.score) choice = { side: side, lane: lane, score: score };
+  }
+  return choice;
+}
+
 function aiControl(car, cars, dt) {
   const spd = car.speed;
   const tune = aiTune();
@@ -4626,7 +4466,7 @@ function aiControl(car, cars, dt) {
   /* 冰面这类低抓地路面: 目标速度要降下来(AI 也会打滑)。
      但不能照抄 √grip(0.74) —— AI 会提前打方向、不会乱给油, 实际能吃到的比"物理极限"多一点,
      所以下限卡在 0.82, 否则冰湖上 AI 会慢到跑不完比赛 */
-  vTarget *= Math.max(0.85, Math.sqrt(TRACK.grip || 1));
+  vTarget *= Math.min(1, Math.sqrt(TRACK.grip || 1));
 
   /* 轻微"人味": 目标速度缓慢波动 + 走线误差(难度越低越大, 看起来"手抖") */
   car.aiNoiseT -= dt;
@@ -4641,15 +4481,11 @@ function aiControl(car, cars, dt) {
   const cold = G.raceTime < 5 ? 0.92 : 1;
   vTarget *= cold;
 
-  /* ---------------- 1b. 走线 + AI 漂移 ----------------
-     · 走线: 前方 55m 的曲率决定"往哪边切", 提前把车摆到弯心内侧
-     · 漂移: 弯够急且速度够高 => 像玩家一样按漂移键 (轻点档), 弯里转得更快 + 出弯有小喷 */
+  /* ---------------- 1b. 根据前方曲率选择走线 ---------------- */
   const idxA = pathIndex(car.prog + Math.max(12, spd * 0.55));
   const aimAhead = (TRACK.aim ? TRACK.aim[idxA] : 0) * (car.aimMul === undefined ? tune.aimMul : car.aimMul);
-  const kAhead = TRACK.pk[idxA];
-  /* 冰面(抓地 < 0.7)不漂移: 低抓地上漂移=失控打转, AI 会一直蹭墙脱困 */
-  const wantDrift = tune.drift && (TRACK.grip || 1) > 0.7 && kAhead > CFG.AI_DRIFT_KAP / Math.max(0.85, car.paceK) && spd > CFG.AI_DRIFT_MIN_SPEED;
-  car.driftKey = !!wantDrift && !car.recoverTimer;
+  // AI follows the grip line instead of using the handbrake for free speed.
+  car.driftKey = false;
   /* 走线误差: 难度越低越"手抖"(缓慢飘移的横向偏差, 不是每帧抖 => 看起来像人在修方向) */
   car.lineErrT -= dt;
   if (car.lineErrT <= 0) {
@@ -4686,20 +4522,22 @@ function aiControl(car, cars, dt) {
         const gapT = (dS - CFG.AI_AVOID_GAP) / Math.max(1, CFG.AI_AVOID_RANGE - CFG.AI_AVOID_GAP);
         speedCap = Math.min(speedCap, o.speed + clamp(gapT, 0, 1) * 8.0);
         if (dS < CFG.AI_AVOID_GAP) speedCap = Math.min(speedCap, o.speed * 0.94);
+        const closing = Math.max(0, car.speed - o.speed);
+        const safeGap = CFG.AI_AVOID_GAP + closing * 0.7 + closing * closing / 16;
+        if (dS < safeGap) speedCap = Math.min(speedCap, o.speed + Math.max(0, dS - CFG.AI_AVOID_GAP) * 0.4);
       }
       /* --- 变道超车: 一次决定好往哪边, 短暂坚持(0.9s), 免得在两车之间来回摆
              起步 5 秒内不抢线(冷胎期大家都挤在一起, 抢线=互相顶到墙上) --- */
       const closeEnough = dS < CFG.AI_AVOID_RANGE * 0.85;
       if (closeEnough && G.raceTime > 5 && Math.abs(dLat) < CFG.AI_AVOID_SIDE + 0.7) {
-        if (car.passTimer <= 0) {
-          /* 两侧余量: 选"更空"的那一边(考虑车道内其他车), 同分时按内外侧顺手 */
-          const roomL = car.lat + wallSafe, roomR = wallSafe - car.lat;
-          car.passSide = (roomL >= roomR) ? -1 : 1;
-          if (Math.abs(o.lat) > Math.abs(car.lat)) car.passSide = -sign(o.lat) || car.passSide;
-          car.passTimer = 0.9;
+        const choice = aiPassLane(car, o, cars, laneLim);
+        if (choice) {
+          if (car.passTimer <= 0 || car.passSide !== choice.side) car.passTimer = 0.9;
+          car.passSide = choice.side;
+          laneCmd = clamp(choice.lane, -CFG.AI_LANE_MAX - 1.5, CFG.AI_LANE_MAX + 1.5);
+        } else {
+          car.passTimer = 0;
         }
-        const want = clamp(o.lat + car.passSide * CFG.AI_AVOID_DODGE, -laneLim, laneLim);
-        laneCmd = clamp(want, -CFG.AI_LANE_MAX - 1.5, CFG.AI_LANE_MAX + 1.5);
       }
     } else if (adS < 7.5 && Math.abs(dLat) < CFG.AI_AVOID_SIDE) {
       /* --- 并排: 互相推开, 避免长时间剐蹭 --- */
@@ -4747,10 +4585,6 @@ function aiControl(car, cars, dt) {
   const tzp = TRACK.pz[idxT] + TRACK.pnz[idxT] * car.laneTarget;
   const desiredYaw = Math.atan2(txp - car.x, tzp - car.z);
   const err = wrapPi(desiredYaw - car.yaw);
-  /* 漂移时物理会给车头额外乘一个转向倍率(轻点1.20/长按1.65) —— AI 若照旧要同样的转向量
-     就会转过头撞内墙(实测发夹弯必卡) => 最后按当前倍率把总需求除回去, 走线不变、只换手法 */
-  const C = car.spec || CFG.CAR;      // 车型差异化: 漂移倍率按这台车自己的规格算
-  const turnMul = car.drifting ? lerp(C.DRIFT_TURN_MUL_LIGHT, C.DRIFT_TURN_MUL, car.driftLevel || 0) : 1;
   const kp = CFG.AI_STEER_KP * (tune.steerMul === undefined ? 1 : tune.steerMul) * (lowGrip ? 0.72 : 1);
   const kd = CFG.AI_STEER_KD * (lowGrip ? 1.7 : 1);
   let steer = err * kp - car.yawRate * kd;
@@ -4762,7 +4596,7 @@ function aiControl(car, cars, dt) {
   const side = corrX * rvx + corrZ * rvz;
   steer -= clamp(side * CFG.AI_SIDESTEER * 0.085 * (lowGrip ? 0.55 : 1), -0.42, 0.42);
 
-  car.steerInput = clamp(steer / turnMul, -1, 1);
+  car.steerInput = clamp(steer, -1, 1);
 }
 
 /* ===== 60_camera.js ===== */
@@ -4803,10 +4637,14 @@ function updateCamera(camera, car, dt) {
   let tgtX, tgtY, tgtZ, lookX, lookY, lookZ, kPos, kLook;
 
   if (CAM.mode === 1) {
-    /* ---- 引擎盖视角: 紧贴车身, 几乎不延迟 ---- */
-    tgtX = car.x + fx * 0.55; tgtY = 1.12 + cyy; tgtZ = car.z + fz * 0.55;
-    lookX = car.x + fx * 22; lookY = 0.95 + cyy; lookZ = car.z + fz * 22;
-    kPos = 1 - Math.exp(-34 * dt); kLook = 1 - Math.exp(-30 * dt);
+    /* 车头固定机位；世界坐标平滑会让高速相机落到座舱后方。 */
+    const mount = C.CAR.LENGTH * 0.4;
+    const pitch = car.slopePitch || 0;
+    const forward = mount * Math.cos(pitch) + 1.28 * Math.sin(pitch);
+    tgtX = car.x + fx * forward; tgtZ = car.z + fz * forward;
+    tgtY = cyy + 1.28 * Math.cos(pitch) - mount * Math.sin(pitch);
+    lookX = car.x + fx * 22; lookY = 1.16 + cyy; lookZ = car.z + fz * 22;
+    kPos = 1; kLook = 1 - Math.exp(-30 * dt);
   } else if (CAM.mode === 2) {
     /* ---- 远景: 更高更远, 更强的拖尾感 ---- */
     const dist = C.CAM_DIST * 2.1 + spd * C.CAM_PULL * 2.4;
@@ -4882,6 +4720,39 @@ function updateAttractCamera(camera, car, time) {
   CAM.ready = false;
 }
 
+/* ===== 65_quality.js ===== */
+/* 降低渲染分辨率缓解持续掉帧；物理步长和比赛规则不随画质改变。 */
+const Quality = { ceiling: 1, floor: 0.7, ratio: 1, elapsed: 0, frames: 0, cooldown: 0 };
+
+function qualityInit(renderer, deviceRatio) {
+  Quality.ceiling = Math.min(deviceRatio || 1, CFG.PIXEL_RATIO_MAX);
+  Quality.floor = Math.min(Quality.ceiling, Math.max(0.7, Quality.ceiling * 0.65));
+  Quality.ratio = Quality.ceiling;
+  Quality.elapsed = 0; Quality.frames = 0; Quality.cooldown = 0;
+  renderer.setPixelRatio(Quality.ratio);
+}
+
+function qualityStep(renderer, dt, active) {
+  if (!active || !Number.isFinite(dt) || dt <= 0) {
+    Quality.elapsed = 0; Quality.frames = 0;
+    return;
+  }
+  Quality.elapsed += dt; Quality.frames++;
+  Quality.cooldown = Math.max(0, Quality.cooldown - dt);
+  if (Quality.elapsed < 3) return;
+  const fps = Quality.frames / Quality.elapsed;
+  Quality.elapsed = 0; Quality.frames = 0;
+  if (Quality.cooldown > 0) return;
+  let next = Quality.ratio;
+  if (fps < 44) next = Math.max(Quality.floor, Quality.ratio - 0.2);
+  else if (fps > 58) next = Math.min(Quality.ceiling, Quality.ratio + 0.1);
+  if (Math.abs(next - Quality.ratio) > 0.001) {
+    Quality.ratio = next;
+    Quality.cooldown = fps < 44 ? 3 : 6;
+    renderer.setPixelRatio(next);
+  }
+}
+
 /* ===== 70_ui.js ===== */
 /* ===========================================================================
  * 70_ui.js —— HUD / 覆盖层 / 计时格式化 / 最佳成绩存档
@@ -4890,11 +4761,11 @@ function updateAttractCamera(camera, car, time) {
 const UI = {
   e: {},
   best: 0,                 // 历史最佳单圈(秒), localStorage 保存(按赛道分开)
-  bestKey: 'racing3d.bestLap.v1.oval'
+  bestKey: ''
 };
 
 /** 每条赛道各自记录最佳单圈 */
-function uiBestKey() { return 'racing3d.bestLap.v1.' + (CFG.TRACK_MODE || 'oval'); }
+function uiBestKey() { return 'racing3d.bestLap.' + CFG.PHYSICS_VERSION + '.' + onlineTrackId(); }
 
 function uiLoadBest() {
   UI.bestKey = uiBestKey();
@@ -4921,10 +4792,18 @@ function uiInit() {
     trackName: id('trackName'), trackDesc: id('trackDesc'),
     carName: id('carName'), carDesc: id('carDesc'),
     diffName: id('diffName'), diffDesc: id('diffDesc'),
-    resGhost: id('resGhost')
+    resGhost: id('resGhost'), opponentMode: id('opponentMode'),
+    opponentSummary: id('opponentSummary')
   };
   /* 读取历史最佳 (file:// 下 localStorage 可能被拒绝, 必须容错) */
   uiLoadBest();
+  uiUpdateOpponentMode();
+}
+
+function uiUpdateOpponentMode() {
+  const solo = RACE_OPTIONS.aiCount === 0;
+  if (UI.e.opponentMode) UI.e.opponentMode.value = solo ? 'solo' : 'ai';
+  if (UI.e.opponentSummary) UI.e.opponentSummary.textContent = solo ? '无 AI 对手 · 纯玩家' : RACE_OPTIONS.aiCount + ' 台 AI 对手';
 }
 
 function uiSaveBest() {
@@ -5088,14 +4967,18 @@ function onlineToken() { try { const l = onlineLib(); return l && l.sessionToken
 /** 只有云账号会话才上得了榜（GitHub/Gist 模式拿不到服务端会话） */
 function onlineCanSubmit() { return onlineAvailable() && !!onlineToken(); }
 
-/** 当前赛道 id（只允许 [a-z0-9_-]，服务端也按这个正则校验） */
+/** 比赛类别与物理版本构成独立榜，不与旧物理或其他车型比较。 */
 function onlineTrackId() {
   const id = String(CFG.TRACK_MODE || 'oval').toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  return id || 'oval';
+  const model = typeof CAR_CHOICE !== 'undefined' ? CAR_CHOICE.now : 'coupe';
+  return (id || 'oval') + '_' + model;
 }
+function onlineBoardId(track) { return CFG.PHYSICS_VERSION + '_' + (track || onlineTrackId()); }
 function onlineTrackName() {
   const d = (typeof trackDef === 'function') ? trackDef() : null;
-  return (d && d.name) || onlineTrackId();
+  const model = typeof CAR_CHOICE !== 'undefined' ? CAR_CHOICE.now : 'coupe';
+  const car = typeof carModelById === 'function' ? carModelById(model).name : model;
+  return ((d && d.name) || CFG.TRACK_MODE) + ' · ' + car;
 }
 
 /* ------------------------------ 请求 ------------------------------ */
@@ -5152,7 +5035,7 @@ async function onlineFetchBoard(trackId) {
   const requestId = Online.boardRequest = (Online.boardRequest || 0) + 1;
   Online.state = 'loading'; Online.msg = siteText("racing.copy.f8628b92cadc","正在读排行榜…");
   if (Online.panelOpen) onlineRenderPanel();
-  const r = await onlineReq('/api/score?game=' + Online.GAME + '&track=' + encodeURIComponent(tid), { method: 'GET' }, false);
+  const r = await onlineReq('/api/score?game=' + Online.GAME + '&track=' + encodeURIComponent(onlineBoardId(tid)), { method: 'GET' }, false);
   if (requestId !== Online.boardRequest || tid !== onlineTrackId()) return r;
   if (r.ok && r.data && Array.isArray(r.data.list)) {
     Online.board = r.data.list;
@@ -5171,12 +5054,15 @@ async function onlineFetchBoard(trackId) {
 
 /** 提交一圈成绩（要登录云账号）；单圈毫秒数越小越好 */
 async function onlineSubmit(run) {
+  if ((typeof Net !== 'undefined' && Net.inRace) || (typeof G !== 'undefined' && G.runValid === false)) {
+    return { ok: false, err: '本局不符合单人计时纪录规则' };
+  }
   const tid = onlineTrackId();
   const lap = Math.round(run.lap * 1000);
   const total = Math.round(run.total * 1000);
   const speed = Math.round(run.speed);
   const body = JSON.stringify({
-    game: Online.GAME, track: tid,
+    game: Online.GAME, track: onlineBoardId(tid),
     lap: lap, total: total, speed: speed
   });
   const r = await onlineReq('/api/score', { method: 'POST', body: body }, true);
@@ -5379,6 +5265,14 @@ function onlineTogglePanel(force) {
 /** 比赛结束后：自动把这一局的最好单圈传上去（没登录就提示一句） */
 async function onlineAfterRace() {
   const line = document.getElementById('resLb');
+  if (typeof Net !== 'undefined' && Net.inRace) {
+    if (line) line.textContent = '联机名次由房间服务器计算，单人计时榜分开记录。';
+    return;
+  }
+  if (G.runValid === false) {
+    if (line) line.textContent = '本局因严重掉帧未计入纪录。';
+    return;
+  }
   const p = G.player;
   const tid = onlineTrackId();
   if (!line) return;
@@ -5499,6 +5393,224 @@ function onlineRefreshHud() {
   el.textContent = Online.recordLap > 0
     ? siteText("racing.copy.00fd8b21a8a0","官方最快单圈（") + onlineTrackName() + '）：' + onlineFmt(Online.recordLap)
     : siteText("racing.copy.5f8befd5c47c","官方榜还没读到 —— 点「排行榜」看看");
+}
+
+/* ===== 76_multiplayer.js ===== */
+/* 房间服务端负责物理、碰撞、计圈和名次；客户端只发送按键并预测自己的车辆。 */
+const Net = { socket: null, phase: 'offline', id: '', room: '', host: '', sendAcc: 0, inRace: false };
+
+function netStatus(message) {
+  const el = document.getElementById('netStatus');
+  if (el) el.textContent = message;
+}
+
+function netControls() {
+  const lobby = Net.phase === 'lobby';
+  const busy = Net.phase !== 'offline';
+  const create = document.getElementById('btnNetCreate');
+  const join = document.getElementById('btnNetJoin');
+  const start = document.getElementById('btnNetStart');
+  const leave = document.getElementById('btnNetLeave');
+  const exit = document.getElementById('btnNetExit');
+  const singleStart = document.getElementById('btnStart');
+  if (create) create.disabled = busy;
+  if (join) join.disabled = busy;
+  if (start) start.disabled = !lobby || Net.host !== Net.id;
+  if (leave) leave.disabled = !busy;
+  if (exit) exit.style.display = Net.inRace ? 'block' : 'none';
+  if (singleStart) singleStart.disabled = busy;
+}
+
+function netSend(message) {
+  if (Net.socket && Net.socket.readyState === WebSocket.OPEN) Net.socket.send(JSON.stringify(message));
+}
+
+function netDefaultAddress() {
+  const location = window.location;
+  if (location && /^https?:$/.test(location.protocol) &&
+      /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    return (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/race';
+  }
+  return 'ws://127.0.0.1:8787/race';
+}
+
+function netConnect(mode) {
+  if (Net.phase !== 'offline') return;
+  const address = (document.getElementById('netAddress').value || netDefaultAddress()).trim();
+  const name = document.getElementById('netName').value.trim();
+  const code = document.getElementById('netCode').value.trim().toUpperCase();
+  let url;
+  try { url = new URL(address); } catch (e) { netStatus('服务器地址无效。'); return; }
+  if ((url.protocol !== 'ws:' && url.protocol !== 'wss:') || url.username || url.password) {
+    netStatus('请输入不含账号口令的 ws:// 或 wss:// 服务器地址。'); return;
+  }
+  if (!name || (mode === 'join' && !/^[A-HJ-NP-Z2-9]{6}$/.test(code))) {
+    netStatus('请填写车手名；加入房间时还需输入 6 位房间码。'); return;
+  }
+  let socket;
+  try { socket = new WebSocket(url.href); } catch (e) { netStatus('无法连接房间服务器：' + e.message); return; }
+  Net.socket = socket; Net.phase = 'connecting'; netControls(); netStatus('正在连接房间服务器…');
+  socket.onopen = function () {
+    if (socket !== Net.socket) return;
+    netSend({ type: mode, version: 2, ruleset: CFG.PHYSICS_VERSION, name: name, room: code, track: CFG.TRACK_MODE, model: CAR_CHOICE.now });
+  };
+  socket.onmessage = function (event) {
+    if (socket !== Net.socket) return;
+    let message;
+    try { message = JSON.parse(event.data); } catch (e) { netStatus('收到无法识别的服务器消息。'); return; }
+    if (message.type !== 'error' && message.ruleset !== CFG.PHYSICS_VERSION) {
+      if (Net.inRace) netExitToMenu('物理版本已更新，请刷新游戏。');
+      else { netDisconnect(); netStatus('物理版本已更新，请刷新游戏。'); }
+      return;
+    }
+    if (message.type === 'joined') { Net.id = message.id; Net.room = message.room; }
+    else if (message.type === 'lobby') {
+      Net.phase = 'lobby'; Net.host = message.host;
+      document.getElementById('netCode').value = message.room;
+      netStatus('房间 ' + message.room + ' · ' + message.players.map(function (p) { return p.name; }).join('、') +
+        ' · 赛道 ' + (TRACK_DEFS[message.track] ? TRACK_DEFS[message.track].name : message.track) +
+        ' · 统一车型 ' + message.model + (Net.host === Net.id ? ' · 你是房主' : ' · 等待房主发车'));
+      netControls();
+    } else if (message.type === 'race') netSnapshot(message);
+    else if (message.type === 'notice') uiFlash(message.message, '', '#ffd76a', 2);
+    else if (message.type === 'aborted') { netExitToMenu(message.message); }
+    else if (message.type === 'error') {
+      netStatus(message.message || '房间操作失败。');
+      if (Net.inRace) uiFlash(message.message || '房间操作失败', '', '#ffd76a', 2);
+      if (Net.phase === 'connecting') netDisconnect();
+    }
+  };
+  socket.onerror = function () { if (socket === Net.socket) netStatus('连接失败，请检查服务器地址及服务状态。'); };
+  socket.onclose = function () {
+    if (socket !== Net.socket) return;
+    if (Net.inRace) netExitToMenu('连接已断开，本场成绩未保存。');
+    else { netDisconnect(); netStatus('连接已断开。'); }
+  };
+}
+
+function netDisconnect() {
+  const socket = Net.socket;
+  Net.socket = null; Net.phase = 'offline'; Net.inRace = false;
+  Net.id = ''; Net.room = ''; Net.host = ''; Net.sendAcc = 0;
+  if (socket) socket.close();
+  const hint = document.getElementById('hint');
+  if (hint && Net.originalHint !== undefined) hint.innerHTML = Net.originalHint;
+  netControls();
+}
+
+function netExitToMenu(reason) {
+  netDisconnect();
+  G.state = 'intro';
+  KEY.accel = KEY.brake = KEY.left = KEY.right = KEY.drift = false;
+  setupRace(); camReset(G.player); uiLoadBest();
+  netStatus(reason || '已离开房间。');
+  if (reason) uiFlash(reason, '', '#ffd76a', 2.5);
+}
+
+function netStartScene(message) {
+  Net.phase = 'syncing';
+  if (CFG.TRACK_MODE !== message.track) selectTrack(message.track);
+  else setupRace();
+  for (let i = 0; i < G.cars.length; i++) disposeCarVisual(G.cars[i]);
+  G.cars = message.cars.map(function (s) {
+    const car = createVehicle({ name: s.name, color: s.color, model: s.model });
+    car.netId = s.id;
+    newCarVisual(car, s.color);
+    return car;
+  });
+  G.player = G.cars.find(function (c) { return c.netId === Net.id; });
+  if (!G.player) { netExitToMenu('服务器未返回你的车辆。'); return false; }
+  G.ai = []; G.finishOrder = []; G.runValid = false;
+  CFG.RACE_LAPS = message.laps;
+  Net.inRace = true; Net.phase = 'race'; Net.sendAcc = 0; Net.resultStamp = '';
+  const hint = document.getElementById('hint');
+  if (hint) {
+    Net.originalHint = hint.innerHTML;
+    hint.textContent = 'W/S 油门与刹车 · A/D 转向 · 空格 手刹 · 联机无法暂停';
+  }
+  G.state = 'countdown'; G.accum = 0; G.raceTime = 0;
+  KEY.accel = KEY.brake = KEY.left = KEY.right = KEY.drift = false;
+  uiShowCard(null); CAM.ready = false; netControls();
+  return true;
+}
+
+function netSnapshot(message) {
+  if (!Array.isArray(message.cars) || !TRACK_DEFS[message.track]) return;
+  if (!Net.inRace && !netStartScene(message)) return;
+  G.raceTime = message.time;
+  if (message.state === 'countdown') {
+    G.state = 'countdown';
+    const n = Math.max(1, Math.ceil(message.countdown));
+    if (G.cdShown !== n) { G.cdShown = n; uiCountdown(String(n), '#ffffff'); }
+  } else if (G.state !== 'finished') {
+    if (G.state === 'countdown') uiCountdown('GO!', '#7dffb0');
+    G.state = 'racing';
+  }
+  const fields = ['y', 'vx', 'vz', 'vy', 'speed', 'vLong', 'vLat', 'yawRate', 'steer', 'throttle', 'brake',
+    'slip', 'lat', 't', 'prog', 'lastS', '_ringIdx', 'onKerb', 'airborne', 'slopePitch', 'wheelSpin',
+    'drifting', 'lap', 'nextSplit', 'lapStartTime', 'lastLap', 'bestLap', 'topSpeed', 'finished',
+    'finishTime', 'finishPos', 'pos', 'disconnected'];
+  for (let i = 0; i < message.cars.length; i++) {
+    const s = message.cars[i];
+    const car = G.cars.find(function (c) { return c.netId === s.id; });
+    if (!car) continue;
+    const first = !car._netSeen;
+    car._netSeen = true;
+    if (car === G.player) {
+      const distance = Math.hypot(car.x - s.x, car.z - s.z);
+      const blend = first || distance > 3 ? 1 : 0.5;
+      car.x = lerp(car.x, s.x, blend); car.z = lerp(car.z, s.z, blend);
+      car.yaw = wrapPi(car.yaw + wrapPi(s.yaw - car.yaw) * blend);
+    } else {
+      car._netTarget = s;
+      if (first) { car.x = s.x; car.z = s.z; car.yaw = s.yaw; }
+    }
+    for (let j = 0; j < fields.length; j++) if (s[fields[j]] !== undefined) car[fields[j]] = s[fields[j]];
+  }
+  G.finishOrder = G.cars.filter(function (c) { return c.finished; })
+    .sort(function (a, b) { return a.finishPos - b.finishPos; });
+  if (G.player.finished) {
+    const stamp = G.finishOrder.length + ':' + G.cars.filter(function (c) { return c.disconnected; }).length + ':' + message.state;
+    if (G.state !== 'finished') finishRace();
+    else if (stamp !== Net.resultStamp) refreshResultStandings();
+    Net.resultStamp = stamp;
+  }
+}
+
+function netStep(dt) {
+  if (!Net.inRace || !G.player) return;
+  Net.sendAcc += dt;
+  if (Net.sendAcc >= 0.05) {
+    Net.sendAcc %= 0.05;
+    netSend({ type: 'input', input: { accel: KEY.accel, brake: KEY.brake, left: KEY.left,
+      right: KEY.right, drift: KEY.drift } });
+  }
+  if (G.state === 'racing' && !G.player.finished) {
+    G.raceTime += dt;
+    playerControl(G.player);
+    stepVehicle(G.player, dt);
+  }
+  for (let i = 0; i < G.cars.length; i++) {
+    const car = G.cars[i], target = car._netTarget;
+    if (car === G.player || !target) continue;
+    car.x = damp(car.x, target.x, 12, dt); car.z = damp(car.z, target.z, 12, dt);
+    car.yaw = wrapPi(car.yaw + wrapPi(target.yaw - car.yaw) * (1 - Math.exp(-12 * dt)));
+  }
+}
+
+function netBindUI() {
+  const address = document.getElementById('netAddress');
+  if (address) address.placeholder = netDefaultAddress();
+  const bind = function (id, action) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', action);
+  };
+  bind('btnNetCreate', function () { netConnect('create'); });
+  bind('btnNetJoin', function () { netConnect('join'); });
+  bind('btnNetStart', function () { netSend({ type: 'start' }); });
+  bind('btnNetLeave', function () { netDisconnect(); netStatus('已离开房间。'); });
+  bind('btnNetExit', function () { netExitToMenu('已退出联机。'); });
+  netControls();
 }
 
 /* ===== 78_ghost.js ===== */
@@ -5643,7 +5755,8 @@ function ghostEndLap(lapT, isBest, model, car) {
 }
 
 /* ------------------------------ 本地存档 ------------------------------ */
-function ghostLocalKey(track) { return 'racing3d.ghost.v1.' + (track || onlineTrackId()); }
+function ghostLocalKey(track) { return 'racing3d.ghost.' + CFG.PHYSICS_VERSION + '.' + (track || onlineTrackId()); }
+function ghostPickKey() { return 'racing3d.ghostPick.' + CFG.PHYSICS_VERSION; }
 
 function ghostSaveLocal(track, o) {
   Ghost.local[track] = o;
@@ -5670,6 +5783,7 @@ function ghostDispose() {
   if (Ghost.materials) Ghost.materials.forEach(function (m) { if (m.dispose) m.dispose(); });
   Ghost.materials = [];
   Ghost.meshModel = null;
+  Ghost.visualModel = null;
   Ghost.pose = null;
   Ghost.play = null;
   Ghost.clock = 0;
@@ -5700,19 +5814,26 @@ function ghostBuildMesh(model) {
     o.material = Array.isArray(o.material) ? cloned : cloned[0];
   });
   Ghost.materials = Array.from(materials.values());
+  if (m.bodyMat && m.bodyMat.dispose) m.bodyMat.dispose();
+  if (m.tailMat && m.tailMat.dispose) m.tailMat.dispose();
   scene.add(m.group);
   m.group.visible = false;      // 过起点线(开始计圈)之前不显示, 免得在开场卡片后面杵着
   Ghost.mesh = m.group;
   Ghost.meshModel = m;
+  Ghost.visualModel = model || 'coupe';
+  // Compile transparent materials while choosing the ghost, before the race clock.
+  if (typeof renderer !== 'undefined' && renderer && typeof camera !== 'undefined' && camera &&
+      typeof renderer.compile === 'function') renderer.compile(scene, camera);
 }
 
 /** 装载一条幽灵（解码 + 建模型）; name 只用于显示 */
 function ghostSet(o, name) {
   if (!o) { ghostDispose(); Ghost.state = '这条榜还没有幽灵数据'; return false; }
-  /* 顺序很重要: ghostBuildMesh 内部先 ghostDispose(), 而它会清空 Ghost.play,
-     所以必须"先建模、后挂 play"(否则刚装上就被自己清掉 —— 自检里踩过一次) */
-  ghostBuildMesh(o.model);
+  // A new personal best changes the replay, while retaining the same GPU materials.
+  if (!Ghost.mesh || Ghost.visualModel !== (o.model || 'coupe')) ghostBuildMesh(o.model);
   if (!Ghost.mesh) { Ghost.state = '幽灵模型加载失败'; return false; }
+  Ghost.pose = null;
+  Ghost.mesh.visible = false;
   Ghost.play = o;
   Ghost.play.name = name || '';
   Ghost.playSeconds = o.lapMs / 1000;
@@ -5780,7 +5901,7 @@ async function ghostFetch(name, track) {
     return false;
   }
   Ghost.state = '正在读取 ' + name + ' 的幽灵…';
-  const r = await onlineReq('/api/ghost?game=' + Online.GAME + '&track=' + encodeURIComponent(tid) +
+  const r = await onlineReq('/api/ghost?game=' + Online.GAME + '&track=' + encodeURIComponent(onlineBoardId(tid)) +
     '&name=' + encodeURIComponent(name), { method: 'GET' }, false);
   if (requestId !== Ghost.requestId || tid !== onlineTrackId()) return false;
   if (!r.ok) { Ghost.state = '读不到幽灵：' + onlineErrText(r); return false; }
@@ -5791,7 +5912,7 @@ async function ghostFetch(name, track) {
     const mine = ghostLoadLocal(tid);
     if (mine) {
       Ghost.pick = 'mine';
-      try { window.localStorage.setItem('racing3d.ghostPick', 'mine'); } catch (e2) { /* 忽略 */ }
+      try { window.localStorage.setItem(ghostPickKey(), 'mine'); } catch (e2) { /* 忽略 */ }
       const ok = ghostUseLocal();
       /* 说明白发生了什么: 别让玩家以为"点了没反应" */
       if (ok) Ghost.state = name + ' 这条榜还没有幽灵数据 → 已切到「我的最佳」（' +
@@ -5815,7 +5936,7 @@ async function ghostProbe(name, track) {
   const tid = track || onlineTrackId();
   if (!name || typeof fetch !== 'function' || !onlineBases().length) return null;
   try {
-    const r = await onlineReq('/api/ghost?game=' + Online.GAME + '&track=' + encodeURIComponent(tid) +
+    const r = await onlineReq('/api/ghost?game=' + Online.GAME + '&track=' + encodeURIComponent(onlineBoardId(tid)) +
       '&name=' + encodeURIComponent(name), { method: 'GET' }, false);
     if (!r.ok) return null;
     const gh = r.data && r.data.ghost;
@@ -5831,7 +5952,7 @@ async function ghostProbe(name, track) {
   const upload = (async function () {
     const r = await onlineReq('/api/ghost', {
       method: 'POST',
-      body: JSON.stringify({ game: Online.GAME, track: p.track, lap: p.lap, data: p.data })
+      body: JSON.stringify({ game: Online.GAME, track: onlineBoardId(p.track), lap: p.lap, data: p.data })
     }, true);
     if (r.ok && r.data && r.data.ok) {
       if (Ghost.pending === p) {
@@ -5854,7 +5975,7 @@ async function ghostProbe(name, track) {
 function ghostSetPick(v) {
   Ghost.requestId++;
   Ghost.pick = v || 'off';
-  try { window.localStorage.setItem('racing3d.ghostPick', Ghost.pick); } catch (e) { /* 忽略 */ }
+  try { window.localStorage.setItem(ghostPickKey(), Ghost.pick); } catch (e) { /* 忽略 */ }
   let result;
   if (Ghost.pick === 'off') { ghostDispose(); Ghost.state = '不跟幽灵跑'; }
   else if (Ghost.pick === 'mine') result = ghostUseLocal();
@@ -5865,7 +5986,7 @@ function ghostSetPick(v) {
 
 function ghostLoadPick() {
   let v = 'off';
-  try { v = window.localStorage.getItem('racing3d.ghostPick') || 'off'; } catch (e) { v = 'off'; }
+  try { v = window.localStorage.getItem(ghostPickKey()) || 'off'; } catch (e) { v = 'off'; }
   Ghost.best = ghostLoadLocal(onlineTrackId());
   ghostRestorePending();
   return ghostSetPick(v);
@@ -5898,13 +6019,15 @@ function ghostOnTrackChange() {
 
 let renderer = null, scene = null, camera = null, sunLight = null;
 
+const RACE_OPTIONS = { aiCount: CFG.AI_COUNT };
+
 const G = {
   cars: [], ai: [], player: null,
   state: 'intro',                    // intro | countdown | racing | finished | paused
   countdownT: 0, cdShown: -1,
   raceTime: 0, accum: 0, lastT: 0, rankTimer: 0,
   attractT: 0, fps: 0, fpsAcc: 0, fpsFrames: 0,
-  standings: [], finishOrder: []
+  standings: [], finishOrder: [], runValid: true, droppedTime: 0
 };
 
 const KEY = { accel: false, brake: false, left: false, right: false, drift: false };
@@ -6013,6 +6136,18 @@ function bindInput() {
   if (b3) b3.addEventListener('click', function () { togglePause(false); }, false);
   if (b4) b4.addEventListener('click', function () { backToMenu(); }, false);
   if (b5) b5.addEventListener('click', function () { backToMenu(); }, false);
+  const opponentMode = document.getElementById('opponentMode');
+  if (opponentMode) opponentMode.addEventListener('change', function () {
+    if (Net.phase !== 'offline') {
+      this.value = 'ai';
+      uiFlash('联机房间不支持纯玩家练习', '请先离开房间', '#ffd76a', 1.8);
+      return;
+    }
+    RACE_OPTIONS.aiCount = this.value === 'solo' ? 0 : CFG.AI_COUNT;
+    uiUpdateOpponentMode();
+    setupRace();
+    G.state = 'intro';
+  }, false);
   const btns = document.querySelectorAll('.tbtn');
   for (let i = 0; i < btns.length; i++) {
     (function (el) {
@@ -6042,6 +6177,7 @@ function bindInput() {
   }
   /* 官方排行榜的按钮/面板（站点模式下才有内容，单文件模式会显示"本地模式"提示） */
   onlineBindUI();
+  netBindUI();
   onlineRenderGhostPick();      // 幽灵对手选择器（关 / 我的最佳 / 榜上前 3 名）
 }
 
@@ -6058,6 +6194,7 @@ function disposeGroup(g) {
 
 /** 切换赛道: 重建赛道数据 + 世界几何 + 重新发车 (车辆模型/贴图全部复用, 不重载) */
 function selectTrack(mode) {
+  if (Net.phase === 'lobby' || Net.phase === 'race') { netStatus('请先离开房间再切换赛道。'); return; }
   if (!TRACK_DEFS[mode]) return;
   CFG.TRACK_MODE = mode;
   buildTrackData();                                  // 重建中心线/曲率/AI速度曲线
@@ -6097,6 +6234,14 @@ function playerControl(car) {
 /* ------------------------------ 比赛初始化 ------------------------------ */
 const SCRATCH_COLOR = new THREE.Color(0x6d6a66);   // 划痕/磨损后的车漆颜色
 
+function disposeCarVisual(car) {
+  if (car.group) scene.remove(car.group);
+  // Geometry and the other materials belong to the shared car library.
+  if (car.bodyMat && car.bodyMat.dispose) car.bodyMat.dispose();
+  if (car.tailMat && car.tailMat.dispose) car.tailMat.dispose();
+  car.group = null; car.bodyMat = null; car.tailMat = null;
+}
+
 function newCarVisual(v, color) {
   const m = createCar(color, v.model);
   v.group = m.group; v.chassis = m.chassis; v.wheels = m.wheels;
@@ -6107,23 +6252,28 @@ function newCarVisual(v, color) {
 
 /* ------------------------------ 换车 (只换外观, 物理与赛道不变) ------------------------------ */
 function selectCar(id) {
+  if (Net.phase === 'lobby' || Net.phase === 'race') { netStatus('请先离开房间再切换车型。'); return; }
   if (!CAR_GEO[id]) return;
   CAR_CHOICE.now = id;
   const p = G.player;
   p.model = id;
   p.spec = carSpecOf(id);      // 车型差异化: 换车 = 换一套物理规格(动力/极速/抓地/漂移)
-  if (p.group) scene.remove(p.group);
+  disposeCarVisual(p);
   newCarVisual(p, PLAYER.COLOR);
   syncCarVisual(p, 0.016);
   camReset(p);
   updateCarPickUI();
+  uiLoadBest();
+  Online.board = []; Online.recordLap = 0; Online.boardTrack = '';
+  onlineRefreshHud(); ghostOnTrackChange(); onlineRenderGhostPick();
+  if (onlineAvailable()) onlineFetchBoard();
 }
 
 function carSpecLine(id) {
   const m = carSpecMul(id);
   const pct = function (v) { return (v >= 1 ? '+' : '') + Math.round((v - 1) * 100) + '%'; };
   return '动力 ' + pct(m.POWER) + ' · 极速 ' + pct(m.VMAX) + ' · 抓地 ' + pct(m.GRIP) +
-    ' · 转向 ' + pct(m.STEER) + ' · 漂移 ' + pct(m.DRIFT) + (m.note ? ' ｜ ' + m.note : '');
+    ' · 转向 ' + pct(m.STEER) + ' · 手刹滑移 ' + pct(m.DRIFT) + (m.note ? ' ｜ ' + m.note : '');
 }
 
 function updateCarPickUI() {
@@ -6137,17 +6287,17 @@ function updateCarPickUI() {
 
 /* ------------------------------ AI 难度档 ------------------------------
    三档只改 AI 对手(玩家手感/物理完全不受影响)，对应 CFG.AI_TUNE:
-   休闲=慢半拍不漂移 / 标准=走内线+弯里漂移 / 硬核=更快更晚刹车 */
+   休闲=反应慢 / 标准=正常走线 / 硬核=更快更晚刹车 */
 const DIFF_DEFS = {
-  easy: { name: '休闲', desc: 'AI 慢半拍 · 不漂移 · 刹车早' },
-  normal: { name: '标准', desc: 'AI 会走内线也会漂移，正常速度' },
+  easy: { name: '休闲', desc: 'AI 反应较慢 · 较早刹车' },
+  normal: { name: '标准', desc: 'AI 会选择走线并寻找超车机会' },
   hard: { name: '硬核', desc: 'AI 更快 · 抢线更凶 · 刹车更晚' }
 };
 const DIFF_KEY = 'racing3d.diff';
 
 function updateDiffPickUI() {
   const def = DIFF_DEFS[CFG.AI_DIFFICULTY] || DIFF_DEFS.normal;
-  const btns = document.querySelectorAll('.dbtn');
+  const btns = document.querySelectorAll('.dbtn[data-diff]');
   for (let i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('on', btns[i].getAttribute('data-diff') === CFG.AI_DIFFICULTY);
   }
@@ -6199,7 +6349,7 @@ function setupRace() {
   /* 比赛圈数跟随当前赛道 */
   CFG.RACE_LAPS = trackDef().laps;
   /* 清理旧车 */
-  for (let i = 0; i < G.cars.length; i++) if (G.cars[i].group) scene.remove(G.cars[i].group);
+  for (let i = 0; i < G.cars.length; i++) disposeCarVisual(G.cars[i]);
   G.cars = []; G.ai = []; G.finishOrder = [];
 
   /* 玩家 */
@@ -6207,8 +6357,8 @@ function setupRace() {
   newCarVisual(p, PLAYER.COLOR);
   G.player = p;
 
-  /* AI: 5 台车各用一种车型 (配色沿用原设定) */
-  for (let i = 0; i < CFG.AI_COUNT; i++) {
+  /* AI: 按比赛设置创建；0 台时就是纯玩家单车练习 */
+  for (let i = 0; i < RACE_OPTIONS.aiCount; i++) {
     const v = createVehicle({
       name: CFG.AI_NAMES[i], color: CFG.AI_COLORS[i], isAI: true, skill: CFG.AI_SKILLS[i],
       model: CAR_CHOICE.ai[i % CAR_CHOICE.ai.length]
@@ -6218,19 +6368,21 @@ function setupRace() {
     G.ai.push(v);
   }
 
-  /* 发车顺序: 最快的 AI 在杆位, 玩家第 5 位发车 (既有挑战又追得上) */
-  const grid = [G.ai[0], G.ai[1], G.ai[2], G.ai[3], G.player, G.ai[4]];
+  /* 默认模式保持原有发车位；纯玩家模式把玩家放在起点中心 */
+  const grid = RACE_OPTIONS.aiCount === 0
+    ? [G.player]
+    : [G.ai[0], G.ai[1], G.ai[2], G.ai[3], G.player, G.ai[4]];
   G.cars = grid;
   for (let i = 0; i < grid.length; i++) {
     const row = (i / 2) | 0, col = i % 2;
-    const s = -(8 + row * CFG.GRID_GAP + (col ? CFG.GRID_GAP * 0.45 : 0));
-    const lat = col ? CFG.GRID_SIDE : -CFG.GRID_SIDE;
+    const s = RACE_OPTIONS.aiCount === 0 ? 0 : -(8 + row * CFG.GRID_GAP + (col ? CFG.GRID_GAP * 0.45 : 0));
+    const lat = RACE_OPTIONS.aiCount === 0 ? 0 : (col ? CFG.GRID_SIDE : -CFG.GRID_SIDE);
     placeVehicle(grid[i], s, lat);
     resetCarRaceState(grid[i]);
     syncCarVisual(grid[i], 0.016);
   }
 
-  G.raceTime = 0; G.accum = 0; G.rankTimer = 0; G.attractT = 0;
+  G.raceTime = 0; G.accum = 0; G.rankTimer = 0; G.attractT = 0; G.runValid = true; G.droppedTime = 0;
   updateRanking();
   uiShowCard('start');
   uiUpdate(G.player, 'intro', 0, G.player.pos, G.cars.length);
@@ -6238,6 +6390,7 @@ function setupRace() {
 }
 
 function startRace() {
+  if (Net.phase !== 'offline') { netStatus('房间比赛请由房主点击「房主发车」。'); return; }
   uiShowCard(null);
   G.state = 'countdown';
   G.countdownT = CFG.COUNTDOWN;
@@ -6247,6 +6400,7 @@ function startRace() {
 }
 
 function restartRace() {
+  if (Net.phase !== 'offline') { uiFlash('联机比赛不能本机重开', '请退出房间后重新创建', '#ffd76a', 2); return; }
   setupRace();
   startRace();
 }
@@ -6255,6 +6409,7 @@ function restartRace() {
     结算页与暂停页都能按 M/点按钮, 直接回到开场卡片换赛道/换车/改难度, 不用刷新 */
 function backToMenu() {
   if (G.state !== 'finished' && G.state !== 'paused' && G.state !== 'intro') return;
+  if (Net.phase !== 'offline') netDisconnect();
   G.state = 'intro';
   setupRace();                 // 重新摆车 + 计时清零 + 内部已显示开场卡片
   camReset(G.player);
@@ -6266,6 +6421,7 @@ function backToMenu() {
 }
 
 function togglePause(force) {
+  if (Net.inRace) { uiFlash('联机比赛无法暂停', '可使用左下角按钮退出房间', '#ffd76a', 2); return; }
   const want = (force === undefined) ? (G.state === 'racing' || G.state === 'countdown') : force;
   if (want && (G.state === 'racing' || G.state === 'countdown')) {
     G.stateBefore = G.state;
@@ -6279,19 +6435,20 @@ function togglePause(force) {
 }
 
 /* ------------------------------ 圈数 / 名次 ------------------------------ */
-function updateLap(car) {
+function updateLap(car, crossingTime) {
+  const eventTime = crossingTime === undefined ? G.raceTime : crossingTime;
   if (car.finished) return;
   if (car.prog < car.nextSplit) return;
   if (car.nextSplit === 0) {
-    car.lapStartTime = G.raceTime;               // 首次过起点线 => 开始计圈
+    car.lapStartTime = eventTime;               // 首次过起点线 => 开始计圈
     car.nextSplit = TRACK.len;
     if (car === G.player) {
       uiBanner('第 1 圈', '#8fe3ff');
       ghostBeginLap(car.model, car);             // 从过线位置和 t=0 开始录
     }
   } else {
-    const lapT = G.raceTime - car.lapStartTime;
-    car.lapStartTime = G.raceTime;
+    const lapT = eventTime - car.lapStartTime;
+    car.lapStartTime = eventTime;
     car.lastLap = lapT;
     car.lapTimes.push(lapT);
     const isBest = (car.bestLap <= 0 || lapT < car.bestLap);
@@ -6300,30 +6457,39 @@ function updateLap(car) {
     car.nextSplit += TRACK.len;
     if (car === G.player) {
       const worldBest = (UI.best <= 0 || lapT < UI.best);
-      if (isBest) {
+      if (isBest && G.runValid) {
         if (worldBest) { UI.best = lapT; uiSaveBest(); }
         uiSetBest(UI.best, true);
       }
-      if (isBest) uiFlash('NEW BEST  ' + fmtTime(lapT), '第 ' + car.lap + ' 圈 · 刷新最佳纪录', '#ffd76a', 2.4);
-      else uiBanner('第 ' + car.lap + ' 圈   ' + fmtTime(lapT), '#bfe0ff');
-      ghostEndLap(lapT, isBest, car.model, car);
+      if (isBest && G.runValid) uiFlash('NEW BEST  ' + fmtTime(lapT), '第 ' + car.lap + ' 圈 · 刷新最佳纪录', '#ffd76a', 2.4);
+      else uiBanner('第 ' + car.lap + ' 圈   ' + fmtTime(lapT) + (G.runValid ? '' : ' · 不计纪录'), '#bfe0ff');
+      ghostEndLap(lapT, isBest && G.runValid, car.model, car);
       /* 关键: **每一圈**都要重新开始录 —— 以前只在第一次过线时启动录制,
          于是只有第 1 圈能变成幽灵, 第 2/3 圈跑出个人最佳反而存不下来(玩家会觉得"幽灵模式没生效") */
       if (car.lap < CFG.RACE_LAPS) ghostBeginLap(car.model, car);
     }
     if (car.lap >= CFG.RACE_LAPS) {
       car.finished = true;
-      car.finishTime = G.raceTime;
+      car.finishTime = eventTime;
       car.finishPos = G.finishOrder.length + 1;   // 名次 = 冲线先后顺序
       G.finishOrder.push(car);
       if (car === G.player) finishRace();
+      else if (G.state === 'finished') {
+        updateRanking();
+        refreshResultStandings();
+      }
     }
   }
 }
 
 function updateRanking() {
   const arr = G.cars.slice();
-  arr.sort(function (a, b) { return b.prog - a.prog; });
+  arr.sort(function (a, b) {
+    if (!!a.disconnected !== !!b.disconnected) return a.disconnected ? 1 : -1;
+    if (a.finished !== b.finished) return a.finished ? -1 : 1;
+    if (a.finished) return a.finishPos - b.finishPos;
+    return b.prog - a.prog;
+  });
   for (let i = 0; i < arr.length; i++) arr[i].pos = i + 1;
   /* 玩家冲线后冻结其名次, 不再被冷却圈影响 */
   if (G.player.finished && G.player.finishPos) G.player.pos = G.player.finishPos;
@@ -6336,15 +6502,41 @@ function finishRace() {
   showResults();
 }
 
-function showResults() {
+function refreshResultStandings() {
   /* 最终名次 = 已冲线车辆按冲线顺序 + 未完赛车辆按进度 */
   const arr = G.finishOrder.slice();
   const rest = G.cars.filter(function (c) { return !c.finished; });
-  rest.sort(function (a, b) { return b.prog - a.prog; });
+  rest.sort(function (a, b) {
+    if (!!a.disconnected !== !!b.disconnected) return a.disconnected ? 1 : -1;
+    return b.prog - a.prog;
+  });
   for (let i = 0; i < rest.length; i++) arr.push(rest[i]);
 
   const p = G.player;
   const winner = arr[0];
+  let html = '';
+  for (let i = 0; i < arr.length; i++) {
+    const c = arr[i];
+    let badge = 'b-plain';
+    if (i === 0) badge = 'b-gold'; else if (i === 1) badge = 'b-silver'; else if (i === 2) badge = 'b-bronze';
+    let gap;
+    if (c.disconnected) gap = '已退出';
+    else if (c === winner) gap = '—';
+    else if (c.finished && winner.finished) gap = fmtDelta(c.finishTime - winner.finishTime);
+    else gap = '落后 ' + Math.max(0, Math.round(winner.prog - c.prog)) + ' m';
+    const swatch = '#' + ('000000' + c.color.toString(16)).slice(-6);
+    html += '<tr class="' + (c === p ? 'me' : '') + '">' +
+      '<td><span class="badge ' + badge + '">P' + (i + 1) + '</span></td>' +
+      '<td><span style="display:inline-block;width:11px;height:11px;border-radius:3px;' +
+      'background:' + swatch + ';margin-right:8px;vertical-align:middle"></span>' + onlineEsc(c.name) + '</td>' +
+      '<td class="n">' + fmtTime(c.bestLap) + '</td>' +
+      '<td class="n">' + gap + '</td></tr>';
+  }
+  UI.e.resBody.innerHTML = html;
+}
+
+function showResults() {
+  const p = G.player;
   UI.e.resPos.textContent = 'P' + (p.finishPos || p.pos);
   UI.e.resTotal.textContent = fmtTime(p.finishTime);
   UI.e.resBest.textContent = fmtTime(p.bestLap);
@@ -6353,25 +6545,7 @@ function showResults() {
   UI.e.resTitle.textContent = rp === 1 ? '🏆 冠军！' : (rp <= 3 ? '登上领奖台！' : '比赛结束');
   UI.e.resSub.textContent = '赛道：' + trackDef().name + ' · 共 ' + CFG.RACE_LAPS +
     ' 圈 · ' + TRACK.len.toFixed(0) + ' 米/圈';
-
-  let html = '';
-  for (let i = 0; i < arr.length; i++) {
-    const c = arr[i];
-    let badge = 'b-plain';
-    if (i === 0) badge = 'b-gold'; else if (i === 1) badge = 'b-silver'; else if (i === 2) badge = 'b-bronze';
-    let gap;
-    if (c === winner) gap = '—';
-    else if (c.finished && winner.finished) gap = fmtDelta(c.finishTime - winner.finishTime);
-    else gap = '落后 ' + Math.max(0, Math.round(winner.prog - c.prog)) + ' m';
-    const swatch = '#' + ('000000' + c.color.toString(16)).slice(-6);
-    html += '<tr class="' + (c === p ? 'me' : '') + '">' +
-      '<td><span class="badge ' + badge + '">P' + (i + 1) + '</span></td>' +
-      '<td><span style="display:inline-block;width:11px;height:11px;border-radius:3px;' +
-      'background:' + swatch + ';margin-right:8px;vertical-align:middle"></span>' + c.name + '</td>' +
-      '<td class="n">' + fmtTime(c.bestLap) + '</td>' +
-      '<td class="n">' + gap + '</td></tr>';
-  }
-  UI.e.resBody.innerHTML = html;
+  refreshResultStandings();
   /* 跟幽灵的对比（选了幽灵对手才有）—— 这就是"那时候我跑得真快"的地方 */
   if (UI.e.resGhost) {
     if (Ghost.play && Ghost.play.lapMs > 0 && p.bestLap > 0) {
@@ -6391,14 +6565,25 @@ function showResults() {
 
 /* ------------------------------ 模拟 ------------------------------ */
 function simulate(dt) {
+  if (Net.inRace) { netStep(dt); return; }
   /* 玩家冲线后 AI 仍在继续跑, 因此比赛时钟必须继续走 */
   if (G.state !== 'racing' && G.state !== 'finished') return;
   G.raceTime += dt;
   playerControl(G.player);
   for (let i = 0; i < G.ai.length; i++) aiControl(G.ai[i], G.cars, dt);
-  for (let i = 0; i < G.cars.length; i++) stepVehicle(G.cars[i], dt);
+  for (let i = 0; i < G.cars.length; i++) {
+    G.cars[i]._prevProg = G.cars[i].prog;
+    stepVehicle(G.cars[i], dt);
+  }
   resolveCarCollisions(G.cars, dt);
-  for (let i = 0; i < G.cars.length; i++) updateLap(G.cars[i]);
+  const crossing = G.cars.filter(function (c) { return !c.finished && c.prog >= c.nextSplit; });
+  crossing.forEach(function (c) {
+    const travelled = c.prog - c._prevProg;
+    c._crossingTime = G.raceTime - dt + dt * (travelled > 0
+      ? clamp((c.nextSplit - c._prevProg) / travelled, 0, 1) : 1);
+  });
+  crossing.sort(function (a, b) { return a._crossingTime - b._crossingTime; });
+  for (let i = 0; i < crossing.length; i++) updateLap(crossing[i], crossing[i]._crossingTime);
   if (G.state === 'finished') updateRanking();
   /* 幽灵: 录制玩家这一圈 + 回放对手幽灵（都用"本圈已经跑了多久"做时钟） */
   if (G.player.nextSplit > 0 && !G.player.finished) {
@@ -6412,6 +6597,7 @@ function simulate(dt) {
 
 /* 倒计时推进 (与物理步长无关, 用真实 dt) */
 function stepCountdown(dt) {
+  if (Net.inRace) return;
   if (G.state !== 'countdown') return;
   G.countdownT -= dt;
   const el = CFG.COUNTDOWN - G.countdownT;
@@ -6499,6 +6685,7 @@ function render(dt) {
   if (UI.e.speed) uiUpdate(G.player, G.state, G.raceTime, G.player.pos, G.cars.length);
   fxUpdate(dt, G.cars, camera, renderer);
   renderer.render(scene, camera);
+  qualityStep(renderer, dt, G.state === 'racing' && !document.hidden);
 
   if (UI.e.loading && !UI.e.loading.classList.contains('hide')) UI.e.loading.classList.add('hide');
 }
@@ -6507,9 +6694,18 @@ function render(dt) {
 function loop(now) {
   requestAnimationFrame(loop);
   const t = now * 0.001;
-  let dt = t - G.lastT;
+  let dt = G.lastT ? t - G.lastT : 0;
   G.lastT = t;
   if (!isFinite(dt) || dt <= 0) dt = 0;
+  if (!Net.inRace && G.state === 'racing') {
+    const usable = Math.min(dt, 0.1);
+    G.droppedTime += Math.max(0, dt - usable) +
+      Math.max(0, G.accum + usable - CFG.FIXED_DT * CFG.MAX_SUBSTEPS);
+    if (G.runValid && G.droppedTime > 0.1) {
+      uiFlash('帧率过低', '本局不计入最佳纪录', '#ffd76a', 2.4);
+      G.runValid = false;
+    }
+  }
   if (dt > 0.1) dt = 0.1;
 
   G.fpsAcc += dt; G.fpsFrames++;
@@ -6535,7 +6731,7 @@ function loop(now) {
 function boot() {
   /* --- 渲染器 --- */
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CFG.PIXEL_RATIO_MAX));
+  qualityInit(renderer, window.devicePixelRatio || 1);
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (CFG.SHADOWS) {
     renderer.shadowMap.enabled = true;
@@ -6627,7 +6823,7 @@ window.RACEGAME = {
   groundHeightAt: groundHeightAt, GROUND: GROUND, trackHeightAtS: trackHeightAtS,
   Online: Online, onlineFetchBoard: onlineFetchBoard, onlineSubmit: onlineSubmit, onlineLogin: onlineLogin,
   onlineTogglePanel: onlineTogglePanel, onlineRenderPanel: onlineRenderPanel, onlineAvailable: onlineAvailable,
-  onlineAfterRace: onlineAfterRace, trackOrder: trackOrder,
+  onlineAfterRace: onlineAfterRace, onlineTrackId: onlineTrackId, onlineBoardId: onlineBoardId, trackOrder: trackOrder,
   onlineDoRegister: onlineDoRegister, onlineDoLogin: onlineDoLogin,
   showResults: showResults, finishRace: finishRace, backToMenu: backToMenu,
   startNow: function () { startRace(); G.state = 'racing'; G.raceTime = 0; },
@@ -6663,9 +6859,8 @@ try {
   throw err;
 }
 
-
 })();
 </script>
-<aside id="site-language" data-i18n-switch aria-label="Language" style="position:fixed;right:12px;bottom:12px;z-index:10000;padding:6px;background:var(--bg,#121110);border-radius:8px"></aside>
+<aside id="site-language" data-i18n-switch aria-label="Language" data-i18n-attr="aria-label:common.language" style="position:fixed;right:12px;bottom:12px;z-index:10000;padding:6px;background:var(--bg,#121110);border-radius:8px"></aside>
 </body>
 </html>
