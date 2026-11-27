@@ -1408,7 +1408,7 @@ I18N.define("zh-CN", {
   "racing.panel.speed": "最高速度",
   "racing.panel.refresh": "刷新",
   "racing.panel.close": "关 闭 (L)",
-  "racing.panel.hint": "新版按赛道和车型分榜；看榜无需登录，上榜需要账号。旧版成绩独立保留。",
+  "racing.panel.hint": "排行榜按<b>单圈</b>排名，越短越靠前；每个赛道各有一张榜。看榜不用登录，上榜要云账号（游戏厅注册的那个）。",
   "common.error.network": "网络错误，请检查连接后重试",
   "home.hosted.label": "HOSTED",
   "home.hosted.title": "代部署",
